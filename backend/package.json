@@ -13,6 +13,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx src/lib/seed.ts seed",
     "db:clean": "tsx src/lib/seed.ts clean",
+    "db:seed-test": "tsx src/lib/seed-test-enhanced.ts seed",
+    "db:seed-test-heavy": "tsx src/lib/seed-test-enhanced.ts seed '{\"teamsCount\":20,\"usersPerTeam\":100,\"devicesPerTeam\":50,\"telemetryEventsCount\":1000}'",
     "keys:generate": "tsx scripts/generate-keys.ts",
     "keys:jwt": "tsx scripts/generate-keys.ts jwt",
     "keys:policy": "tsx scripts/generate-keys.ts policy",
@@ -37,6 +39,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@faker-js/faker": "^10.1.0",
     "@types/bun": "latest",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",

@@ -2,7 +2,7 @@ import { db } from '../lib/db';
 import { devices, users, telemetryEvents } from '../lib/db/schema';
 import { logger } from '../lib/logger';
 import { env } from '../lib/config';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gte } from 'drizzle-orm';
 import { generateJTI, nowUTC } from '../lib/crypto';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -336,14 +336,14 @@ export class TelemetryService {
       today.setHours(0, 0, 0, 0);
       const todayEventsResult = await db.select({ count: telemetryEvents.id })
         .from(telemetryEvents)
-        .where('timestamp >= ?', today.toISOString());
+        .where(gte(telemetryEvents.timestamp, today.toISOString()));
 
       // Get active devices (devices with telemetry in last 24 hours)
       const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
       const activeDevicesResult = await db.select({ deviceId: telemetryEvents.deviceId })
         .from(telemetryEvents)
-        .where('timestamp >= ?', yesterday.toISOString())
-        .groupBy('deviceId');
+        .where(gte(telemetryEvents.timestamp, yesterday.toISOString()))
+        .groupBy(telemetryEvents.deviceId);
 
       // Get event type counts
       const eventTypeResults = await db.select({ eventType: telemetryEvents.eventType })

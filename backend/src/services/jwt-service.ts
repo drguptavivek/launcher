@@ -120,7 +120,6 @@ export class JWTService {
       expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
       await db.insert(jwtRevocations).values({
-        id: generateJTI(),
         jti,
         revokedAt: nowUTC(),
         expiresAt,
