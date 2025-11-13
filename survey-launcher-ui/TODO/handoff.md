@@ -226,6 +226,9 @@ All documentation files are located in the `docs/` directory:
 - **[docs/backend-ui-plan.md](../docs/backend-ui-plan.md)**: Complete integration strategy and architecture overview
 - **[docs/authentication-system.md](../docs/authentication-system.md)**: Detailed authentication flow and security features
 - **[docs/api-integration.md](../docs/api-integration.md)**: All API endpoints with usage examples and testing guides
+- **[docs/routes.md](../docs/routes.md)**: Complete route overview with backend API integration status
+- **[docs/user-management.md](../docs/user-management.md)**: Complete user management system documentation
+- **[docs/components.md](../docs/components.md)**: Available components library and usage guide
 - **[docs/Svelte5DesignPatterns.md](../docs/Svelte5DesignPatterns.md)**: Modern Svelte 5 patterns and best practices
 - **[docs/Tailwind.md](../docs/Tailwind.md)**: TailwindCSS 4 theming guide and design system
 
