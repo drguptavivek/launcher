@@ -262,6 +262,7 @@ export class AuthService {
           userId: userData.id,
           deviceId: device[0].id,
           sessionId,
+          teamId: userData.teamId,
           type: 'refresh',
         }),
       ]);

@@ -318,14 +318,28 @@ async function whoami(req: Request, res: Response) {
 // POST /api/v1/auth/heartbeat
 async function heartbeat(req: Request, res: Response) {
   try {
-    const { deviceId, sessionId, ts, battery } = req.body;
+    // Get sessionId from authenticated request
+    const sessionId = (req as any).session?.sessionId;
 
-    if (!deviceId || !sessionId || !ts) {
+    if (!sessionId) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: 'MISSING_SESSION',
+          message: 'No valid session found in token',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const { deviceId, ts, battery } = req.body;
+
+    if (!deviceId || !ts) {
       return res.status(400).json({
         ok: false,
         error: {
           code: 'MISSING_FIELDS',
-          message: 'deviceId, sessionId, and ts are required',
+          message: 'deviceId and ts are required',
           request_id: req.headers['x-request-id'],
         },
       });

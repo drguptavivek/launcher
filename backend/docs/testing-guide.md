@@ -66,7 +66,7 @@ POLICY_SIGN_PRIVATE_BASE64=4KY3pJ2+f4iL9qFGmMZT1WdgQnNKlQXBQpPx46N+Q3k=
 | Sr. | Test Name | Scenario | Database Type | Status | Details |
 |-----|-----------|----------|---------------|--------|---------|
 | 6 | **api.test.ts** | Complete API Flows | Live DB | ❌ **FAIL** (11/16 pass, 5 fail) | End-to-end authentication, policy retrieval, telemetry submission |
-| 7 | **auth.test.ts** | Authentication API | Live DB | ❌ **FAIL** (8/14 pass, 6 fail) | Login, logout, refresh, session management API endpoints |
+| 7 | **auth.test.ts** | Authentication API | Live DB | ✅ **PASS** (14/14 pass, 0 fail) | Login, logout, refresh, session management API endpoints |
 | 8 | **auth-debug.test.ts** | Authentication Debug | Live DB | ✅ **PASS** (1/1) | Debug authentication flow with detailed logging |
 | 9 | **security-rate-limiting.test.ts** | Rate Limiting & PIN Lockout | Live DB | ❌ **FAIL** (10/15 pass, 5 fail) | Device/IP rate limiting, PIN lockout, supervisor override limits |
 | 10 | **supervisor-override.test.ts** | Supervisor Override | Live DB | ✅ **PASS** (10/10) | Supervisor PIN verification, override management, audit logging |
@@ -110,11 +110,11 @@ npx vitest run --coverage     # Alternative coverage command
 ### Current Status (November 14, 2025)
 
 - **Total Tests**: 164
-- **Passing**: 120 (73.2%)
-- **Failing**: 44 (26.8%)
+- **Passing**: 134 (81.7%)
+- **Failing**: 30 (18.3%)
 - **Test Files**: 15 total
-- **Passing Files**: 6 files
-- **Failing Files**: 9 files
+- **Passing Files**: 7 files
+- **Failing Files**: 8 files
 
 ### Critical Path Analysis
 

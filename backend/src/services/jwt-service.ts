@@ -293,14 +293,19 @@ export class JWTService {
   /**
    * Refresh an access token using a refresh token
    */
-  static async refreshToken(refreshToken: string): Promise<TokenResult> {
+  static async refreshToken(refreshToken: string): Promise<{
+    valid: boolean;
+    accessToken?: string;
+    expiresAt?: Date;
+    error?: string;
+  }> {
     try {
       // Verify the refresh token
       const verification = await this.verifyToken(refreshToken, 'refresh');
       if (!verification.valid || !verification.payload) {
         return {
           valid: false,
-          error: 'Invalid refresh token',
+          error: verification.error || 'Invalid refresh token',
         };
       }
 
@@ -320,13 +325,20 @@ export class JWTService {
       }
 
       // Create new access token
-      return this.createToken({
+      const result = await this.createToken({
         userId: payload.sub,
         deviceId: payload['x-device-id'],
         sessionId: payload['x-session-id'],
         teamId: payload['x-team-id'],
         type: 'access',
       });
+
+      return {
+        valid: true,
+        accessToken: result.token,
+        expiresAt: result.expiresAt,
+      };
+
     } catch (error) {
       logger.error('JWT refresh token error', { error: error?.message || error });
       return {

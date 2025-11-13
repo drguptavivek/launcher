@@ -13,11 +13,11 @@ import { ensureFixedTestData, cleanupFixedTestData, TEST_CREDENTIALS, INVALID_CR
 describe('Authentication API Integration Tests', () => {
   let app: express.Application;
 
-  // Generate test UUIDs once
-  const teamId = uuidv4();
-  const deviceId = uuidv4();
-  const userId = uuidv4();
-  const supervisorPinId = uuidv4();
+  // Use fixed test UUIDs for consistent testing
+  const teamId = '550e8400-e29b-41d4-a716-446655440002';
+  const deviceId = '550e8400-e29b-41d4-a716-446655440001';
+  const userId = '550e8400-e29b-41d4-a716-446655440003';
+  const supervisorPinId = '550e8400-e29b-41d4-a716-446655440006';
 
   beforeAll(async () => {
     // Setup Express app once
@@ -173,15 +173,12 @@ describe('Authentication API Integration Tests', () => {
           pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
-      const sessionId = loginResponse.body.session.session_id;
+      const token = loginResponse.body.access_token;
 
-      // Logout
+      // Logout with authenticated token
       const logoutResponse = await request(app)
         .post('/api/v1/auth/logout')
-        .send({
-          sessionId,
-          userId
-        });
+        .set('Authorization', `Bearer ${token}`);
 
       expect(logoutResponse.status).toBe(200);
       expect(logoutResponse.body.ok).toBe(true);
@@ -189,16 +186,30 @@ describe('Authentication API Integration Tests', () => {
     });
 
     it('should reject logout for nonexistent session', async () => {
-      const response = await request(app)
-        .post('/api/v1/auth/logout')
+      // First login to get a valid token
+      const loginResponse = await request(app)
+        .post('/api/v1/auth/login')
         .send({
-          sessionId: uuidv4(),
-          userId
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
-      expect(response.status).toBe(404);
+      const token = loginResponse.body.access_token;
+
+      // Logout the session
+      await request(app)
+        .post('/api/v1/auth/logout')
+        .set('Authorization', `Bearer ${token}`);
+
+      // Try to logout again with the same token (session already ended)
+      const response = await request(app)
+        .post('/api/v1/auth/logout')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(response.status).toBe(401);
       expect(response.body.ok).toBe(false);
-      expect(response.body.error.code).toBe('SESSION_NOT_FOUND');
+      expect(response.body.error.code).toBe('SESSION_INACTIVE');
     });
   });
 
@@ -244,7 +255,7 @@ describe('Authentication API Integration Tests', () => {
   describe('POST /api/v1/auth/heartbeat', () => {
 
     it('should register heartbeat successfully', async () => {
-      // First login to get session
+      // First login to get session and token
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
         .send({
@@ -253,14 +264,14 @@ describe('Authentication API Integration Tests', () => {
           pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
-      const sessionId = loginResponse.body.session.session_id;
+      const token = loginResponse.body.access_token;
 
-      // Send heartbeat
+      // Send heartbeat with authenticated token
       const heartbeatResponse = await request(app)
         .post('/api/v1/auth/heartbeat')
+        .set('Authorization', `Bearer ${token}`)
         .send({
           deviceId,
-          sessionId,
           ts: new Date().toISOString(),
           battery: 0.85
         });
@@ -270,18 +281,35 @@ describe('Authentication API Integration Tests', () => {
     });
 
     it('should reject heartbeat for nonexistent session', async () => {
+      // First login to get a valid token
+      const loginResponse = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
+        });
+
+      const token = loginResponse.body.access_token;
+
+      // Logout the session to make it invalid
+      await request(app)
+        .post('/api/v1/auth/logout')
+        .set('Authorization', `Bearer ${token}`);
+
+      // Try to send heartbeat with the now-invalid token
       const response = await request(app)
         .post('/api/v1/auth/heartbeat')
+        .set('Authorization', `Bearer ${token}`)
         .send({
           deviceId,
-          sessionId: uuidv4(),
           ts: new Date().toISOString(),
           battery: 0.85
         });
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(401);
       expect(response.body.ok).toBe(false);
-      expect(response.body.error.code).toBe('SESSION_NOT_FOUND');
+      expect(response.body.error.code).toBe('SESSION_INACTIVE');
     });
   });
 });

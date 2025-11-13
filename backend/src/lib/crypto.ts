@@ -264,6 +264,7 @@ export class JWTUtils {
     userId: string;
     deviceId: string;
     sessionId: string;
+    teamId?: string;
   }): { token: string; expiresAt: Date } {
     const jti = generateJTI();
     const now = Math.floor(Date.now() / 1000);
@@ -296,6 +297,7 @@ export class JWTUtils {
         jti,
         'x-device-id': payload.deviceId,
         'x-session-id': payload.sessionId,
+        'x-team-id': payload.teamId || '',
         type: 'refresh',
       },
       env.JWT_REFRESH_SECRET,
