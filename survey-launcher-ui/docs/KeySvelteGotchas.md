@@ -91,6 +91,48 @@ Based on real-world implementation issues encountered during the SurveyLauncher 
   - Use `$derived.by(() => someSyncOperation)`
   - For async data, consider using SvelteKit's load functions instead
 
+### 11. **$derived with Function Expressions** ⭐ **NEW**
+- **Error**: Derived state showing as function string `() => { ... }` instead of computed value
+- **Real-world Issue**: `let userStatus = $derived(() => user.isActive ? 'Active' : 'Inactive')` displays as function text
+- **Root Cause**: `$derived` expects an expression, not a function. When passing a function, Svelte treats it as a literal function
+- **Recommended Fix**:
+  - Use `$derived.by(() => expression)` for function-style derived values
+  - Or use `$derived(expression)` for simple expressions
+  - **Example**: ✅ `let userStatus = $derived.by(() => user.isActive ? 'Active' : 'Inactive')`
+
+### 12. **Template Component Rendering in Svelte 5** ⭐ **NEW**
+- **Error**: `Unexpected token` when using components inside conditional expressions
+- **Real-world Issue**: `{showPin ? <EyeOff class="h-4 w-4" /> : <Eye class="h-4 w-4" />}` causes parse error
+- **Root Cause**: Svelte 5 template syntax doesn't support JSX-style component rendering in ternary expressions
+- **Recommended Fix**:
+  - Use Svelte's `{#if}` blocks for conditional component rendering
+  - **Example**:
+    ```svelte
+    {#if showPin}
+      <EyeOff class="h-4 w-4" />
+    {:else}
+      <Eye class="h-4 w-4" />
+    {/if}
+    ```
+
+### 13. **shadcn-svelte Component Dependencies** ⭐ **NEW**
+- **Error**: `Cannot find module '$lib/components/ui/badge'` or similar UI component errors
+- **Real-world Issue**: Some shadcn-svelte components may not be installed or available
+- **Root Cause**: Incomplete shadcn-svelte installation or missing component files
+- **Recommended Fix**:
+  - Use native HTML elements with Tailwind classes as fallbacks
+  - Create custom components when shadcn components aren't available
+  - **Example**: Replace `<Badge variant="success">` with `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">`
+
+### 14. **Deprecated Event Directives in Svelte 5** ⭐ **NEW**
+- **Error**: Warning about `on:submit` being deprecated
+- **Real-world Issue**: `Using 'on:submit' to listen to the submit event is deprecated. Use the event attribute 'onsubmit' instead`
+- **Root Cause**: Svelte 5 prefers native HTML event attributes over Svelte event directives for some events
+- **Recommended Fix**:
+  - Replace `on:submit|preventDefault={handleSubmit}` with `onsubmit={handleSubmit}`
+  - Handle preventDefault inside the handler function if needed
+  - **Example**: ✅ `<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>`
+
 ## 🛡 Prevention Strategies
 
 ### Development Checklist
@@ -102,6 +144,10 @@ Based on real-world implementation issues encountered during the SurveyLauncher 
 - [ ] Check for accessibility warnings and fix them
 - [ ] Use consistent TailwindCSS patterns
 - [ ] Test form submissions and event handlers
+- [ ] **NEW**: Verify `$derived` vs `$derived.by` usage for complex expressions
+- [ ] **NEW**: Check for JSX-style component rendering in templates
+- [ ] **NEW**: Verify shadcn-svelte component dependencies are installed
+- [ ] **NEW**: Update deprecated event directives to native HTML attributes
 
 ### Code Review Focus Areas
 - Import statements and file extensions
@@ -111,6 +157,10 @@ Based on real-world implementation issues encountered during the SurveyLauncher 
 - Form event handling
 - Responsive design implementation
 - Accessibility compliance
+- **NEW**: `$derived` vs `$derived.by` usage patterns
+- **NEW**: Template syntax for conditional component rendering
+- **NEW**: Component dependency management
+- **NEW**: Event directive vs attribute usage
 
 ## 🔧 Common Fix Patterns
 
@@ -121,6 +171,10 @@ Based on real-world implementation issues encountered during the SurveyLauncher 
 4. **State Management**: Convert to Svelte 5 runes syntax
 5. **Event Handling**: Use proper event modifiers
 6. **CSS Consistency**: Standardize on Tailwind utility classes
+7. **NEW**: Derived State Fixes: Convert `$derived(() => ...)` to `$derived.by(() => ...)`
+8. **NEW**: Template Syntax: Replace JSX-style conditionals with `{#if}` blocks
+9. **NEW**: Component Fallbacks: Replace missing shadcn components with custom Tailwind elements
+10. **NEW**: Event Attributes: Update `on:submit` to `onsubmit` for modern Svelte 5
 
 ---
 
