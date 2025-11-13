@@ -3,22 +3,11 @@
 
 import { getContext, setContext } from 'svelte';
 import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders, handleApiResponse } from '$lib/api';
-import { authUtils } from '$lib/api';
+import { authUtils } from '$lib/utils/auth.utils';
 import type { LoginRequest, LoginResponse, WhoamiResponse } from '$lib/api';
 
 // Authentication state interface
-interface AuthState {
-	isAuthenticated: boolean;
-	isLoading: boolean;
-	user: WhoamiResponse['user'] | null;
-	session: WhoamiResponse['session'] | null;
-	access_token: string | null;
-	refresh_token: string | null;
-	error: string | null;
-}
-
-// Create authentication store with Svelte 5 runes
-let authState = $state<AuthState>({
+const AuthState = {
 	isAuthenticated: false,
 	isLoading: false,
 	user: null,
@@ -26,10 +15,13 @@ let authState = $state<AuthState>({
 	access_token: null,
 	refresh_token: null,
 	error: null
-});
+};
+
+// Create authentication store with Svelte 5 runes
+let authState = $state(AuthState);
 
 // Direct API calls for authentication (simplified approach)
-async function loginApiCall(credentials: LoginRequest): Promise<LoginResponse> {
+async function loginApiCall(credentials) {
 	const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`, {
 		method: 'POST',
 		headers: {
@@ -43,7 +35,7 @@ async function loginApiCall(credentials: LoginRequest): Promise<LoginResponse> {
 	return handleApiResponse(response, data);
 }
 
-async function getCurrentUserApiCall(): Promise<WhoamiResponse> {
+async function getCurrentUserApiCall() {
 	const accessToken = authUtils.getAccessToken();
 	if (!accessToken) throw new Error('No access token');
 
@@ -56,7 +48,7 @@ async function getCurrentUserApiCall(): Promise<WhoamiResponse> {
 	return handleApiResponse(response, data);
 }
 
-async function logoutApiCall(): Promise<void> {
+async function logoutApiCall() {
 	const accessToken = authUtils.getAccessToken();
 	if (!accessToken) return;
 
@@ -77,7 +69,7 @@ export const auth = {
 	},
 
 	// Login action
-	async login(credentials: LoginRequest): Promise<boolean> {
+	async login(credentials) {
 		authState.isLoading = true;
 		authState.error = null;
 
@@ -95,7 +87,7 @@ export const auth = {
 			authState.error = null;
 
 			return true;
-		} catch (error: any) {
+		} catch (error) {
 			authState.isLoading = false;
 			authState.error = error.message || 'Login failed';
 			return false;
@@ -103,7 +95,7 @@ export const auth = {
 	},
 
 	// Logout action
-	async logout(): Promise<void> {
+	async logout() {
 		authState.isLoading = true;
 
 		try {
@@ -125,7 +117,7 @@ export const auth = {
 	},
 
 	// Initialize authentication state from cookies
-	async initialize(): Promise<void> {
+	async initialize() {
 		authState.isLoading = true;
 
 		try {
@@ -151,7 +143,7 @@ export const auth = {
 	},
 
 	// Clear error state
-	clearError(): void {
+	clearError() {
 		authState.error = null;
 	}
 };

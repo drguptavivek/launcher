@@ -7,28 +7,24 @@ export {
 	getCurrentUser,
 	logoutUser,
 	refreshToken,
-	endSession,
-	authUtils
+	endSession
 } from './auth.remote';
 
 // Supervisor remote functions
 export {
-	requestOverride,
-	supervisorUtils
+	requestOverride
 } from './supervisor.remote';
 
 // Policy remote functions
 export {
-	getDevicePolicy,
-	policyUtils
+	getDevicePolicy
 } from './policy.remote';
 
 // Telemetry remote functions
 export {
 	submitTelemetry,
 	getDeviceTelemetry,
-	getDeviceTelemetryStats,
-	telemetryUtils
+	getDeviceTelemetryStats
 } from './telemetry.remote';
 
 // Types
