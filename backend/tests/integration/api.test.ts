@@ -6,20 +6,21 @@ import { db } from '../../src/lib/db';
 import { teams, devices, users, userPins } from '../../src/lib/db/schema';
 import { hashPassword } from '../../src/lib/crypto';
 import { eq } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
 describe('API Integration Tests', () => {
   let app: express.Application;
+
+  // Generate test UUIDs once
+  const teamId = uuidv4();
+  const deviceId = uuidv4();
+  const userId = uuidv4();
 
   beforeEach(async () => {
     // Setup Express app
     app = express();
     app.use(express.json());
     app.use('/api/v1', apiRouter);
-
-    // Setup test data
-    const teamId = 'test-team-001';
-    const deviceId = 'test-device-001';
-    const userId = 'test-user-001';
 
     // Clean up existing test data
     await db.delete(userPins).where(eq(userPins.userId, userId));
@@ -32,6 +33,7 @@ describe('API Integration Tests', () => {
       id: teamId,
       name: 'Test Team',
       timezone: 'UTC',
+      stateId: 'MH01',
     });
 
     // Create test device
@@ -63,10 +65,6 @@ describe('API Integration Tests', () => {
 
   afterEach(async () => {
     // Clean up test data
-    const userId = 'test-user-001';
-    const deviceId = 'test-device-001';
-    const teamId = 'test-team-001';
-
     await db.delete(userPins).where(eq(userPins.userId, userId));
     await db.delete(users).where(eq(users.id, userId));
     await db.delete(devices).where(eq(devices.id, deviceId));
@@ -79,7 +77,7 @@ describe('API Integration Tests', () => {
         const response = await request(app)
           .post('/api/v1/auth/login')
           .send({
-            deviceId: 'test-device-001',
+            deviceId,
             userCode: 'test001',
             pin: '123456',
           });
@@ -89,14 +87,14 @@ describe('API Integration Tests', () => {
         expect(response.body.access_token).toBeDefined();
         expect(response.body.refresh_token).toBeDefined();
         expect(response.body.session).toBeDefined();
-        expect(response.body.session.user_id).toBe('test-user-001');
+        expect(response.body.session.user_id).toBe(userId);
       });
 
       it('should reject invalid credentials', async () => {
         const response = await request(app)
           .post('/api/v1/auth/login')
           .send({
-            deviceId: 'test-device-001',
+            deviceId,
             userCode: 'test001',
             pin: 'wrongpin',
           });
@@ -110,7 +108,7 @@ describe('API Integration Tests', () => {
         const response = await request(app)
           .post('/api/v1/auth/login')
           .send({
-            deviceId: 'test-device-001',
+            deviceId,
             userCode: 'test001',
             // Missing pin
           });
@@ -124,7 +122,7 @@ describe('API Integration Tests', () => {
         const response = await request(app)
           .post('/api/v1/auth/login')
           .send({
-            deviceId: 'nonexistent-device',
+            deviceId: uuidv4(), // Valid UUID format but doesn't exist
             userCode: 'test001',
             pin: '123456',
           });
@@ -142,7 +140,7 @@ describe('API Integration Tests', () => {
         const loginResponse = await request(app)
           .post('/api/v1/auth/login')
           .send({
-            deviceId: 'test-device-001',
+            deviceId,
             userCode: 'test001',
             pin: '123456',
           });
@@ -156,7 +154,7 @@ describe('API Integration Tests', () => {
           .set('Authorization', `Bearer ${accessToken}`);
 
         expect(response.status).toBe(200);
-        expect(response.body.user.id).toBe('test-user-001');
+        expect(response.body.user.id).toBe(userId);
         expect(response.body.user.code).toBe('test001');
         expect(response.body.session.session_id).toBeDefined();
       });
@@ -186,7 +184,7 @@ describe('API Integration Tests', () => {
         const loginResponse = await request(app)
           .post('/api/v1/auth/login')
           .send({
-            deviceId: 'test-device-001',
+            deviceId,
             userCode: 'test001',
             pin: '123456',
           });
@@ -234,18 +232,18 @@ describe('API Integration Tests', () => {
     describe('GET /api/v1/policy/:deviceId', () => {
       it('should return policy for valid device', async () => {
         const response = await request(app)
-          .get('/api/v1/policy/test-device-001');
+          .get(`/api/v1/policy/${deviceId}`);
 
         expect(response.status).toBe(200);
         expect(response.body.jws).toBeDefined();
         expect(response.body.payload).toBeDefined();
-        expect(response.body.payload.device_id).toBe('test-device-001');
+        expect(response.body.payload.device_id).toBe(deviceId);
         expect(response.body.payload.version).toBe(3);
       });
 
       it('should reject invalid device', async () => {
         const response = await request(app)
-          .get('/api/v1/policy/nonexistent-device');
+          .get(`/api/v1/policy/${uuidv4()}`); // Valid UUID format but doesn't exist
 
         expect(response.status).toBe(404);
         expect(response.body.ok).toBe(false);
@@ -275,7 +273,7 @@ describe('API Integration Tests', () => {
                 },
               },
             ],
-            device_id: 'test-device-001',
+            device_id: deviceId,
           });
 
         expect(response.status).toBe(200);
@@ -289,7 +287,7 @@ describe('API Integration Tests', () => {
           .post('/api/v1/telemetry')
           .send({
             // Missing events array
-            device_id: 'test-device-001',
+            device_id: deviceId,
           });
 
         expect(response.status).toBe(400);
@@ -308,7 +306,7 @@ describe('API Integration Tests', () => {
                 data: {},
               },
             ],
-            device_id: 'nonexistent-device',
+            device_id: uuidv4(), // Valid UUID format but doesn't exist
           });
 
         expect(response.status).toBe(404);
@@ -321,7 +319,7 @@ describe('API Integration Tests', () => {
           .post('/api/v1/telemetry')
           .send({
             events: [],
-            device_id: 'test-device-001',
+            device_id: deviceId,
           });
 
         expect(response.status).toBe(200);

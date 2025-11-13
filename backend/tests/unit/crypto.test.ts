@@ -81,9 +81,9 @@ describe('Crypto Utilities', () => {
       const withinSkew = new Date(now.getTime() + 60000); // 1 minute ahead
       const outsideSkew = new Date(now.getTime() + 300000); // 5 minutes ahead
 
-      expect(isWithinClockSkew(withinSkew, 180)).toBe(false); // 3 minutes allowed
-      expect(isWithinClockSkew(outsideSkew, 180)).toBe(false);
-      expect(isWithinClockSkew(withinSkew, 120)).toBe(true); // 2 minutes allowed
+      expect(isWithinClockSkew(withinSkew, 180)).toBe(true); // 1 minute < 3 minutes allowed
+      expect(isWithinClockSkew(outsideSkew, 180)).toBe(false); // 5 minutes > 3 minutes allowed
+      expect(isWithinClockSkew(withinSkew, 120)).toBe(true); // 1 minute < 2 minutes allowed
     });
 
     it('should calculate expiry timestamp correctly', () => {
@@ -140,8 +140,10 @@ describe('Crypto Utilities', () => {
       const payload = { test: 'data', version: 1 };
       const jws = signer.createJWS(payload);
 
-      // Tamper with the JWS
-      const tamperedJws = jws.replace('data', 'tampered');
+      // Tamper with the JWS by changing a character in the signature
+      const parts = jws.split('.');
+      const tamperedSignature = parts[2].slice(0, -1) + 'A'; // Change last character
+      const tamperedJws = `${parts[0]}.${parts[1]}.${tamperedSignature}`;
 
       const result = verifier.verifyJWS(tamperedJws);
       expect(result.valid).toBe(false);

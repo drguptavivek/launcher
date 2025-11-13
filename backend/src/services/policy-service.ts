@@ -121,8 +121,9 @@ export class PolicyService {
       await db.insert(policyIssues).values({
         id: issueId,
         deviceId,
-        policyVersion: this.POLICY_VERSION,
-        jws,
+        version: this.POLICY_VERSION.toString(),
+        jwsKid: policySigner.getPublicKey(),
+        policyData: payload,
         issuedAt: nowUTC(),
         expiresAt,
         ipAddress,

@@ -90,7 +90,7 @@ export class AuthService {
       // Check rate limiting for login attempts
       const rateLimitResult = await RateLimiter.checkLoginLimit(deviceId, ipAddress);
       if (!rateLimitResult.allowed) {
-        await this.recordLoginAttempt(deviceId, null, false, ipAddress, 'RATE_LIMITED');
+        // Don't record login attempt when userId is null - pin_attempts requires userId
         return {
           success: false,
           policyVersion: 0,
@@ -109,7 +109,7 @@ export class AuthService {
         .limit(1);
 
       if (device.length === 0) {
-        await this.recordLoginAttempt(deviceId, null, false, ipAddress, 'DEVICE_NOT_FOUND');
+        // Don't record login attempt when userId is null - pin_attempts requires userId
         return {
           success: false,
           policyVersion: 0,
@@ -127,7 +127,7 @@ export class AuthService {
         .limit(1);
 
       if (user.length === 0) {
-        await this.recordLoginAttempt(deviceId, null, false, ipAddress, 'USER_NOT_FOUND');
+        // Don't record login attempt when userId is null - pin_attempts requires userId
         return {
           success: false,
           policyVersion: 0,
@@ -225,12 +225,14 @@ export class AuthService {
       await db.insert(sessions).values({
         id: sessionId,
         userId: userData.id,
+        teamId: userData.teamId,
         deviceId: device[0].id,
         startedAt: nowUTC(),
         expiresAt,
         ipAddress,
         userAgent,
-        isActive: true,
+        status: 'open',
+        lastActivityAt: nowUTC(),
       });
 
       // Create JWT tokens
@@ -580,10 +582,16 @@ export class AuthService {
     ipAddress: string,
     reason: string
   ): Promise<void> {
+    // Only record attempts when we have a valid userId
+    // pin_attempts table requires userId to be non-null
+    if (!userId) {
+      return;
+    }
+
     try {
       await db.insert(pinAttempts).values({
         id: generateJTI(),
-        userId: userId || undefined,
+        userId,
         deviceId,
         attemptType: 'user_pin',
         success,
