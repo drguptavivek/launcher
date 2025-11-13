@@ -1,8 +1,45 @@
-# SurveyLauncher Android Prototype — Codex Task Pack
-Last-Updated: 2025-11-12 18:04:12Z
+# SurveyLauncher — Complete Mobile Device Management System
 
-Mode: Option A (Headwind stock + SurveyLauncher logic)
-Scope: Android launcher app only (daily login, time windows, supervisor override, GPS telemetry, policy verify/cache).
+Last-Updated: 2025-11-13 23:05:00Z
+
+**System Status**: Backend ✅ Complete | Admin Frontend ✅ Complete | Android App 🔄 In Development
+
+---
+
+## 🎯 **System Overview**
+SurveyLauncher is a comprehensive mobile device management (MDM) platform with three integrated components:
+
+1. **Backend Service** (Complete) - SvelteKit API with authentication, policy management, and telemetry
+2. **Admin Frontend** (Complete) - SvelteKit 5 web interface for device and user management
+3. **Android Launcher App** (Planned) - Custom kiosk launcher with GPS telemetry and policy enforcement
+
+---
+
+## 🔗 **Detailed Implementation Workflows**
+
+For comprehensive implementation documentation, see the individual workflow files in the [`workflows/`](./workflows/) directory:
+
+### **Core System Workflows**
+- **[User & Device Registration](./workflows/user-device-registration.md)** - Complete admin setup and user onboarding
+- **[Device Authentication](./workflows/device-authentication.md)** - Multi-factor authentication with JWT session management
+- **[Policy Distribution](./workflows/policy-distribution.md)** - Cryptographic policy signing and device enforcement
+- **[Telemetry Collection](./workflows/telemetry-collection.md)** - Real-time GPS tracking and data processing
+- **[Supervisor Override](./workflows/supervisor-override.md)** - Emergency access system with audit compliance
+- **[Data Flow Architecture](./workflows/data-flow-architecture.md)** - Complete system data flow and integration patterns
+
+Each workflow includes:
+- Complete Mermaid diagrams with dark/light mode compatibility
+- Step-by-step implementation with code examples
+- API specifications and database schemas
+- Security implementations and performance optimization
+- Error handling and testing guidelines
+
+---
+
+## 📱 **Android Prototype Implementation Plan** (Original)
+
+### Mode: Option A (Headwind stock + SurveyLauncher logic)
+### Scope: Android launcher app with daily login, time windows, supervisor override, GPS telemetry, and policy verification/cache.
 
 ## Base Repository
 - Primary: https://github.com/h-mdm/hmdm-android
