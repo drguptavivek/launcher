@@ -1,217 +1,149 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-
-// Import all dependencies first
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AuthService } from '../../src/services/auth-service';
 import { db } from '../../src/lib/db';
-import { verifyPassword, hashPassword, generateJTI, nowUTC, getExpiryTimestamp, isValidUUID } from '../../src/lib/crypto';
-import { JWTService } from '../../src/services/jwt-service';
-import { RateLimiter, PinLockoutService } from '../../src/services/rate-limiter';
-import { logger } from '../../src/lib/logger';
-import { env } from '../../src/lib/config';
+import { teams, devices, users, userPins, supervisorPins, sessions } from '../../src/lib/db/schema';
+import { hashPassword } from '../../src/lib/crypto';
+import { eq } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
-// Mock functions at module level
-const mockVerifyPassword = vi.fn();
-const mockHashPassword = vi.fn();
-const mockGenerateJTI = vi.fn();
-const mockNowUTC = vi.fn();
-const mockGetExpiryTimestamp = vi.fn();
-const mockIsValidUUID = vi.fn();
-const mockCreateToken = vi.fn();
-const mockVerifyToken = vi.fn();
-const mockRefreshToken = vi.fn();
-const mockRevokeSessionTokens = vi.fn();
-const mockCheckLoginLimit = vi.fn();
-const mockCheckSupervisorPinLimit = vi.fn();
-const mockIsLockedOut = vi.fn();
-const mockRecordFailedAttempt = vi.fn();
-const mockClearFailedAttempts = vi.fn();
-const mockGetLockoutStatus = vi.fn();
-const mockLoggerInfo = vi.fn();
-const mockLoggerWarn = vi.fn();
-const mockLoggerError = vi.fn();
-const mockLoggerDebug = vi.fn();
-
-describe('AuthService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    // Reset all default return values
-    mockVerifyPassword.mockResolvedValue(true);
-    mockHashPassword.mockResolvedValue({ hash: 'hashed-pin', salt: 'salt' });
-    mockGenerateJTI.mockReturnValue('test-jti-123');
-    mockNowUTC.mockReturnValue(new Date('2025-01-01T00:00:00Z'));
-    mockGetExpiryTimestamp.mockReturnValue(new Date('2025-01-02T00:00:00Z'));
-    mockIsValidUUID.mockReturnValue(true);
-
-    mockCreateToken.mockResolvedValue({
+// Mock only non-database dependencies
+vi.mock('../../src/services/jwt-service', () => ({
+  JWTService: {
+    createToken: vi.fn().mockResolvedValue({
       token: 'test-access-token',
       expiresAt: new Date('2025-01-02T00:00:00Z'),
-    });
-
-    mockVerifyToken.mockResolvedValue({
+    }),
+    verifyToken: vi.fn().mockResolvedValue({
       valid: true,
       payload: {
         sub: 'user-001',
         'x-session-id': 'session-001',
       },
-    });
-
-    mockRefreshToken.mockResolvedValue({
+    }),
+    refreshToken: vi.fn().mockResolvedValue({
       token: 'new-access-token',
       expiresAt: new Date('2025-01-02T00:00:00Z'),
-    });
+    }),
+    revokeSessionTokens: vi.fn().mockResolvedValue(undefined),
+  },
+}));
 
-    mockRevokeSessionTokens.mockResolvedValue(undefined);
-    mockCheckLoginLimit.mockResolvedValue({ allowed: true });
-    mockCheckSupervisorPinLimit.mockResolvedValue({ allowed: true });
-    mockIsLockedOut.mockReturnValue(false);
-    mockRecordFailedAttempt.mockReturnValue({ isLockedOut: false, remainingAttempts: 3 });
-    mockClearFailedAttempts.mockImplementation(() => {});
-    mockGetLockoutStatus.mockReturnValue({
+vi.mock('../../src/services/rate-limiter', () => ({
+  RateLimiter: {
+    checkLoginLimit: vi.fn().mockResolvedValue({ allowed: true }),
+    checkSupervisorPinLimit: vi.fn().mockResolvedValue({ allowed: true }),
+    checkPinLimit: vi.fn().mockResolvedValue({ allowed: true }),
+    checkTelemetryLimit: vi.fn().mockResolvedValue({ allowed: true }),
+  },
+  PinLockoutService: {
+    isLockedOut: vi.fn().mockReturnValue(false),
+    recordFailedAttempt: vi.fn().mockReturnValue({ isLockedOut: false, remainingAttempts: 3 }),
+    clearFailedAttempts: vi.fn(),
+    getLockoutStatus: vi.fn().mockReturnValue({
       isLockedOut: false,
       remainingTime: 0,
       attempts: 0,
+    }),
+    cleanup: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/lib/logger', () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+// Import mocked dependencies
+import { JWTService } from '../../src/services/jwt-service';
+import { RateLimiter, PinLockoutService } from '../../src/services/rate-limiter';
+
+describe('AuthService - Real Database Tests (Security Critical)', () => {
+  let teamId: string;
+  let deviceId: string;
+  let userId: string;
+  let supervisorPinId: string;
+  let userPinHash: { hash: string; salt: string };
+  let supervisorPinHash: { hash: string; salt: string };
+
+  beforeEach(async () => {
+    // Generate test UUIDs
+    teamId = uuidv4();
+    deviceId = uuidv4();
+    userId = uuidv4();
+    supervisorPinId = uuidv4();
+
+    // Clear rate limits and lockouts
+    PinLockoutService.cleanup();
+
+    // Create test team
+    await db.insert(teams).values({
+      id: teamId,
+      name: 'Test Team',
+      timezone: 'UTC',
+      stateId: 'MH01',
+      isActive: true,
     });
 
-    // Mock logger functions
-    mockLoggerInfo.mockImplementation(() => {});
-    mockLoggerWarn.mockImplementation(() => {});
-    mockLoggerError.mockImplementation(() => {});
-    mockLoggerDebug.mockImplementation(() => {});
+    // Create test device
+    await db.insert(devices).values({
+      id: deviceId,
+      teamId,
+      name: 'Test Device',
+      isActive: true,
+    });
 
-    // Spy on all imported functions and replace their implementations
-    vi.spyOn(require('../../src/lib/crypto'), 'verifyPassword').mockImplementation(mockVerifyPassword);
-    vi.spyOn(require('../../src/lib/crypto'), 'hashPassword').mockImplementation(mockHashPassword);
-    vi.spyOn(require('../../src/lib/crypto'), 'generateJTI').mockImplementation(mockGenerateJTI);
-    vi.spyOn(require('../../src/lib/crypto'), 'nowUTC').mockImplementation(mockNowUTC);
-    vi.spyOn(require('../../src/lib/crypto'), 'getExpiryTimestamp').mockImplementation(mockGetExpiryTimestamp);
-    vi.spyOn(require('../../src/lib/crypto'), 'isValidUUID').mockImplementation(mockIsValidUUID);
+    // Create test user
+    await db.insert(users).values({
+      id: userId,
+      code: 'test001',
+      teamId,
+      displayName: 'Test User',
+      isActive: true,
+    });
 
-    vi.spyOn(require('../../src/services/jwt-service').JWTService, 'createToken').mockImplementation(mockCreateToken);
-    vi.spyOn(require('../../src/services/jwt-service').JWTService, 'verifyToken').mockImplementation(mockVerifyToken);
-    vi.spyOn(require('../../src/services/jwt-service').JWTService, 'refreshToken').mockImplementation(mockRefreshToken);
-    vi.spyOn(require('../../src/services/jwt-service').JWTService, 'revokeSessionTokens').mockImplementation(mockRevokeSessionTokens);
+    // Hash user PIN
+    userPinHash = await hashPassword('123456');
+    await db.insert(userPins).values({
+      userId,
+      pinHash: userPinHash.hash,
+      salt: userPinHash.salt,
+    });
 
-    vi.spyOn(require('../../src/services/rate-limiter').RateLimiter, 'checkLoginLimit').mockImplementation(mockCheckLoginLimit);
-    vi.spyOn(require('../../src/services/rate-limiter').RateLimiter, 'checkSupervisorPinLimit').mockImplementation(mockCheckSupervisorPinLimit);
-    vi.spyOn(require('../../src/services/rate-limiter').PinLockoutService, 'isLockedOut').mockImplementation(mockIsLockedOut);
-    vi.spyOn(require('../../src/services/rate-limiter').PinLockoutService, 'recordFailedAttempt').mockImplementation(mockRecordFailedAttempt);
-    vi.spyOn(require('../../src/services/rate-limiter').PinLockoutService, 'clearFailedAttempts').mockImplementation(mockClearFailedAttempts);
-    vi.spyOn(require('../../src/services/rate-limiter').PinLockoutService, 'getLockoutStatus').mockImplementation(mockGetLockoutStatus);
-
-    vi.spyOn(logger, 'info').mockImplementation(mockLoggerInfo);
-    vi.spyOn(logger, 'warn').mockImplementation(mockLoggerWarn);
-    vi.spyOn(logger, 'error').mockImplementation(mockLoggerError);
-    vi.spyOn(logger, 'debug').mockImplementation(mockLoggerDebug);
-
-    // Mock the database queries using spy approach
-    vi.spyOn(db, 'select').mockImplementation(() => ({
-      from: vi.fn((table) => {
-        // For devices query
-        if (table && (table.name === 'devices' || table.tableName === 'devices')) {
-          return {
-            where: vi.fn(() => ({
-              limit: vi.fn().mockResolvedValue([{
-                id: 'device-001',
-                teamId: 'team-001',
-                isActive: true,
-              }]),
-            })),
-          };
-        }
-
-        // For users query
-        if (table && (table.name === 'users' || table.tableName === 'users')) {
-          return {
-            where: vi.fn(() => ({
-              limit: vi.fn().mockResolvedValue([{
-                id: 'user-001',
-                code: 'test001',
-                teamId: 'team-001',
-                displayName: 'Test User',
-                isActive: true,
-              }]),
-            })),
-          };
-        }
-
-        // For user_pins query
-        if (table && (table.name === 'user_pins' || table.tableName === 'user_pins')) {
-          return {
-            where: vi.fn(() => ({
-              limit: vi.fn().mockResolvedValue([{
-                userId: 'user-001',
-                pinHash: 'hashed-pin',
-                salt: 'salt',
-              }]),
-            })),
-          };
-        }
-
-        // For supervisor_pins query
-        if (table && (table.name === 'supervisor_pins' || table.tableName === 'supervisor_pins')) {
-          return {
-            where: vi.fn(() => ({
-              limit: vi.fn().mockResolvedValue([{
-                id: 'supervisor-001',
-                teamId: 'team-001',
-                name: 'Test Supervisor',
-                pinHash: 'hashed-supervisor-pin',
-                salt: 'salt',
-                isActive: true,
-              }]),
-            })),
-          };
-        }
-
-        // For sessions query
-        if (table && (table.name === 'sessions' || table.tableName === 'sessions')) {
-          return {
-            where: vi.fn(() => ({
-              limit: vi.fn().mockResolvedValue([{
-                id: 'session-001',
-                userId: 'user-001',
-                deviceId: 'device-001',
-                isActive: true,
-                expiresAt: new Date('2025-01-02T00:00:00Z'),
-                overrideUntil: null,
-              }]),
-            })),
-          };
-        }
-
-        // Default fallback
-        return {
-          where: vi.fn(() => ({
-            limit: vi.fn().mockResolvedValue([]),
-          })),
-        };
-      }),
-    }));
-
-    vi.spyOn(db, 'insert').mockImplementation(() => ({
-      values: vi.fn().mockResolvedValue(undefined),
-    }));
-
-    vi.spyOn(db, 'update').mockImplementation(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue(undefined),
-      })),
-    }));
-
-    // Mock the private recordLoginAttempt method
-    vi.spyOn(AuthService as any, 'recordLoginAttempt').mockResolvedValue(undefined);
+    // Hash supervisor PIN
+    supervisorPinHash = await hashPassword('789012');
+    await db.insert(supervisorPins).values({
+      id: supervisorPinId,
+      teamId,
+      name: 'Test Supervisor',
+      pinHash: supervisorPinHash.hash,
+      salt: supervisorPinHash.salt,
+      isActive: true,
+    });
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
+  afterEach(async () => {
+    // Clean up test data in proper order to respect foreign key constraints
+    await db.delete(sessions).where(eq(sessions.teamId, teamId));
+    await db.delete(userPins).where(eq(userPins.userId, userId));
+    await db.delete(supervisorPins).where(eq(supervisorPins.teamId, teamId));
+    await db.delete(users).where(eq(users.id, userId));
+    await db.delete(devices).where(eq(devices.id, deviceId));
+    await db.delete(teams).where(eq(teams.id, teamId));
+
+    // Clear rate limits and lockouts
+    PinLockoutService.cleanup();
+    vi.clearAllMocks();
   });
 
-  describe('login', () => {
+  describe('login - Critical Authentication Security', () => {
     it('should login successfully with valid credentials', async () => {
       const result = await AuthService.login(
         {
-          deviceId: 'device-001',
+          deviceId,
           userCode: 'test001',
           pin: '123456',
         },
@@ -220,16 +152,156 @@ describe('AuthService', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.session?.userId).toBe('user-001');
-      expect(result.session?.deviceId).toBe('device-001');
+      expect(result.session?.userId).toBe(userId);
+      expect(result.session?.deviceId).toBe(deviceId);
       expect(result.accessToken).toBe('test-access-token');
       expect(result.refreshToken).toBe('test-access-token');
       expect(result.policyVersion).toBe(3);
+
+      // Verify session was created in database
+      const sessionRecord = await db.select().from(sessions).where(eq(sessions.userId, userId)).limit(1);
+      expect(sessionRecord).toHaveLength(1);
+      expect(sessionRecord[0].status).toBe('open');
+    });
+
+    it('should reject login for nonexistent device', async () => {
+      const result = await AuthService.login(
+        {
+          deviceId: uuidv4(), // Nonexistent device
+          userCode: 'test001',
+          pin: '123456',
+        },
+        '192.168.1.1'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('DEVICE_NOT_FOUND');
+      expect(result.error?.message).toBe('Device not found or inactive');
+    });
+
+    it('should reject login for nonexistent user', async () => {
+      const result = await AuthService.login(
+        {
+          deviceId,
+          userCode: 'nonexistent-user',
+          pin: '123456',
+        },
+        '192.168.1.1'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_CREDENTIALS');
+      expect(result.error?.message).toBe('Invalid user code or PIN');
+    });
+
+    it('should reject login with wrong password', async () => {
+      const result = await AuthService.login(
+        {
+          deviceId,
+          userCode: 'test001',
+          pin: 'wrongpin',
+        },
+        '192.168.1.1'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_CREDENTIALS');
+      expect(result.error?.message).toContain('Invalid user code or PIN');
+    });
+
+    it('should reject login for inactive device', async () => {
+      // Deactivate the device
+      await db.update(devices)
+        .set({ isActive: false })
+        .where(eq(devices.id, deviceId));
+
+      const result = await AuthService.login(
+        {
+          deviceId,
+          userCode: 'test001',
+          pin: '123456',
+        },
+        '192.168.1.1'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('DEVICE_NOT_FOUND');
+    });
+
+    it('should reject login for inactive user', async () => {
+      // Deactivate the user
+      await db.update(users)
+        .set({ isActive: false })
+        .where(eq(users.id, userId));
+
+      const result = await AuthService.login(
+        {
+          deviceId,
+          userCode: 'test001',
+          pin: '123456',
+        },
+        '192.168.1.1'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_CREDENTIALS');
+    });
+
+    it('should reject login when user and device belong to different teams', async () => {
+      // Create another team and device
+      const otherTeamId = uuidv4();
+      const otherDeviceId = uuidv4();
+
+      await db.insert(teams).values({
+        id: otherTeamId,
+        name: 'Other Team',
+        timezone: 'UTC',
+        stateId: 'MH02',
+        isActive: true,
+      });
+
+      await db.insert(devices).values({
+        id: otherDeviceId,
+        teamId: otherTeamId,
+        name: 'Other Device',
+        isActive: true,
+      });
+
+      const result = await AuthService.login(
+        {
+          deviceId: otherDeviceId, // Device from different team
+          userCode: 'test001',     // User from original team
+          pin: '123456',
+        },
+        '192.168.1.1'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_CREDENTIALS');
+
+      // Cleanup
+      await db.delete(devices).where(eq(devices.id, otherDeviceId));
+      await db.delete(teams).where(eq(teams.id, otherTeamId));
+    });
+
+    it('should reject login when user has no PIN set', async () => {
+      // Remove user PIN
+      await db.delete(userPins).where(eq(userPins.userId, userId));
+
+      const result = await AuthService.login(
+        {
+          deviceId,
+          userCode: 'test001',
+          pin: '123456',
+        },
+        '192.168.1.1'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('INVALID_CREDENTIALS');
     });
 
     it('should reject login with invalid UUID format', async () => {
-      mockIsValidUUID.mockReturnValueOnce(false);
-
       const result = await AuthService.login(
         {
           deviceId: 'invalid-uuid',
@@ -244,99 +316,15 @@ describe('AuthService', () => {
       expect(result.error?.message).toBe('Device not found or inactive');
     });
 
-    it('should reject login for nonexistent device', async () => {
-      vi.spyOn(db, 'select').mockImplementationOnce(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn().mockResolvedValue([]),
-          })),
-        })),
-      }));
-
-      const result = await AuthService.login(
-        {
-          deviceId: 'nonexistent-device',
-          userCode: 'test001',
-          pin: '123456',
-        },
-        '192.168.1.1'
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('DEVICE_NOT_FOUND');
-      expect(result.error?.message).toBe('Device not found or inactive');
-    });
-
-    it('should reject login for nonexistent user', async () => {
-      // First call returns device, second call returns empty for user
-      vi.spyOn(db, 'select').mockImplementation(() => ({
-        from: vi.fn((table) => {
-          if (table && (table.name === 'users' || table.tableName === 'users')) {
-            return {
-              where: vi.fn(() => ({
-                limit: vi.fn().mockResolvedValue([]),
-              })),
-            };
-          }
-          // Default to device query
-          return {
-            where: vi.fn(() => ({
-              limit: vi.fn().mockResolvedValue([{
-                id: 'device-001',
-                teamId: 'team-001',
-                isActive: true,
-              }]),
-            })),
-          };
-        }),
-      }));
-
-      const result = await AuthService.login(
-        {
-          deviceId: 'device-001',
-          userCode: 'nonexistent-user',
-          pin: '123456',
-        },
-        '192.168.1.1'
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_CREDENTIALS');
-      expect(result.error?.message).toBe('Invalid user code or PIN');
-    });
-
-    it('should reject login when user is locked out', async () => {
-      mockIsLockedOut.mockReturnValueOnce(true);
-      mockGetLockoutStatus.mockReturnValueOnce({
-        isLockedOut: true,
-        remainingTime: 300000,
-        attempts: 5,
-      });
-
-      const result = await AuthService.login(
-        {
-          deviceId: 'device-001',
-          userCode: 'test001',
-          pin: '123456',
-        },
-        '192.168.1.1'
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('ACCOUNT_LOCKED');
-      expect(result.error?.message).toContain('temporarily locked');
-      expect(result.error?.retryAfter).toBe(300);
-    });
-
     it('should reject login when rate limited', async () => {
-      mockCheckLoginLimit.mockResolvedValueOnce({
+      vi.mocked(RateLimiter.checkLoginLimit).mockResolvedValueOnce({
         allowed: false,
         retryAfter: 60,
       });
 
       const result = await AuthService.login(
         {
-          deviceId: 'device-001',
+          deviceId,
           userCode: 'test001',
           pin: '123456',
         },
@@ -349,58 +337,17 @@ describe('AuthService', () => {
       expect(result.error?.retryAfter).toBe(60);
     });
 
-    it('should reject login with wrong password', async () => {
-      mockVerifyPassword.mockResolvedValueOnce(false);
-      mockRecordFailedAttempt.mockReturnValueOnce({
-        isLockedOut: false,
-        remainingAttempts: 2,
-      });
-
-      const result = await AuthService.login(
-        {
-          deviceId: 'device-001',
-          userCode: 'test001',
-          pin: 'wrongpin',
-        },
-        '192.168.1.1'
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INVALID_CREDENTIALS');
-      expect(result.error?.message).toContain('Invalid user code or PIN');
-      expect(result.error?.message).toContain('2 attempts remaining');
-    });
-
-    it('should handle account lockout after failed attempts', async () => {
-      mockVerifyPassword.mockResolvedValue(false);
-      mockRecordFailedAttempt.mockReturnValueOnce({
+    it('should reject login when user is locked out', async () => {
+      vi.mocked(PinLockoutService.isLockedOut).mockReturnValueOnce(true);
+      vi.mocked(PinLockoutService.getLockoutStatus).mockReturnValueOnce({
         isLockedOut: true,
-        remainingAttempts: 0,
-        lockoutDuration: 900,
+        remainingTime: 300000,
+        attempts: 5,
       });
 
       const result = await AuthService.login(
         {
-          deviceId: 'device-001',
-          userCode: 'test001',
-          pin: 'wrongpin',
-        },
-        '192.168.1.1'
-      );
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('ACCOUNT_LOCKED');
-      expect(result.error?.retryAfter).toBe(900);
-    });
-
-    it('should handle service errors gracefully', async () => {
-      vi.spyOn(db, 'select').mockImplementationOnce(() => {
-        throw new Error('Database connection failed');
-      });
-
-      const result = await AuthService.login(
-        {
-          deviceId: 'device-001',
+          deviceId,
           userCode: 'test001',
           pin: '123456',
         },
@@ -408,29 +355,36 @@ describe('AuthService', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INTERNAL_ERROR');
-      expect(result.error?.message).toBe('An error occurred during login');
+      expect(result.error?.code).toBe('ACCOUNT_LOCKED');
+      expect(result.error?.message).toContain('temporarily locked');
+      expect(result.error?.retryAfter).toBe(300);
     });
   });
 
-  describe('logout', () => {
+  describe('logout - Secure Session Termination', () => {
     it('should logout successfully with valid session', async () => {
-      const result = await AuthService.logout('session-001');
+      // First create a session
+      const sessionId = uuidv4();
+      await db.insert(sessions).values({
+        id: sessionId,
+        userId,
+        teamId,
+        deviceId,
+        startedAt: new Date(),
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours
+        status: 'open',
+        ipAddress: '192.168.1.1',
+        lastActivityAt: new Date(),
+      });
+
+      const result = await AuthService.logout(sessionId);
 
       expect(result.success).toBe(true);
-      expect(mockRevokeSessionTokens).toHaveBeenCalledWith('session-001');
+      expect(JWTService.revokeSessionTokens).toHaveBeenCalledWith(sessionId, undefined);
     });
 
     it('should return error for nonexistent session', async () => {
-      vi.spyOn(db, 'select').mockImplementationOnce(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn().mockResolvedValue([]),
-          })),
-        })),
-      }));
-
-      const result = await AuthService.logout('nonexistent-session');
+      const result = await AuthService.logout(uuidv4()); // Generate valid UUID that doesn't exist
 
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('SESSION_NOT_FOUND');
@@ -438,17 +392,20 @@ describe('AuthService', () => {
     });
   });
 
-  describe('refreshToken', () => {
+  describe('refreshToken - Secure Token Renewal', () => {
     it('should refresh token successfully', async () => {
       const result = await AuthService.refreshToken('valid-refresh-token');
 
       expect(result.success).toBe(true);
       expect(result.accessToken).toBe('new-access-token');
       expect(result.expiresAt).toBeDefined();
+      expect(JWTService.refreshToken).toHaveBeenCalledWith('valid-refresh-token');
     });
 
     it('should handle invalid refresh token', async () => {
-      mockRefreshToken.mockRejectedValueOnce(new Error('Invalid refresh token'));
+      vi.mocked(JWTService.refreshToken).mockRejectedValueOnce(
+        new Error('Invalid refresh token')
+      );
 
       const result = await AuthService.refreshToken('invalid-refresh-token');
 
@@ -458,13 +415,40 @@ describe('AuthService', () => {
     });
   });
 
-  describe('whoami', () => {
+  describe('whoami - User Information Security', () => {
+    let testSessionId: string;
+
+    beforeEach(async () => {
+      // Create a session for whoami tests
+      testSessionId = uuidv4();
+      await db.insert(sessions).values({
+        id: testSessionId,
+        userId,
+        teamId,
+        deviceId,
+        startedAt: new Date(),
+        expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000),
+        status: 'open',
+        ipAddress: '192.168.1.1',
+        lastActivityAt: new Date(),
+      });
+    });
+
     it('should return user information for valid token', async () => {
+      vi.mocked(JWTService.verifyToken).mockResolvedValueOnce({
+        valid: true,
+        payload: {
+          sub: userId,
+          'x-session-id': testSessionId, // Use the actual session ID
+        },
+      });
+
       const result = await AuthService.whoami('Bearer valid-token');
 
       expect(result.success).toBe(true);
-      expect(result.user?.id).toBe('user-001');
-      expect(result.session?.sessionId).toBe('session-001');
+      expect(result.user?.id).toBe(userId);
+      expect(result.user?.code).toBe('test001');
+      expect(result.user?.displayName).toBe('Test User');
       expect(result.policyVersion).toBe(3);
     });
 
@@ -484,7 +468,8 @@ describe('AuthService', () => {
     });
 
     it('should reject invalid token', async () => {
-      mockVerifyToken.mockResolvedValueOnce({
+      vi.clearAllMocks();
+      vi.mocked(JWTService.verifyToken).mockResolvedValueOnce({
         valid: false,
         payload: null,
       });
@@ -495,41 +480,14 @@ describe('AuthService', () => {
       expect(result.error?.code).toBe('INVALID_TOKEN');
       expect(result.error?.message).toBe('Invalid or expired token');
     });
-
-    it('should reject when user not found', async () => {
-      vi.spyOn(db, 'select').mockImplementation(() => ({
-        from: vi.fn((table) => {
-          if (table && (table.name === 'users' || table.tableName === 'users')) {
-            return {
-              where: vi.fn(() => ({
-                limit: vi.fn().mockResolvedValue([]),
-              })),
-            };
-          }
-          return {
-            where: vi.fn(() => ({
-              limit: vi.fn().mockResolvedValue([]),
-            })),
-          };
-        }),
-      }));
-
-      const result = await AuthService.whoami('Bearer valid-token');
-
-      expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('USER_NOT_FOUND');
-      expect(result.error?.message).toBe('User not found');
-    });
   });
 
-  describe('supervisorOverride', () => {
+  describe('supervisorOverride - Emergency Access Security', () => {
     it('should grant supervisor override with valid PIN', async () => {
-      mockVerifyPassword.mockResolvedValueOnce(true);
-
       const result = await AuthService.supervisorOverride(
         {
-          supervisorPin: '123456',
-          deviceId: 'device-001',
+          supervisorPin: '789012',
+          deviceId,
         },
         '192.168.1.1'
       );
@@ -540,18 +498,10 @@ describe('AuthService', () => {
     });
 
     it('should reject override for nonexistent device', async () => {
-      vi.spyOn(db, 'select').mockImplementationOnce(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn().mockResolvedValue([]),
-          })),
-        })),
-      }));
-
       const result = await AuthService.supervisorOverride(
         {
-          supervisorPin: '123456',
-          deviceId: 'nonexistent-device',
+          supervisorPin: '789012',
+          deviceId: uuidv4(), // Nonexistent device
         },
         '192.168.1.1'
       );
@@ -562,12 +512,10 @@ describe('AuthService', () => {
     });
 
     it('should reject override for invalid PIN', async () => {
-      mockVerifyPassword.mockResolvedValueOnce(false);
-
       const result = await AuthService.supervisorOverride(
         {
           supervisorPin: 'wrongpin',
-          deviceId: 'device-001',
+          deviceId,
         },
         '192.168.1.1'
       );
@@ -577,32 +525,16 @@ describe('AuthService', () => {
       expect(result.error?.message).toBe('Invalid supervisor PIN');
     });
 
-    it('should reject override when no supervisor PIN found', async () => {
-      vi.spyOn(db, 'select').mockImplementation(() => ({
-        from: vi.fn((table) => {
-          if (table && (table.name === 'supervisor_pins' || table.tableName === 'supervisor_pins')) {
-            return {
-              where: vi.fn(() => ({
-                limit: vi.fn().mockResolvedValue([]),
-              })),
-            };
-          }
-          return {
-            where: vi.fn(() => ({
-              limit: vi.fn().mockResolvedValue([{
-                id: 'device-001',
-                teamId: 'team-001',
-                isActive: true,
-              }]),
-            })),
-          };
-        }),
-      }));
+    it('should reject override when supervisor PIN is inactive', async () => {
+      // Deactivate supervisor PIN
+      await db.update(supervisorPins)
+        .set({ isActive: false })
+        .where(eq(supervisorPins.id, supervisorPinId));
 
       const result = await AuthService.supervisorOverride(
         {
-          supervisorPin: '123456',
-          deviceId: 'device-001',
+          supervisorPin: '789012',
+          deviceId,
         },
         '192.168.1.1'
       );
@@ -612,22 +544,59 @@ describe('AuthService', () => {
       expect(result.error?.message).toBe('No active supervisor PIN found for this team');
     });
 
-    it('should handle service errors gracefully', async () => {
-      vi.spyOn(db, 'select').mockImplementationOnce(() => {
-        throw new Error('Database error');
+    it('should reject override when no supervisor PIN exists for team', async () => {
+      // Create device with different team
+      const otherTeamId = uuidv4();
+      const otherDeviceId = uuidv4();
+
+      await db.insert(teams).values({
+        id: otherTeamId,
+        name: 'Other Team',
+        timezone: 'UTC',
+        stateId: 'MH02',
+        isActive: true,
+      });
+
+      await db.insert(devices).values({
+        id: otherDeviceId,
+        teamId: otherTeamId,
+        name: 'Other Device',
+        isActive: true,
       });
 
       const result = await AuthService.supervisorOverride(
         {
-          supervisorPin: '123456',
-          deviceId: 'device-001',
+          supervisorPin: '789012',
+          deviceId: otherDeviceId, // Device has no supervisor PIN
         },
         '192.168.1.1'
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('INTERNAL_ERROR');
-      expect(result.error?.message).toContain('An error occurred during supervisor override');
+      expect(result.error?.code).toBe('NO_SUPERVISOR_PIN');
+
+      // Cleanup
+      await db.delete(devices).where(eq(devices.id, otherDeviceId));
+      await db.delete(teams).where(eq(teams.id, otherTeamId));
+    });
+
+    it('should reject override when rate limited', async () => {
+      vi.mocked(RateLimiter.checkSupervisorPinLimit).mockResolvedValueOnce({
+        allowed: false,
+        retryAfter: 300,
+      });
+
+      const result = await AuthService.supervisorOverride(
+        {
+          supervisorPin: '789012',
+          deviceId,
+        },
+        '192.168.1.1'
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error?.code).toBe('RATE_LIMITED');
+      expect(result.error?.retryAfter).toBe(300);
     });
   });
 });

@@ -450,7 +450,7 @@ export class AuthService {
         .where(eq(sessions.id, payload['x-session-id']))
         .limit(1);
 
-      if (session.length === 0 || !session[0].isActive) {
+      if (session.length === 0 || session[0].status !== 'open') {
         return {
           success: false,
           policyVersion: 0,
