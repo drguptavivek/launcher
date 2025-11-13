@@ -87,11 +87,39 @@ export class RateLimiter {
    * Rate limit for login attempts (more restrictive)
    */
   static async checkLoginLimit(deviceId: string, ipAddress: string): Promise<RateLimitResult> {
-    const key = `login:${deviceId}:${ipAddress}`;
-    // Use higher limit than PIN lockout threshold (5) to allow PIN lockout testing
-    // PIN lockout should happen before rate limiting in normal scenarios
-    const limit = env.NODE_ENV === 'test' ? 15 : env.LOGIN_RATE_LIMIT_MAX;
-    return this.checkLimit(key, limit, 15 * 60 * 1000); // 15 minutes
+    // Check both device-based and IP-based rate limits
+    // Device-based rate limiting
+    const deviceKey = `login:device:${deviceId}`;
+    const deviceLimit = env.NODE_ENV === 'test' ? 15 : env.LOGIN_RATE_LIMIT_MAX;
+    const deviceWindowMs = env.NODE_ENV === 'test' ? 2 * 1000 : 15 * 60 * 1000; // 2 seconds for tests, 15 minutes for production
+    const deviceResult = await this.checkLimit(deviceKey, deviceLimit, deviceWindowMs);
+
+    // IP-based rate limiting
+    const ipKey = `login:ip:${ipAddress}`;
+    const ipLimit = env.NODE_ENV === 'test' ? 15 : env.LOGIN_RATE_LIMIT_MAX;
+    const ipWindowMs = env.NODE_ENV === 'test' ? 2 * 1000 : 15 * 60 * 1000; // 2 seconds for tests, 15 minutes for production
+    const ipResult = await this.checkLimit(ipKey, ipLimit, ipWindowMs);
+
+    // Return the more restrictive result
+    if (!deviceResult.allowed && !ipResult.allowed) {
+      return {
+        allowed: false,
+        remaining: Math.min(deviceResult.remaining, ipResult.remaining),
+        resetTime: Math.min(deviceResult.resetTime, ipResult.resetTime),
+        retryAfter: Math.min(deviceResult.retryAfter || 0, ipResult.retryAfter || 0) || undefined,
+      };
+    } else if (!deviceResult.allowed) {
+      return deviceResult;
+    } else if (!ipResult.allowed) {
+      return ipResult;
+    }
+
+    // Both allowed - return minimum remaining
+    return {
+      allowed: true,
+      remaining: Math.min(deviceResult.remaining, ipResult.remaining),
+      resetTime: Math.min(deviceResult.resetTime, ipResult.resetTime),
+    };
   }
 
   /**
@@ -183,6 +211,14 @@ export class RateLimiter {
       activeWindows,
       memoryUsage,
     };
+  }
+
+  /**
+   * Clear all rate limits (useful for tests)
+   */
+  static clearAll(): void {
+    this.storage.clear();
+    logger.info('All rate limits cleared');
   }
 
   /**
