@@ -129,7 +129,7 @@ async function login(req: Request, res: Response) {
       });
     } else {
       const statusCode = result.error?.code === 'RATE_LIMITED' ? 429 : 401;
-      return res.status(statusCode).json({
+      const response = {
         ok: false,
         error: {
           code: result.error?.code || 'LOGIN_FAILED',
@@ -137,7 +137,14 @@ async function login(req: Request, res: Response) {
           request_id: req.headers['x-request-id'],
           ...(result.error?.retryAfter && { retry_after: result.error.retryAfter }),
         },
-      });
+      };
+
+      // Add retry-after header for rate limited responses
+      if (result.error?.code === 'RATE_LIMITED' && result.error?.retryAfter) {
+        res.set('retry-after', result.error.retryAfter.toString());
+      }
+
+      return res.status(statusCode).json(response);
     }
   } catch (error) {
     logger.error('Login endpoint error', { error, body: req.body });
@@ -431,7 +438,7 @@ async function supervisorOverride(req: Request, res: Response) {
 
       // Set retry-after header if rate limited
       if (result.error?.code === 'RATE_LIMITED' && result.error?.retryAfter) {
-        res.set('Retry-After', result.error.retryAfter.toString());
+        res.set('retry-after', result.error.retryAfter.toString());
       }
 
       return res.status(statusCode).json({

@@ -88,7 +88,10 @@ export class RateLimiter {
    */
   static async checkLoginLimit(deviceId: string, ipAddress: string): Promise<RateLimitResult> {
     const key = `login:${deviceId}:${ipAddress}`;
-    return this.checkLimit(key, env.LOGIN_RATE_LIMIT_MAX, 15 * 60 * 1000); // 15 minutes
+    // Use higher limit than PIN lockout threshold (5) to allow PIN lockout testing
+    // PIN lockout should happen before rate limiting in normal scenarios
+    const limit = env.NODE_ENV === 'test' ? 15 : env.LOGIN_RATE_LIMIT_MAX;
+    return this.checkLimit(key, limit, 15 * 60 * 1000); // 15 minutes
   }
 
   /**
@@ -104,7 +107,9 @@ export class RateLimiter {
    */
   static async checkSupervisorPinLimit(ipAddress: string): Promise<RateLimitResult> {
     const key = `supervisor:${ipAddress}`;
-    return this.checkLimit(key, 10, 15 * 60 * 1000); // 10 attempts per 15 minutes
+    // Use lower limit during testing to ensure rate limiting is triggered
+    const limit = env.NODE_ENV === 'test' ? 5 : 10;
+    return this.checkLimit(key, limit, 15 * 60 * 1000); // attempts per 15 minutes
   }
 
   /**

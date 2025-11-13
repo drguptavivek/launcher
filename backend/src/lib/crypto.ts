@@ -1,7 +1,7 @@
 import nacl from 'tweetnacl';
 import { createHash, randomBytes, scrypt } from 'crypto';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, validate as uuidValidate } from 'uuid';
 import { env } from './config';
 
 // Password hashing configuration (using scrypt as fallback for Argon2id)
@@ -420,4 +420,11 @@ export { policySigner };
  */
 export function getPolicyPublicKey(): string {
   return policySigner.getPublicKey();
+}
+
+/**
+ * Validate UUID format
+ */
+export function isValidUUID(uuid: string): boolean {
+  return uuidValidate(uuid);
 }

@@ -1,6 +1,6 @@
 import { db } from '../lib/db';
 import { users, devices, sessions, userPins, supervisorPins, pinAttempts } from '../lib/db/schema';
-import { verifyPassword } from '../lib/crypto';
+import { verifyPassword, isValidUUID } from '../lib/crypto';
 import { JWTService } from './jwt-service';
 import { RateLimiter, PinLockoutService } from './rate-limiter';
 import { JWTUtils } from '../lib/crypto';
@@ -87,17 +87,14 @@ export class AuthService {
     const { deviceId, userCode, pin } = request;
 
     try {
-      // Check rate limiting for login attempts
-      const rateLimitResult = await RateLimiter.checkLoginLimit(deviceId, ipAddress);
-      if (!rateLimitResult.allowed) {
-        // Don't record login attempt when userId is null - pin_attempts requires userId
+      // Validate UUID format
+      if (!isValidUUID(deviceId)) {
         return {
           success: false,
           policyVersion: 0,
           error: {
-            code: 'RATE_LIMITED',
-            message: 'Too many login attempts. Please try again later.',
-            retryAfter: rateLimitResult.retryAfter,
+            code: 'DEVICE_NOT_FOUND',
+            message: 'Device not found or inactive',
           },
         };
       }
@@ -153,7 +150,7 @@ export class AuthService {
         };
       }
 
-      // Check PIN lockout status
+      // Check PIN lockout status BEFORE rate limiting (account lockout takes priority)
       const isLockedOut = PinLockoutService.isLockedOut(userData.id, deviceId);
       if (isLockedOut) {
         const lockoutStatus = PinLockoutService.getLockoutStatus(userData.id, deviceId);
@@ -165,6 +162,21 @@ export class AuthService {
             code: 'ACCOUNT_LOCKED',
             message: 'Account temporarily locked due to too many failed attempts',
             retryAfter: lockoutStatus.remainingTime ? Math.ceil(lockoutStatus.remainingTime / 1000) : undefined,
+          },
+        };
+      }
+
+      // Check rate limiting for login attempts (after user is identified and not locked out)
+      const rateLimitResult = await RateLimiter.checkLoginLimit(deviceId, ipAddress);
+      if (!rateLimitResult.allowed) {
+        await this.recordLoginAttempt(deviceId, userData.id, false, ipAddress, 'RATE_LIMITED');
+        return {
+          success: false,
+          policyVersion: 0,
+          error: {
+            code: 'RATE_LIMITED',
+            message: 'Too many login attempts. Please try again later.',
+            retryAfter: rateLimitResult.retryAfter,
           },
         };
       }
