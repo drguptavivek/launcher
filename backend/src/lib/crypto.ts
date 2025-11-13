@@ -126,6 +126,15 @@ export class PolicySigner {
   }
 
   /**
+   * Get the key ID (kid) for JWS header
+   */
+  getKeyId(): string {
+    // Create a deterministic key ID from the public key
+    const hash = require('crypto').createHash('sha256').update(this.publicKey).digest();
+    return Buffer.from(hash.slice(0, 8)).toString('base64url');
+  }
+
+  /**
    * Create a JWS (JSON Web Signature) for the policy
    */
   createJWS(payload: any): string {

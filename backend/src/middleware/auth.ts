@@ -1,6 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user-service';
+import { JWTService } from '../services/jwt-service';
+import { db, sessions } from '../lib/db';
 import { logger } from '../lib/logger';
+import { eq } from 'drizzle-orm';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -11,6 +14,17 @@ export interface AuthenticatedRequest extends Request {
     email: string | null;
     role: 'TEAM_MEMBER' | 'SUPERVISOR' | 'ADMIN';
     isActive: boolean;
+  };
+  session?: {
+    id: string;
+    sessionId: string;
+    userId: string;
+    teamId: string;
+    deviceId: string;
+    startedAt: Date;
+    expiresAt: Date;
+    overrideUntil: Date | null;
+    status: string;
   };
 }
 
@@ -79,24 +93,20 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
 
     if (!token) {
       return res.status(401).json({
-        success: false,
+        ok: false,
         error: {
           code: 'MISSING_TOKEN',
-          message: 'Access token required'
+          message: 'Authorization token required'
         }
       });
     }
 
-    // For now, we'll simulate token verification
-    // In a real implementation, you would verify JWT token here
-    // and extract user information from the token payload
+    // Verify JWT token
+    const verification = await JWTService.verifyToken(token, 'access');
 
-    // Temporary: Get user info from query params for testing
-    const userId = req.headers['x-user-id'] as string;
-
-    if (!userId) {
+    if (!verification.valid || !verification.payload) {
       return res.status(401).json({
-        success: false,
+        ok: false,
         error: {
           code: 'INVALID_TOKEN',
           message: 'Invalid or expired token'
@@ -104,11 +114,15 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
       });
     }
 
+    const payload = verification.payload;
+    const userId = payload.sub;
+    const sessionId = payload['x-session-id'];
+
     const userResult = await UserService.getUser(userId);
 
     if (!userResult.success || !userResult.user) {
       return res.status(401).json({
-        success: false,
+        ok: false,
         error: {
           code: 'USER_NOT_FOUND',
           message: 'User not found or inactive'
@@ -116,17 +130,30 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
       });
     }
 
-    if (!userResult.user.isActive) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: 'USER_INACTIVE',
-          message: 'User account is inactive'
-        }
-      });
+    // Get session information
+    let sessionData;
+    if (sessionId) {
+      const sessionQuery = await db.select()
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .limit(1);
+
+      if (sessionQuery.length > 0) {
+        sessionData = sessionQuery[0];
+      }
     }
 
     req.user = userResult.user as any;
+    req.session = sessionData ? {
+      sessionId: sessionData.id,
+      userId: sessionData.userId,
+      teamId: sessionData.teamId,
+      deviceId: sessionData.deviceId,
+      startedAt: sessionData.startedAt,
+      expiresAt: sessionData.expiresAt,
+      overrideUntil: sessionData.overrideUntil,
+      status: sessionData.status,
+    } as any : undefined;
     logger.info('User authenticated successfully', {
       userId: req.user?.id,
       userCode: req.user?.code,

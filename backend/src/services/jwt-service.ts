@@ -1,6 +1,6 @@
 import { JWTUtils, generateJTI, nowUTC } from '../lib/crypto';
 import { db } from '../lib/db';
-import { jwtRevocation, sessions } from '../lib/db/schema';
+import { jwtRevocationss, sessions } from '../lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../lib/logger';
 import { env } from '../lib/config';
@@ -118,7 +118,7 @@ export class JWTService {
       const expiresAt = new Date();
       expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
-      await db.insert(jwtRevocation).values({
+      await db.insert(jwtRevocations).values({
         id: generateJTI(),
         jti,
         revokedAt: nowUTC(),
@@ -172,8 +172,8 @@ export class JWTService {
   static async isTokenRevoked(jti: string): Promise<boolean> {
     try {
       const revoked = await db.select()
-        .from(jwtRevocation)
-        .where(eq(jwtRevocation.jti, jti))
+        .from(jwtRevocations)
+        .where(eq(jwtRevocations.jti, jti))
         .limit(1);
 
       // Clean up expired revocations
@@ -205,7 +205,7 @@ export class JWTService {
     });
 
     // Store override token metadata for expiration tracking
-    await db.insert(jwtRevocation).values({
+    await db.insert(jwtRevocations).values({
       id: generateJTI(),
       jti: jti,
       revokedAt: nowUTC(),
@@ -264,7 +264,7 @@ export class JWTService {
   private static async cleanupExpiredRevocations(): Promise<void> {
     try {
       const now = nowUTC();
-      await db.delete(jwtRevocation)
+      await db.delete(jwtRevocations)
         .where(and(
           // You might need to adjust this based on your database capabilities
           // This is a simplified version - you'd typically use a date comparison

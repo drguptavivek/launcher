@@ -122,7 +122,7 @@ export class PolicyService {
         id: issueId,
         deviceId,
         version: this.POLICY_VERSION.toString(),
-        jwsKid: policySigner.getPublicKey(),
+        jwsKid: policySigner.getKeyId(),
         policyData: payload,
         issuedAt: nowUTC(),
         expiresAt,
