@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth-service';
+import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { PolicyService } from '../services/policy-service';
 import { TelemetryService } from '../services/telemetry-service';
 import { TeamService } from '../services/team-service';
@@ -113,19 +114,27 @@ async function login(req: Request, res: Response) {
       req.headers['user-agent']
     );
 
+    logger.debug('Login result', {
+      success: result.success,
+      deviceId,
+      userCode,
+      error: result.error?.code,
+      message: result.error?.message
+    });
+
     if (result.success) {
       return res.json({
         ok: true,
         session: {
-          sessionId: result.session?.sessionId,
-          userId: result.session?.userId,
-          startedAt: result.session?.startedAt?.toISOString(),
-          expiresAt: result.session?.expiresAt?.toISOString(),
-          overrideUntil: result.session?.overrideUntil?.toISOString(),
+          session_id: result.session?.sessionId,
+          user_id: result.session?.userId,
+          started_at: result.session?.startedAt?.toISOString(),
+          expires_at: result.session?.expiresAt?.toISOString(),
+          override_until: result.session?.overrideUntil?.toISOString(),
         },
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        policyVersion: result.policyVersion,
+        access_token: result.accessToken,
+        refresh_token: result.refreshToken,
+        policy_version: result.policyVersion,
       });
     } else {
       const statusCode = result.error?.code === 'RATE_LIMITED' ? 429 : 401;
@@ -162,25 +171,28 @@ async function login(req: Request, res: Response) {
 // POST /api/v1/auth/logout
 async function logout(req: Request, res: Response) {
   try {
-    const { sessionId, userId } = req.body;
+    const { sessionId } = req.body;
 
-    if (!sessionId || !userId) {
+    if (!sessionId) {
       return res.status(400).json({
         ok: false,
         error: {
           code: 'MISSING_FIELDS',
-          message: 'sessionId and userId are required',
+          message: 'sessionId is required',
           request_id: req.headers['x-request-id'],
         },
       });
     }
 
-    const result = await AuthService.logout(sessionId, userId);
+    // Get user info from authentication if available
+    const revokedBy = (req as any).user?.id;
+
+    const result = await AuthService.logout(sessionId, revokedBy);
 
     if (result.success) {
       return res.json({
         ok: true,
-        endedAt: new Date().toISOString(),
+        ended_at: new Date().toISOString(),
       });
     } else {
       const statusCode = result.error?.code === 'SESSION_NOT_FOUND' ? 404 : 500;
@@ -194,7 +206,12 @@ async function logout(req: Request, res: Response) {
       });
     }
   } catch (error) {
-    logger.error('Logout endpoint error', { error });
+    logger.error('Logout endpoint error', {
+      error: error?.message || error,
+      stack: error?.stack,
+      name: error?.name,
+      sessionId
+    });
     return res.status(500).json({
       ok: false,
       error: {
@@ -234,8 +251,8 @@ async function refreshToken(req: Request, res: Response) {
     if (result.success) {
       return res.json({
         ok: true,
-        accessToken: result.accessToken,
-        expiresAt: result.expiresAt?.toISOString(),
+        access_token: result.accessToken,
+        expires_at: result.expiresAt?.toISOString(),
       });
     } else {
       return res.status(401).json({
@@ -271,16 +288,16 @@ async function whoami(req: Request, res: Response) {
       user: {
         id: user.id,
         code: user.code,
-        teamId: user.teamId,
-        displayName: user.displayName,
+        team_id: user.teamId,
+        display_name: user.displayName,
       },
       session: {
-        sessionId: session.sessionId,
-        deviceId: session.deviceId,
-        expiresAt: session.expiresAt.toISOString(),
-        overrideUntil: session.overrideUntil?.toISOString(),
+        session_id: session.sessionId,
+        device_id: session.deviceId,
+        expires_at: session.expiresAt.toISOString(),
+        override_until: session.overrideUntil?.toISOString(),
       },
-      policyVersion: 3,
+      policy_version: 3,
     });
   } catch (error) {
     logger.error('Whoami endpoint error', { error });
@@ -1928,7 +1945,7 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
   }
 
   if (method === 'POST' && originalUrl === '/api/v1/auth/logout') {
-    return logout(req, res);
+    return authenticateToken(req as AuthenticatedRequest, res, () => logout(req, res));
   }
 
   if (method === 'POST' && originalUrl === '/api/v1/auth/refresh') {
@@ -1944,7 +1961,7 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
   }
 
   if (method === 'POST' && originalUrl === '/api/v1/auth/heartbeat') {
-    return heartbeat(req, res);
+    return authenticateToken(req as AuthenticatedRequest, res, () => heartbeat(req, res));
   }
 
   // Supervisor PIN management routes

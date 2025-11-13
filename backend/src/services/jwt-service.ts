@@ -183,9 +183,6 @@ export class JWTService {
         .where(eq(jwtRevocations.jti, jti))
         .limit(1);
 
-      // Clean up expired revocations
-      await this.cleanupExpiredRevocations();
-
       return revoked.length > 0;
     } catch (error) {
       logger.error('Failed to check token revocation', { jti, error });

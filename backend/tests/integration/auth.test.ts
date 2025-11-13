@@ -8,6 +8,7 @@ import { hashPassword } from '../../src/lib/crypto';
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { RateLimiter } from '../../src/services/rate-limiter';
+import { ensureFixedTestData, cleanupFixedTestData, TEST_CREDENTIALS, INVALID_CREDENTIALS } from '../helpers/fixed-test-data';
 
 describe('Authentication API Integration Tests', () => {
   let app: express.Application;
@@ -103,11 +104,11 @@ describe('Authentication API Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.ok).toBe(true);
-      expect(response.body.session.sessionId).toBeDefined();
-      expect(response.body.session.userId).toBe(userId);
-      expect(response.body.accessToken).toBeDefined();
-      expect(response.body.refreshToken).toBeDefined();
-      expect(response.body.policyVersion).toBeDefined();
+      expect(response.body.session.session_id).toBeDefined();
+      expect(response.body.session.user_id).toBe(userId);
+      expect(response.body.access_token).toBeDefined();
+      expect(response.body.refresh_token).toBeDefined();
+      expect(response.body.policy_version).toBeDefined();
     });
 
     it('should reject login with invalid deviceId', async () => {
@@ -182,7 +183,7 @@ describe('Authentication API Integration Tests', () => {
           pin: '123456'
         });
 
-      const token = loginResponse.body.accessToken;
+      const token = loginResponse.body.access_token;
 
       // Use token to get user info
       const whoamiResponse = await request(app)
@@ -193,7 +194,7 @@ describe('Authentication API Integration Tests', () => {
       expect(whoamiResponse.body.ok).toBe(true);
       expect(whoamiResponse.body.user.id).toBe(userId);
       expect(whoamiResponse.body.user.code).toBe('test001');
-      expect(whoamiResponse.body.session.sessionId).toBeDefined();
+      expect(whoamiResponse.body.session.session_id).toBeDefined();
     });
 
     it('should reject invalid token', async () => {
@@ -228,7 +229,7 @@ describe('Authentication API Integration Tests', () => {
           pin: '123456'
         });
 
-      const sessionId = loginResponse.body.session.sessionId;
+      const sessionId = loginResponse.body.session.session_id;
 
       // Logout
       const logoutResponse = await request(app)
@@ -240,7 +241,7 @@ describe('Authentication API Integration Tests', () => {
 
       expect(logoutResponse.status).toBe(200);
       expect(logoutResponse.body.ok).toBe(true);
-      expect(logoutResponse.body.endedAt).toBeDefined();
+      expect(logoutResponse.body.ended_at).toBeDefined();
     });
 
     it('should reject logout for nonexistent session', async () => {
@@ -269,7 +270,7 @@ describe('Authentication API Integration Tests', () => {
           pin: '123456'
         });
 
-      const refreshToken = loginResponse.body.refreshToken;
+      const refreshToken = loginResponse.body.refresh_token;
 
       // Refresh token
       const refreshResponse = await request(app)
@@ -280,7 +281,7 @@ describe('Authentication API Integration Tests', () => {
 
       expect(refreshResponse.status).toBe(200);
       expect(refreshResponse.body.ok).toBe(true);
-      expect(refreshResponse.body.accessToken).toBeDefined();
+      expect(refreshResponse.body.access_token).toBeDefined();
     });
 
     it('should reject invalid refresh token', async () => {
@@ -308,7 +309,8 @@ describe('Authentication API Integration Tests', () => {
           pin: '123456'
         });
 
-      const sessionId = loginResponse.body.session.sessionId;
+      console.log('Login response body:', JSON.stringify(loginResponse.body, null, 2));
+      const sessionId = loginResponse.body.session.session_id;
 
       // Send heartbeat
       const heartbeatResponse = await request(app)
