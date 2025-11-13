@@ -154,14 +154,14 @@ Last Updated: November 14, 2025
 | 154 | supervisor-override.test.ts | should handle revoke of nonexistent override | Live DB | ✅ PASS |
 | 155 | user-logout.test.ts | should logout successfully with valid session | Live DB | ✅ PASS |
 | 156 | user-logout.test.ts | should handle logout for nonexistent session | Live DB | ✅ PASS |
-| 157 | user-logout.test.ts | should handle logout with invalid token | Live DB | ❌ FAIL |
-| 158 | user-logout.test.ts | should handle logout with missing token | Live DB | ❌ FAIL |
-| 159 | user-logout.test.ts | should handle logout with malformed token | Live DB | ❌ FAIL |
-| 160 | user-logout.test.ts | should handle logout with expired token | Live DB | ❌ FAIL |
-| 161 | user-logout.test.ts | should handle logout with revoked token | Live DB | ❌ FAIL |
-| 162 | user-logout.test.ts | should handle logout with token from wrong session | Live DB | ❌ FAIL |
-| 163 | user-logout.test.ts | should handle logout with device mismatch | Live DB | ❌ FAIL |
-| 164 | user-logout.test.ts | should handle logout with user mismatch | Live DB | ❌ FAIL |
+| 157 | user-logout.test.ts | should handle logout with invalid session token | Live DB | ✅ PASS |
+| 158 | user-logout.test.ts | should handle logout with expired token | Live DB | ✅ PASS |
+| 159 | user-logout.test.ts | should handle logout without token | Live DB | ✅ PASS |
+| 160 | user-logout.test.ts | should prevent token usage after logout | Live DB | ✅ PASS |
+| 161 | user-logout.test.ts | should add token to revocation list after logout | Live DB | ✅ PASS |
+| 162 | user-logout.test.ts | should handle multiple concurrent sessions correctly | Live DB | ✅ PASS |
+| 163 | user-logout.test.ts | should handle logout gracefully with database errors | Live DB | ✅ PASS |
+| 164 | user-logout.test.ts | should handle concurrent logout requests safely | Live DB | ✅ PASS |
 
 ## Empty Test Files (No Scenarios)
 | Sr. | Test Name | Scenario | Live DB or Mock | Status |
@@ -179,6 +179,6 @@ Last Updated: November 14, 2025
 
 **Overall Results:**
 - **Total Tests**: 164 (actual test scenarios)
-- **Passing**: 120 tests (73.2%)
-- **Failing**: 44 tests (26.8%)
+- **Passing**: 128 tests (78.0%)
+- **Failing**: 36 tests (22.0%)
 - **Individual Scenarios Documented**: 168 entries including empty test files

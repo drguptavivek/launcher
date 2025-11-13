@@ -173,14 +173,15 @@ async function logout(req: Request, res: Response) {
   let sessionId: string | undefined;
 
   try {
-    sessionId = req.body.sessionId;
+    // Get sessionId from authenticated request (JWT token)
+    sessionId = (req as any).session?.sessionId;
 
     if (!sessionId) {
-      return res.status(400).json({
+      return res.status(401).json({
         ok: false,
         error: {
-          code: 'MISSING_FIELDS',
-          message: 'sessionId is required',
+          code: 'MISSING_SESSION',
+          message: 'No valid session found in token',
           request_id: req.headers['x-request-id'],
         },
       });

@@ -166,6 +166,17 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
 
       if (sessionQuery.length > 0) {
         sessionData = sessionQuery[0];
+
+        // Check if session is still open
+        if (sessionData.status !== 'open') {
+          return res.status(401).json({
+            ok: false,
+            error: {
+              code: 'SESSION_INACTIVE',
+              message: 'Session has been ended or expired'
+            }
+          });
+        }
       }
     }
 
