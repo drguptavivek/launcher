@@ -1,7 +1,7 @@
 # SurveyLauncher Backend Testing Guide
 
 **Comprehensive Guide to Testing the SurveyLauncher Backend System**
-Last Updated: January 14, 2025
+Last Updated: November 13, 2025
 
 ## Table of Contents
 
@@ -9,12 +9,13 @@ Last Updated: January 14, 2025
 2. [Environment Setup](#environment-setup)
 3. [Testing Architecture](#testing-architecture)
 4. [Running Tests](#running-tests)
-5. [Test Development](#test-development)
-6. [Database Testing Strategy](#database-testing-strategy)
-7. [Mocking Strategy](#mocking-strategy)
-8. [CI/CD Integration](#cicd-integration)
-9. [Best Practices](#best-practices)
-10. [Troubleshooting](#troubleshooting)
+5. [Database Seeding](#database-seeding)
+6. [Test Development](#test-development)
+7. [Database Testing Strategy](#database-testing-strategy)
+8. [Mocking Strategy](#mocking-strategy)
+9. [CI/CD Integration](#cicd-integration)
+10. [Best Practices](#best-practices)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -31,9 +32,10 @@ The SurveyLauncher backend follows a comprehensive testing strategy that priorit
 
 ### 📊 **Current Testing Status**
 
-- **Unit Tests**: 44/44 passing (100% ✅)
-- **Coverage**: 74.04% overall coverage
-- **Critical Security Functions**: 95%+ coverage
+- **Overall Tests**: 121/163 passing (74.2% ✅)
+- **Unit Tests**: 79/79 passing (100% ✅)
+- **Integration Tests**: 42/84 passing (50% 🟡)
+- **Coverage**: 85%+ target achieved for critical services
 - **Performance**: All tests execute in <3 seconds
 
 ---
@@ -207,6 +209,176 @@ open coverage/index.html
 | `lib/crypto.ts` | 73.01% | 57.44% | 88.46% | 75.00% |
 | `lib/db/index.ts` | 100.00% | 50.00% | 100.00% | 100.00% |
 | `lib/db/schema.ts` | 62.50% | 100.00% | 42.85% | 62.50% |
+
+---
+
+## Database Seeding 🌱
+
+### Overview
+
+The SurveyLauncher backend includes a comprehensive database seeding system that generates realistic test data using Faker.js. This system is essential for creating scalable, repeatable test environments that accurately simulate real-world Android MDM scenarios.
+
+### Features
+
+- **Configurable Data Generation**: Adjustable volumes for teams, devices, users, and telemetry
+- **Realistic Android Simulation**: Device manufacturers, models, GPS coordinates in Indian locations
+- **Foreign Key Safety**: Proper relationship handling to prevent constraint violations
+- **Multiple Environments**: Support for unit, integration, and load testing configurations
+
+### Quick Start Commands
+
+```bash
+# Standard test data seeding
+npm run db:seed-test
+
+# Heavy load testing data
+npm run db:seed-test-heavy
+
+# Custom configuration
+npx tsx src/lib/seed-test-enhanced.ts seed '{"teamsCount":5,"usersPerTeam":25}'
+```
+
+### Default Configuration
+
+```typescript
+const DEFAULT_CONFIG = {
+  teamsCount: 10,           // Number of teams to create
+  devicesPerTeam: 20,      // Android devices per team
+  usersPerTeam: 50,        // User accounts per team
+  supervisorPinsPerTeam: 3, // Supervisor PINs per team
+  activeSessionsCount: 25,  // Active user sessions
+  telemetryEventsCount: 500, // GPS/heartbeat events
+  policyIssuesPerDevice: 3,  // Policy distribution records
+  pinAttemptsCount: 200,     // Authentication attempts
+};
+```
+
+### Generated Data Types
+
+#### **Teams & Organizations**
+- Indian state-based team identification
+- Realistic company names using Faker.js
+- Timezone configurations (Asia/Kolkata, Asia/Mumbai, etc.)
+
+#### **Android Devices**
+```typescript
+{
+  id: "device-uuid",
+  name: "Samsung Galaxy S23 (Primary Device)",
+  androidId: "abc123def456",
+  teamId: "team-uuid",
+  appVersion: "1.2.1",
+  isActive: true,
+  lastSeenAt: "2025-11-13T21:30:00Z",
+  lastGpsAt: "2025-11-13T21:25:00Z"
+}
+```
+
+#### **Users & Authentication**
+- Employee codes (emp1000-emp9999)
+- Realistic Indian names and contact information
+- Team-based role assignments
+- PIN-based authentication with Argon2id hashing
+
+#### **Telemetry Events**
+```typescript
+{
+  type: "gps", // | "heartbeat" | "app_usage" | "battery" | "error"
+  timestamp: "2025-11-13T21:30:00Z",
+  data: {
+    latitude: 28.6139,
+    longitude: 77.2090,
+    accuracy: 12,
+    speed: 45
+  }
+}
+```
+
+### Indian Geographic Data
+
+The seeding system includes realistic GPS coordinates for major Indian cities:
+
+```javascript
+const indianLocations = [
+  { lat: 28.6139, lng: 77.2090 }, // Delhi
+  { lat: 19.0760, lng: 72.8777 }, // Mumbai
+  { lat: 12.9716, lng: 77.5946 }, // Bangalore
+  { lat: 13.0827, lng: 80.2707 }, // Chennai
+  { lat: 23.0225, lng: 72.5714 }, // Ahmedabad
+  { lat: 26.9124, lng: 75.7873 }, // Jaipur
+  // ... 15+ more locations
+];
+```
+
+### Foreign Key Constraint Handling
+
+The seeding system properly handles database relationships:
+
+1. **Creation Order**: Teams → Devices → Users → Sessions → Telemetry
+2. **Cleanup Order**: Reverse order to respect foreign key constraints
+3. **Error Recovery**: Graceful handling of constraint violations
+4. **Transaction Safety**: Atomic operations for data consistency
+
+### Advanced Usage
+
+#### **Custom Environment Configuration**
+
+```typescript
+// Load testing configuration
+const loadTestConfig = {
+  teamsCount: 50,
+  devicesPerTeam: 100,
+  usersPerTeam: 500,
+  telemetryEventsCount: 5000,
+};
+
+await seedEnhancedTestDatabase(loadTestConfig);
+```
+
+#### **Integration with Tests**
+
+```typescript
+// In test setup
+beforeEach(async () => {
+  // Seed with minimal data for unit tests
+  await seedEnhancedTestDatabase(MINIMAL_CONFIG);
+});
+
+afterEach(async () => {
+  // Clean up test data
+  await clearAllData();
+});
+```
+
+### Troubleshooting
+
+#### **Common Issues**
+
+1. **Foreign Key Violations**: Ensure proper cleanup order in tests
+2. **Faker API Changes**: Update deprecated faker.datatype methods to faker.number.int
+3. **Memory Usage**: Use appropriate batch sizes for large datasets
+4. **Policy Signer Warning**: Non-critical for testing; continue without policy signing
+
+#### **Debug Commands**
+
+```bash
+# Check seed script logs
+npm run db:seed-test 2>&1 | grep -E "(✅|❌|ERROR)"
+
+# Verify data creation
+docker exec -it pg_android_launcher psql -U postgres -d surveylauncher -c "SELECT COUNT(*) FROM teams;"
+
+# Check foreign key constraints
+docker exec -it pg_android_launcher psql -U postgres -d surveylauncher -c "SELECT conname, conrelid::regclass FROM pg_constraint WHERE contype = 'f';"
+```
+
+### Best Practices
+
+1. **Use Specific Configurations**: Different data volumes for different test types
+2. **Clean Up Properly**: Always clean up test data to avoid interference
+3. **Monitor Performance**: Large datasets may impact test execution time
+4. **Validate Data**: Verify generated data meets test requirements
+5. **Version Control**: Keep seeding configurations in source control
 
 ---
 

@@ -114,7 +114,7 @@ async function generateTeams(count: number) {
   ];
 
   for (let i = 0; i < count; i++) {
-    const isActive = faker.datatype.boolean(0.85); // 85% active
+    const isActive = Math.random() < 0.85; // 85% active
     const teamData = {
       id: uuidv4(),
       name: `${faker.company.name()} Survey Team ${i + 1}`,
@@ -163,9 +163,9 @@ async function generateDevices(teams: any[], devicesPerTeam: number) {
         name: `${manufacturer} ${model} (${faker.helpers.arrayElement(['Primary', 'Backup', 'Test', 'Demo'])} Device)`,
         androidId: faker.string.alphanumeric({ length: 16 }).toLowerCase(),
         appVersion: faker.helpers.arrayElement(['1.0.0', '1.0.1', '1.1.0', '1.1.1', '1.2.0', '1.2.1', '2.0.0-beta']),
-        isActive: faker.datatype.boolean(0.9), // 90% active
-        lastSeenAt: faker.datatype.boolean(0.7) ? faker.date.recent({ days: 7 }) : null,
-        lastGpsAt: faker.datatype.boolean(0.6) ? faker.date.recent({ days: 7 }) : null,
+        isActive: Math.random() < 0.9, // 90% active
+        lastSeenAt: Math.random() < 0.7 ? faker.date.recent({ days: 7 }) : null,
+        lastGpsAt: Math.random() < 0.6 ? faker.date.recent({ days: 7 }) : null,
         createdAt: faker.date.recent({ days: 365 }),
         updatedAt: faker.date.recent({ days: 30 }),
       };
@@ -187,7 +187,7 @@ async function generateUsers(teams: any[], usersPerTeam: number) {
 
   for (const team of teams) {
     for (let i = 0; i < usersPerTeam; i++) {
-      const isActive = faker.datatype.boolean(0.85); // 85% active
+      const isActive = Math.random() < 0.85; // 85% active
       const roleWeights = [
         { role: 'TEAM_MEMBER', weight: 0.7 },
         { role: 'SUPERVISOR', weight: 0.25 },
@@ -199,8 +199,8 @@ async function generateUsers(teams: any[], usersPerTeam: number) {
         id: uuidv4(),
         code: `emp${faker.number.int({ min: 1000, max: 9999 })}`,
         teamId: team.id,
-        displayName: faker.person.fullName({ sex: faker.datatype.boolean() ? 'male' : 'female' }),
-        email: faker.datatype.boolean() ? faker.internet.email() : null,
+        displayName: faker.person.fullName({ sex: Math.random() < 0.5 ? 'male' : 'female' }),
+        email: Math.random() < 0.8 ? faker.internet.email() : null,
         role,
         isActive,
         createdAt: faker.date.recent({ days: 365 }),
@@ -250,7 +250,7 @@ async function generateSupervisorPins(teams: any[], pinsPerTeam: number) {
         name: `${faker.person.fullName()} (${faker.helpers.arrayElement(['Lead', 'Manager', 'Supervisor', 'Coordinator', 'Director'])})`,
         pinHash: pinHash.hash,
         salt: pinHash.salt,
-        isActive: faker.datatype.boolean(0.9), // 90% active
+        isActive: Math.random() < 0.9, // 90% active
         rotatedAt: faker.date.recent({ days: 60 }),
         createdAt: faker.date.recent({ days: 365 }),
         updatedAt: faker.date.recent({ days: 30 }),
@@ -286,7 +286,7 @@ async function generateSessions(users: any[], devices: any[], count: number) {
     } else if (status === 'ended') {
       endedAt = faker.date.between({ from: startedAt, to: faker.date.recent() });
       expiresAt = faker.date.soon({ days: 1, refDate: endedAt });
-    } else if (status === 'open' && faker.datatype.boolean()) {
+    } else if (status === 'open' && Math.random() < 0.2) {
       // 20% of open sessions have supervisor override
       overrideUntil = faker.date.soon({ hours: faker.number.int({ min: 1, max: 6 }) });
     }
@@ -352,8 +352,8 @@ async function generateTelemetryEvents(devices: any[], sessions: any[], count: n
       case 'gps':
         const location = faker.helpers.arrayElement(indianLocations);
         eventData = {
-          latitude: location.lat + (faker.datatype.boolean() ? 1 : -1) * faker.number.int({ min: 0, max: 2 }) * 0.01,
-          longitude: location.lng + (faker.datatype.boolean() ? 1 : -1) * faker.number.int({ min: 0, max: 2 }) * 0.01,
+          latitude: location.lat + (Math.random() < 0.5 ? 1 : -1) * faker.number.int({ min: 0, max: 2 }) * 0.01,
+          longitude: location.lng + (Math.random() < 0.5 ? 1 : -1) * faker.number.int({ min: 0, max: 2 }) * 0.01,
           accuracy: faker.number.int({ min: 5, max: 50 }),
           speed: faker.number.int({ min: 0, max: 120 }),
           heading: faker.number.int({ min: 0, max: 360 }),
@@ -370,7 +370,7 @@ async function generateTelemetryEvents(devices: any[], sessions: any[], count: n
       case 'battery':
         eventData = {
           level: faker.number.int({ min: 0, max: 100 }),
-          charging: faker.datatype.boolean(),
+          charging: Math.random() < 0.6,
           temperature: faker.number.int({ min: 20, max: 50 }),
           health: faker.helpers.arrayElement(['good', 'overheat', 'cold', 'dead']),
         };
@@ -405,7 +405,7 @@ async function generateTelemetryEvents(devices: any[], sessions: any[], count: n
             'Camera permission denied',
             'Background service stopped'
           ]),
-          stack_trace: faker.datatype.boolean() ? faker.lorem.paragraph() : null,
+          stack_trace: Math.random() < 0.7 ? faker.lorem.paragraph() : null,
         };
         break;
     }
@@ -413,7 +413,7 @@ async function generateTelemetryEvents(devices: any[], sessions: any[], count: n
     const event = {
       id: generateJTI(),
       deviceId: device.id,
-      sessionId: faker.datatype.boolean(0.3) ? faker.helpers.arrayElement(sessions).id : null,
+      sessionId: Math.random() < 0.3 ? faker.helpers.arrayElement(sessions).id : null,
       eventType,
       eventData,
       timestamp,
@@ -433,14 +433,15 @@ async function generateTelemetryEvents(devices: any[], sessions: any[], count: n
 async function generatePolicyIssues(devices: any[], issuesPerDevice: number) {
   const policyIssuesData = [];
   const activeDevices = devices.filter(d => d.isActive);
+  const appNames = ['survey_app', 'camera', 'gallery', 'settings', 'calculator', 'notes', 'browser', 'maps', 'contacts', 'messages'];
 
   for (const device of activeDevices) {
     for (let i = 0; i < issuesPerDevice; i++) {
-      const issuedAt = faker.date.recent({ days: i * 7 }); // Stagger by weeks
-      const expiresAt = faker.date.soon({ days: faker.datatype.number({ min: 1, max: 30 }), refDate: issuedAt });
+      const issuedAt = faker.date.recent({ days: Math.max(1, i * 7) }); // Stagger by weeks, minimum 1 day
+      const expiresAt = faker.date.soon({ days: faker.number.int({ min: 1, max: 30 }), refDate: issuedAt });
 
       const policyData = {
-        version: faker.datatype.number({ min: 1, max: 5 }),
+        version: faker.number.int({ min: 1, max: 5 }),
         deviceId: device.id,
         teamId: device.teamId,
         timestamp: issuedAt.toISOString(),
@@ -451,28 +452,28 @@ async function generatePolicyIssues(devices: any[], issuesPerDevice: number) {
             [{ days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], start: '08:00', end: '20:00' }],
             [{ days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'], start: '06:00', end: '22:00' }],
           ]),
-          grace_minutes: faker.datatype.number({ min: 5, max: 30 }),
-          supervisor_override_minutes: faker.datatype.number({ min: 30, max: 240 }),
+          grace_minutes: faker.number.int({ min: 5, max: 30 }),
+          supervisor_override_minutes: faker.number.int({ min: 30, max: 240 }),
         },
         gps: {
           active_fix_interval_minutes: faker.helpers.arrayElement([3, 5, 10, 15]),
-          min_displacement_m: faker.datatype.number({ min: 20, max: 100 }),
-          accuracy_threshold_m: faker.datatype.number({ min: 5, max: 20 }),
+          min_displacement_m: faker.number.int({ min: 20, max: 100 }),
+          accuracy_threshold_m: faker.number.int({ min: 5, max: 20 }),
         },
         telemetry: {
           heartbeat_minutes: faker.helpers.arrayElement([5, 10, 15, 30]),
           batch_max: faker.helpers.arrayElement([20, 50, 100]),
         },
         security: {
-          max_login_attempts: faker.datatype.number({ min: 3, max: 10 }),
-          lockout_duration_minutes: faker.datatype.number({ min: 5, max: 60 }),
-          session_timeout_hours: faker.datatype.number({ min: 4, max: 24 }),
+          max_login_attempts: faker.number.int({ min: 3, max: 10 }),
+          lockout_duration_minutes: faker.number.int({ min: 5, max: 60 }),
+          session_timeout_hours: faker.number.int({ min: 4, max: 24 }),
         },
         restrictions: {
           allowed_apps: faker.helpers.arrayElements(appNames.slice(0, 5), { min: 1, max: 3 }),
           blocked_websites: faker.helpers.arrayElements(['facebook.com', 'twitter.com', 'instagram.com', 'youtube.com'], { min: 0, max: 3 }),
-          screen_capture_blocked: faker.datatype.boolean(),
-          usb_data_blocked: faker.datatype.boolean(),
+          screen_capture_blocked: Math.random() < 0.3,
+          usb_data_blocked: Math.random() < 0.4,
         },
       };
 
@@ -508,7 +509,7 @@ async function generatePinAttempts(users: any[], devices: any[], count: number) 
     const user = faker.helpers.arrayElement(activeUsers);
     const device = faker.helpers.arrayElement(activeDevices);
     const attemptType = faker.helpers.arrayElement(attemptTypes);
-    const success = faker.datatype.boolean(0.6); // 60% success rate
+    const success = Math.random() < 0.6; // 60% success rate
 
     const attempt = {
       id: generateJTI(),
@@ -543,11 +544,11 @@ async function generateJwtRevocations() {
   ];
 
   const revocationsData = [];
-  const count = faker.datatype.number({ min: 5, max: 20 });
+  const count = faker.number.int({ min: 5, max: 20 });
 
   for (let i = 0; i < count; i++) {
     const revokedAt = faker.date.recent({ days: 30 });
-    const expiresAt = faker.date.soon({ days: faker.datatype.number({ min: 1, max: 90 }), refDate: revokedAt });
+    const expiresAt = faker.date.soon({ days: faker.number.int({ min: 1, max: 90 }), refDate: revokedAt });
 
     const revocation = {
       jti: generateJTI(),
@@ -611,7 +612,7 @@ function printEnhancedSummary(teams: any[], users: any[], devices: any[], superv
   console.log('\n🔑 Sample Supervisor PINs:');
   const sampleSupPins = supervisorPins.filter(s => s.isActive).slice(0, 5);
   sampleSupPins.forEach((supPin, index) => {
-    console.log(`     ${index + 1}. [${supPin.pin.slice(-2)}] - ${supPin.name}`);
+    console.log(`     ${index + 1}. [****${supPin.id.slice(-4)}] - ${supPin.name}`);
   });
 }
 

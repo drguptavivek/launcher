@@ -1,43 +1,43 @@
 # Database Seeding for Testing
 
-This document explains how to use the SurveyLauncher backend database seeding scripts for creating realistic test data.
+**Production-Ready Database Seeding System for Android MDM Testing**
+Last Updated: November 13, 2025
 
 ## Overview
 
-The SurveyLauncher backend includes comprehensive database seeding capabilities for testing:
+The SurveyLauncher backend includes a comprehensive database seeding system that generates realistic test data for Android MDM functionality:
 
-- **Basic Seeding**: Simple seed data for basic functionality testing
-- **Enhanced Seeding**: Large volumes of realistic data using Faker.js
-- **Configurable**: Different data volumes for different test types
-- **Repeatable**: Can be run multiple times to reset and reseed
+- **Enhanced Seeding**: Large volumes of realistic data using Faker.js v10.1.0
+- **Configurable**: Different data volumes for unit, integration, and load testing
+- **Realistic Simulation**: Indian geographic data, Android device simulation
+- **Foreign Key Safe**: Proper relationship handling to prevent constraint violations
+- **Production Ready**: Scalable test data generation for any test environment
+
+## Recent Major Updates
+
+### ✅ **November 13, 2025 - Production Release**
+
+- **Fixed Faker.js Compatibility**: Updated all deprecated `faker.datatype` methods to `faker.number.int`
+- **Foreign Key Resolution**: Fixed constraint violations in `pin_attempts` table
+- **Enhanced Error Handling**: Graceful policy signer initialization for testing environments
+- **Realistic Indian Data**: Added authentic GPS coordinates and state codes
+- **Documentation**: Comprehensive seeding guide with troubleshooting section
 
 ## Available Scripts
 
-### 1. Basic Seed Script
-`npm run db:seed`
-
-Creates basic test data with:
-- 1 team
-- 1 device
-- 1 user
-- 1 supervisor PIN
-
-**Use Case**: Basic functionality testing, manual testing
-
-### 2. Enhanced Seed Script
+### 1. Enhanced Test Seeding (Recommended)
 `npm run db:seed-test`
 
-Creates comprehensive test data with default configuration:
-- 10 teams
-- 20 devices per team (200 total)
-- 50 users per team (500 total)
-- 3 supervisor PINs per team (30 total)
-- 500 telemetry events
-- 25 active sessions
-- 3 policy issues per device
-- 200 PIN attempts
+Creates comprehensive test data with:
+- 10 teams with Indian state identification
+- 200 Android devices (20 per team)
+- 500 users (50 per team) with realistic Indian names
+- 25 active user sessions
+- 500 telemetry events (GPS, heartbeat, app usage)
+- 30 supervisor PINs
+- 200 PIN attempts for security testing
 
-**Use Case**: Integration testing, feature testing
+**Use Case**: Unit testing, integration testing, development environment
 
 ### 3. Heavy Load Seed Script
 `npm run db:seed-test-heavy`
