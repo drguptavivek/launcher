@@ -46,7 +46,7 @@ Last Updated: November 14, 2025
 | 37 | jwt-service.test.ts | JWT-018: should reject refresh token for non-existent session | Mock | ✅ PASS |
 | 38 | jwt-service.test.ts | JWT-019: should reject malformed refresh token | Mock | ✅ PASS |
 | 39 | jwt-service.test.ts | JWT-020: should handle refresh token creation error cases | Mock | ✅ PASS |
-| 40 | auth-service.test.ts | should login successfully with valid credentials | Live DB | ❌ FAIL |
+| 40 | auth-service.test.ts | should login successfully with valid credentials | Live DB | ✅ PASS |
 | 41 | auth-service.test.ts | should reject login with invalid credentials | Live DB | ✅ PASS |
 | 42 | auth-service.test.ts | should reject login when device does not exist | Live DB | ✅ PASS |
 | 43 | auth-service.test.ts | should reject login when user does not exist | Live DB | ✅ PASS |
@@ -59,7 +59,7 @@ Last Updated: November 14, 2025
 | 50 | auth-service.test.ts | should reject login when user is locked out | Live DB | ❌ FAIL |
 | 51 | auth-service.test.ts | should logout successfully with valid session | Live DB | ✅ PASS |
 | 52 | auth-service.test.ts | should return error for nonexistent session | Live DB | ✅ PASS |
-| 53 | auth-service.test.ts | should refresh token successfully | Live DB | ❌ FAIL |
+| 53 | auth-service.test.ts | should refresh token successfully | Live DB | ✅ PASS |
 | 54 | auth-service.test.ts | should handle invalid refresh token | Live DB | ✅ PASS |
 | 55 | auth-service.test.ts | should return user information for valid token | Live DB | ✅ PASS |
 | 56 | auth-service.test.ts | should reject missing token | Live DB | ✅ PASS |
