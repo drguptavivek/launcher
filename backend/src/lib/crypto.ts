@@ -96,10 +96,16 @@ export class PolicySigner {
   private publicKey: Uint8Array;
 
   constructor(privateKeyBase64: string) {
-    this.privateKey = Buffer.from(privateKeyBase64, 'base64');
+    const seed = Buffer.from(privateKeyBase64, 'base64');
 
-    // Extract public key from private key using tweetnacl
-    const keyPair = nacl.sign.keyPair.fromSeed(this.privateKey.slice(0, 32));
+    // Validate seed size (Ed25519 requires 32 bytes)
+    if (seed.length !== 32) {
+      throw new Error(`Invalid Ed25519 seed size: ${seed.length} bytes, expected 32 bytes`);
+    }
+
+    // Create key pair from seed
+    const keyPair = nacl.sign.keyPair.fromSeed(seed);
+    this.privateKey = keyPair.secretKey;
     this.publicKey = keyPair.publicKey;
   }
 
