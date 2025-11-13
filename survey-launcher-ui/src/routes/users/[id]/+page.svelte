@@ -3,12 +3,14 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 		import { ArrowLeft, Edit, Shield, Smartphone, Calendar } from 'lucide-svelte';
 	import { onMount } from 'svelte';
+	import { getUserById } from '$lib/api/users.js';
+import { type User } from '$lib/api/remote/users.utils';
 
 	// Props for user ID from URL parameter
 	let { params } = $props();
 
 	// User data state
-	let user = $state<any>(null);
+	let user = $state<User | null>(null);
 	let isLoading = $state(true);
 	let error = $state<string | null>(null);
 
@@ -27,24 +29,13 @@
 
 	onMount(async () => {
 		try {
-			// TODO: Replace with actual API call
-			// const userData = await getUserById(params.id);
-
-			// Mock user data for now
-			await new Promise(resolve => setTimeout(resolve, 1000));
-			user = {
-				id: params.id,
-				name: 'John Doe',
-				email: 'john.doe@example.com',
-				userCode: 'u001',
-				role: 'admin',
-				teamId: 'team-001',
-				teamName: 'Alpha Team',
-				deviceId: 'dev-mock-001',
-				isActive: true,
-				lastLogin: new Date('2024-01-15T10:30:00Z'),
-				createdAt: new Date('2024-01-01T00:00:00Z')
-			};
+			// Load user from API
+			const userData = await getUserById(params.id);
+			if (userData) {
+				user = userData;
+			} else {
+				error = 'User not found';
+			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load user';
 		} finally {

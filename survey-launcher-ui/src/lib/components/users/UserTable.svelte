@@ -11,20 +11,8 @@
 	} from '$lib/components/ui/table';
 		import { Search, Edit, Eye, MoreHorizontal } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-
-	// Define User interface
-	interface User {
-		id: string;
-		name: string;
-		email: string;
-		userCode: string;
-		role: string;
-		teamName: string;
-		deviceId: string;
-		isActive: boolean;
-		lastLogin: Date;
-		createdAt: Date;
-	}
+	import { getUsers } from '$lib/api/users.js';
+import { type User, type UsersFilterOptions } from '$lib/api/remote/users.utils';
 
 	// Component state
 	let users = $state<User[]>([]);
@@ -34,6 +22,9 @@
 	let searchQuery = $state('');
 	let roleFilter = $state('all');
 	let statusFilter = $state('all');
+	let totalCount = $state(0);
+	let currentPage = $state(1);
+	let pageSize = $state(50);
 
 	// Derived state for filtering
 	let displayUsers = $derived.by(() => {
@@ -52,84 +43,42 @@
 		});
 	});
 
-	// Mock data for development
-	onMount(async () => {
+	// Load users from API
+	async function loadUsers() {
+		isLoading = true;
+		error = null;
+
 		try {
-			// TODO: Replace with actual API call
-			// const userData = await fetchUsers();
+			const filters: UsersFilterOptions = {
+				search: searchQuery,
+				role: roleFilter as any,
+				status: statusFilter as any,
+				page: currentPage,
+				limit: pageSize
+			};
 
-			await new Promise(resolve => setTimeout(resolve, 800));
-
-			// Mock users data
-			users = [
-				{
-					id: 'user-001',
-					name: 'John Doe',
-					email: 'john.doe@example.com',
-					userCode: 'u001',
-					role: 'admin',
-					teamName: 'Alpha Team',
-					deviceId: 'dev-mock-001',
-					isActive: true,
-					lastLogin: new Date('2024-01-15T10:30:00Z'),
-					createdAt: new Date('2024-01-01T00:00:00Z')
-				},
-				{
-					id: 'user-002',
-					name: 'Jane Smith',
-					email: 'jane.smith@example.com',
-					userCode: 'u002',
-					role: 'supervisor',
-					teamName: 'Beta Team',
-					deviceId: 'dev-mock-002',
-					isActive: true,
-					lastLogin: new Date('2024-01-14T15:45:00Z'),
-					createdAt: new Date('2024-01-02T00:00:00Z')
-				},
-				{
-					id: 'user-003',
-					name: 'Robert Johnson',
-					email: 'robert.johnson@example.com',
-					userCode: 'u003',
-					role: 'user',
-					teamName: 'Alpha Team',
-					deviceId: 'dev-mock-003',
-					isActive: false,
-					lastLogin: new Date('2024-01-10T09:15:00Z'),
-					createdAt: new Date('2024-01-03T00:00:00Z')
-				},
-				{
-					id: 'user-004',
-					name: 'Sarah Williams',
-					email: 'sarah.williams@example.com',
-					userCode: 'u004',
-					role: 'user',
-					teamName: 'Gamma Team',
-					deviceId: 'dev-mock-004',
-					isActive: true,
-					lastLogin: new Date('2024-01-13T14:20:00Z'),
-					createdAt: new Date('2024-01-04T00:00:00Z')
-				},
-				{
-					id: 'user-005',
-					name: 'Michael Brown',
-					email: 'michael.brown@example.com',
-					userCode: 'u005',
-					role: 'readonly',
-					teamName: 'Beta Team',
-					deviceId: 'dev-mock-005',
-					isActive: true,
-					lastLogin: new Date('2024-01-12T11:10:00Z'),
-					createdAt: new Date('2024-01-05T00:00:00Z')
-				}
-			];
-
-			filteredUsers = users;
+			const response = await getUsers(filters);
+			users = response.users;
+			filteredUsers = response.users;
+			totalCount = response.total;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to load users';
+			users = [];
+			filteredUsers = [];
+			totalCount = 0;
 		} finally {
 			isLoading = false;
 		}
+	}
+
+	// Initial load
+	onMount(loadUsers);
+
+	// Reactive effect for filters
+	$effect(() => {
+		// Debounce search and filter changes
+		const timeoutId = setTimeout(loadUsers, 300);
+		return () => clearTimeout(timeoutId);
 	});
 
 	// Utility functions
@@ -187,6 +136,13 @@
 				<option value="active">Active</option>
 				<option value="inactive">Inactive</option>
 			</select>
+		</div>
+	</div>
+
+	<!-- Results Summary -->
+	<div class="flex items-center justify-between">
+		<div class="text-sm text-muted-foreground">
+			Showing {displayUsers.length} of {totalCount} users
 		</div>
 	</div>
 

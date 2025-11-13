@@ -5,12 +5,15 @@
 		import { Checkbox } from '$lib/components/ui/checkbox';
 	import { Alert, AlertDescription } from '$lib/components/ui/alert';
 	import { Loader2, Save, Eye, EyeOff } from 'lucide-svelte';
+	import { createUser, updateUser, getTeams } from '$lib/api/users.js';
+import { type User, type CreateUserRequest, type UpdateUserRequest } from '$lib/api/remote/users.utils';
+import { onMount } from 'svelte';
 
 	// Props interface
 	interface UserFormProps {
-		onUserCreated?: (user: any) => void;
-		onUserUpdated?: (user: any) => void;
-		initialData?: any;
+		onUserCreated?: (user: User) => void;
+		onUserUpdated?: (user: User) => void;
+		initialData?: User;
 		isEditing?: boolean;
 	}
 
@@ -53,13 +56,10 @@
 	let isSubmitting = $state(false);
 	let showPin = $state(false);
 	let showConfirmPin = $state(false);
+	let isLoadingTeams = $state(true);
 
-	// Available teams and roles (mock data for now)
-	let teams = [
-		{ id: 'team-001', name: 'Alpha Team' },
-		{ id: 'team-002', name: 'Beta Team' },
-		{ id: 'team-003', name: 'Gamma Team' }
-	];
+	// Available teams (loaded from API)
+	let teams = $state<Array<{ id: string; name: string }>>([]);
 
 	let roles = [
 		{ value: 'admin', label: 'Administrator' },
@@ -79,6 +79,17 @@
 			(formData.generatePin || (formData.pin.length >= 6 && formData.pin === formData.confirmPin));
 	});
 
+	// Load teams from API
+	async function loadTeams() {
+		try {
+			teams = await getTeams();
+		} catch (err) {
+			console.error('Failed to load teams:', err);
+		} finally {
+			isLoadingTeams = false;
+		}
+	}
+
 	// Initialize form with data if provided
 	$effect(() => {
 		if (initialData) {
@@ -96,6 +107,9 @@
 			};
 		}
 	});
+
+	// Load teams on mount
+	onMount(loadTeams);
 
 	// Form validation functions
 	function validateField(field: keyof FormData, value: string | boolean): string {
@@ -187,22 +201,43 @@
 		errors = {};
 
 		try {
-			// TODO: Replace with actual API call
-			await new Promise(resolve => setTimeout(resolve, 1500));
+			if (isEditing && initialData) {
+				// Update existing user
+				const updateData: UpdateUserRequest = {
+					name: formData.name,
+					email: formData.email,
+					role: formData.role as User['role'],
+					teamId: formData.teamId,
+					deviceId: formData.deviceId,
+					isActive: formData.isActive
+				};
 
-			// Mock successful submission
-			const userData = {
-				id: initialData?.id || `user-${Date.now()}`,
-				...formData,
-				pin: formData.generatePin ? generateRandomPin() : formData.pin,
-				createdAt: initialData?.createdAt || new Date(),
-				lastLogin: initialData?.lastLogin || null
-			};
+				// Only include PIN if it's being changed
+				if (!formData.generatePin && formData.pin) {
+					updateData.pin = formData.pin;
+				}
 
-			if (isEditing && onUserUpdated) {
-				onUserUpdated(userData);
-			} else if (!isEditing && onUserCreated) {
-				onUserCreated(userData);
+				const updatedUser = await updateUser(initialData.id, updateData);
+				if (onUserUpdated) {
+					onUserUpdated(updatedUser);
+				}
+			} else {
+				// Create new user
+				const createData: CreateUserRequest = {
+					name: formData.name,
+					email: formData.email,
+					userCode: formData.userCode,
+					role: formData.role as User['role'],
+					teamId: formData.teamId,
+					deviceId: formData.deviceId,
+					pin: formData.generatePin ? generateRandomPin() : formData.pin,
+					isActive: formData.isActive
+				};
+
+				const newUser = await createUser(createData);
+				if (onUserCreated) {
+					onUserCreated(newUser);
+				}
 			}
 
 		} catch (error: any) {
@@ -305,8 +340,8 @@
 
 			<div class="space-y-2">
 				<Label for="team">Team *</Label>
-				<select bind:value={formData.teamId} id="team" disabled={isSubmitting} class="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md">
-					<option value="" disabled>Select a team</option>
+				<select bind:value={formData.teamId} id="team" disabled={isSubmitting || isLoadingTeams} class="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md">
+					<option value="" disabled>{isLoadingTeams ? 'Loading teams...' : 'Select a team'}</option>
 					{#each teams as team}
 						<option value={team.id}>{team.name}</option>
 					{/each}

@@ -27,6 +27,26 @@ export {
 	getDeviceTelemetryStats
 } from './telemetry.remote';
 
+
+// Users utilities and types
+export {
+	type User,
+	type CreateUserRequest,
+	type UpdateUserRequest,
+	type UsersFilterOptions,
+	type UsersResponse,
+	createUserSchema,
+	updateUserSchema,
+	validateUserCode,
+	validateUserEmail,
+	validateUserPin,
+	USER_ROLES,
+	USER_ROLE_LABELS,
+	hasPermission,
+	canManageUsers,
+	canOverrideSupervisor
+} from './users.utils';
+
 // Types
 export type {
 	LoginRequest,
@@ -45,3 +65,4 @@ export type {
 	ApiResponse,
 	ApiErrorCode
 } from './types';
+

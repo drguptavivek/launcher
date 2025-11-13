@@ -133,6 +133,40 @@ Based on real-world implementation issues encountered during the SurveyLauncher 
   - Handle preventDefault inside the handler function if needed
   - **Example**: ✅ `<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>`
 
+### 15. **SvelteKit Remote Functions Export Rules** ⭐ **NEW**
+- **Error**: `exports from this file must be remote functions`
+- **Real-world Issue**: `createUserSchema exported from src/lib/api/remote/users.remote.ts is invalid — all exports from this file must be remote functions`
+- **Root Cause**: SvelteKit 5 treats any file in `src/lib/api/remote/` as containing remote functions (RPC) and doesn't allow non-function exports like types, schemas, or constants
+- **Recommended Fix**:
+  - Separate utilities, types, and schemas into a different file (e.g., `users.utils.ts`)
+  - Keep only actual remote functions in the `remote/` directory
+  - Import utilities from the separate file
+  - **Example**:
+    ```typescript
+    // ❌ DON'T: Put types in remote files
+    // src/lib/api/remote/users.remote.ts
+    export type User { ... }
+    export const schema = z.object(...)
+
+    // ✅ DO: Separate utilities and types
+    // src/lib/api/remote/users.utils.ts
+    export type User { ... }
+    export const schema = z.object(...)
+
+    // src/lib/api/remote/users.remote.ts
+    // Only export actual remote functions
+    ```
+
+### 16. **JavaScript vs TypeScript Import Issues** ⭐ **NEW**
+- **Error**: `Parse failure: Expected ',', got 'User'`
+- **Real-world Issue**: TypeScript type imports in JavaScript files cause parse errors during SSR
+- **Root Cause**: Rollup/Javascript parser can't understand TypeScript type syntax in `.js` files
+- **Recommended Fix**:
+  - Use `.ts` files for anything with TypeScript types
+  - Or remove type imports from JavaScript files
+  - Keep type definitions in separate `.ts` files
+  - **Example**: ✅ `import { createUser, getUserById } from './api/users.js'` (functions only)
+
 ## 🛡 Prevention Strategies
 
 ### Development Checklist
@@ -148,6 +182,8 @@ Based on real-world implementation issues encountered during the SurveyLauncher 
 - [ ] **NEW**: Check for JSX-style component rendering in templates
 - [ ] **NEW**: Verify shadcn-svelte component dependencies are installed
 - [ ] **NEW**: Update deprecated event directives to native HTML attributes
+- [ ] **NEW**: Separate utilities/types from SvelteKit remote functions
+- [ ] **NEW**: Use correct file extensions (.ts vs .js) for TypeScript imports
 
 ### Code Review Focus Areas
 - Import statements and file extensions
@@ -175,6 +211,8 @@ Based on real-world implementation issues encountered during the SurveyLauncher 
 8. **NEW**: Template Syntax: Replace JSX-style conditionals with `{#if}` blocks
 9. **NEW**: Component Fallbacks: Replace missing shadcn components with custom Tailwind elements
 10. **NEW**: Event Attributes: Update `on:submit` to `onsubmit` for modern Svelte 5
+11. **NEW**: Remote Functions Separation: Move utilities/types out of `remote/` directory
+12. **NEW**: File Extension Consistency: Use `.ts` for TypeScript, `.js` for JavaScript only
 
 ---
 

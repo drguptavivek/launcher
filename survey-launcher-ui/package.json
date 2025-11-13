@@ -65,6 +65,7 @@
 	"dependencies": {
 		"better-sqlite3": "^12.4.1",
 		"lucide-svelte": "^0.553.0",
-		"valibot": "^1.1.0"
+		"valibot": "^1.1.0",
+		"zod": "^4.1.12"
 	}
 }
