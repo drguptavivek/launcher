@@ -164,54 +164,89 @@ export class TelemetryService {
     event: TelemetryEvent;
     userId?: string;
   }> {
+    // Validate required fields
+    if (!event.type || typeof event.type !== 'string') {
+      logger.warn('Invalid telemetry event', {
+        event: { type: event.type, timestamp: event.timestamp },
+        error: 'Missing or invalid event type',
+        deviceId: device?.id,
+        ipAddress,
+      });
+      return { valid: false, event };
+    }
+
+    if (!event.timestamp || typeof event.timestamp !== 'string') {
+      logger.warn('Invalid telemetry event', {
+        event: { type: event.type, timestamp: event.timestamp },
+        error: 'Missing or invalid timestamp',
+        deviceId: device?.id,
+        ipAddress,
+      });
+      return { valid: false, event };
+    }
+
+    // Validate timestamp format by trying to parse it
+    const eventTime = new Date(event.timestamp);
+    if (isNaN(eventTime.getTime())) {
+      logger.warn('Invalid telemetry event', {
+        event: { type: event.type, timestamp: event.timestamp },
+        error: 'Invalid timestamp format',
+        deviceId: device?.id,
+        ipAddress,
+      });
+      return { valid: false, event };
+    }
+
+    // Validate event timestamp is not too far in the future or past
+    const now = nowUTC();
+    const maxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
+    const maxFutureMs = 5 * 60 * 1000; // 5 minutes in future
+
+    if (eventTime.getTime() < now.getTime() - maxAgeMs) {
+      logger.warn('Invalid telemetry event', {
+        event: { type: event.type, timestamp: event.timestamp },
+        error: 'Event timestamp is too old',
+        deviceId: device?.id,
+        ipAddress,
+      });
+      return { valid: false, event };
+    }
+
+    if (eventTime.getTime() > now.getTime() + maxFutureMs) {
+      logger.warn('Invalid telemetry event', {
+        event: { type: event.type, timestamp: event.timestamp },
+        error: 'Event timestamp is too far in the future',
+        deviceId: device?.id,
+        ipAddress,
+      });
+      return { valid: false, event };
+    }
+
+    // Get user ID if session is provided
+    let userId = undefined;
+    if (event.metadata?.session_id && device) {
+      // This would typically involve session lookup
+      // For now, we'll skip session validation
+    }
+
+    // Validate event type
+    const validEventTypes = [
+      'heartbeat', 'gps', 'app_usage', 'screen_time', 'battery', 'network', 'error'
+    ];
+
+    if (!validEventTypes.includes(event.type)) {
+      logger.warn('Invalid telemetry event', {
+        event: { type: event.type, timestamp: event.timestamp },
+        error: `Invalid event type: ${event.type}`,
+        deviceId: device?.id,
+        ipAddress,
+      });
+      return { valid: false, event };
+    }
+
+    // Additional validation based on event type
     try {
-      // Validate required fields
-      if (!event.type || typeof event.type !== 'string') {
-        throw new Error('Missing or invalid event type');
-      }
-
-      if (!event.timestamp || typeof event.timestamp !== 'string') {
-        throw new Error('Missing or invalid timestamp');
-      }
-
-      // Validate event timestamp is not too far in the future or past
-      const eventTime = new Date(event.timestamp);
-      const now = nowUTC();
-      const maxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
-      const maxFutureMs = 5 * 60 * 1000; // 5 minutes in future
-
-      if (eventTime.getTime() < now.getTime() - maxAgeMs) {
-        throw new Error('Event timestamp is too old');
-      }
-
-      if (eventTime.getTime() > now.getTime() + maxFutureMs) {
-        throw new Error('Event timestamp is too far in the future');
-      }
-
-      // Get user ID if session is provided
-      let userId = undefined;
-      if (event.metadata?.session_id && device) {
-        // This would typically involve session lookup
-        // For now, we'll skip session validation
-      }
-
-      // Validate event type
-      const validEventTypes = [
-        'heartbeat', 'gps', 'app_usage', 'screen_time', 'battery', 'network', 'error'
-      ];
-
-      if (!validEventTypes.includes(event.type)) {
-        throw new Error(`Invalid event type: ${event.type}`);
-      }
-
-      // Additional validation based on event type
       await this.validateEventByType(event);
-
-      return {
-        valid: true,
-        event,
-        userId,
-      };
     } catch (error) {
       logger.warn('Invalid telemetry event', {
         event: { type: event.type, timestamp: event.timestamp },
@@ -219,9 +254,14 @@ export class TelemetryService {
         deviceId: device?.id,
         ipAddress,
       });
-
-      throw error;
+      return { valid: false, event };
     }
+
+    return {
+      valid: true,
+      event,
+      userId,
+    };
   }
 
   /**
