@@ -9,6 +9,7 @@ import postgres from 'postgres';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import * as schema from '../src/lib/db/schema';
 import { hashPassword } from '../src/lib/crypto';
+import { v4 as uuidv4 } from 'uuid';
 
 // Use the main PostgreSQL database for testing
 const dbUrl = process.env.DATABASE_URL;
@@ -44,9 +45,15 @@ export async function setupTestDatabase() {
  * Create test data for integration tests
  */
 export async function createTestData() {
+  // Generate UUIDs for test data
+  const testTeamId = uuidv4();
+  const testUserId = uuidv4();
+  const testDeviceId = uuidv4();
+  const testSupervisorPinId = uuidv4();
+
   // Create test team
   const [testTeam] = await testDb.insert(schema.teams).values({
-    id: 'test-team-123',
+    id: testTeamId,
     name: 'Test Survey Team',
     timezone: 'Asia/Kolkata',
     stateId: 'MH01',
@@ -54,7 +61,7 @@ export async function createTestData() {
 
   // Create test user with PIN
   const [testUser] = await testDb.insert(schema.users).values({
-    id: 'test-user-123',
+    id: testUserId,
     teamId: testTeam.id,
     code: 'TEST001',
     displayName: 'Test User',
@@ -72,7 +79,7 @@ export async function createTestData() {
 
   // Create test device
   const [testDevice] = await testDb.insert(schema.devices).values({
-    id: 'test-device-123',
+    id: testDeviceId,
     teamId: testTeam.id,
     name: 'Test Device',
     androidId: 'test-android-123',
@@ -83,7 +90,7 @@ export async function createTestData() {
   // Create test supervisor PIN
   const supervisorPinHash = await hashPassword('789012');
   const [testSupervisorPin] = await testDb.insert(schema.supervisorPins).values({
-    id: 'test-sup-pin-123',
+    id: testSupervisorPinId,
     teamId: testTeam.id,
     name: 'Test Supervisor',
     pinHash: supervisorPinHash.hash,

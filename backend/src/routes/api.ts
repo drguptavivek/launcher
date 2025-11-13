@@ -199,6 +199,12 @@ async function refreshToken(req: Request, res: Response) {
   try {
     const { refresh_token } = req.body;
 
+    logger.debug('Refresh token request', {
+      hasRefreshToken: !!refresh_token,
+      tokenLength: refresh_token?.length,
+      body: req.body
+    });
+
     if (!refresh_token) {
       return res.status(400).json({
         ok: false,
@@ -211,6 +217,7 @@ async function refreshToken(req: Request, res: Response) {
     }
 
     const result = await AuthService.refreshToken(refresh_token);
+    logger.debug('Refresh token result', { success: result.success });
 
     if (result.success) {
       return res.json({

@@ -294,7 +294,7 @@ export class JWTService {
       .where(eq(sessions.id, payload['x-session-id']))
       .limit(1);
 
-    if (session.length === 0 || !session[0].isActive) {
+    if (session.length === 0 || session[0].status !== 'open') {
       throw new Error('Session not found or inactive');
     }
 

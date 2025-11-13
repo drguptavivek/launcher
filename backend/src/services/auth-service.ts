@@ -347,12 +347,12 @@ export class AuthService {
         expiresAt: result.expiresAt,
       };
     } catch (error) {
-      logger.error('Token refresh error', { error });
+      logger.error('Token refresh error', { error, message: error.message });
       return {
         success: false,
         error: {
           code: 'INVALID_REFRESH_TOKEN',
-          message: 'Invalid or expired refresh token',
+          message: `Invalid or expired refresh token: ${error.message}`,
         },
       };
     }

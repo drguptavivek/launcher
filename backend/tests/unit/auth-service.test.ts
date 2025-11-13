@@ -34,7 +34,7 @@ describe('AuthService', () => {
       // Mock database responses
       const mockDevice = { id: 'device-001', teamId: 'team-001', isActive: true };
       const mockUser = { id: 'user-001', code: 'test001', teamId: 'team-001', isActive: true };
-      const mockUserPin = { userId: 'user-001', pinHash: 'hash', salt: 'salt', retryCount: 0 };
+      const mockUserPin = { userId: 'user-001', pinHash: 'hash', salt: 'salt' };
       const mockSession = { sessionId: 'session-001', userId: 'user-001' };
 
       vi.mocked(db.select).mockReturnValue({
@@ -98,7 +98,7 @@ describe('AuthService', () => {
     it('should reject login with wrong password', async () => {
       const mockDevice = { id: 'device-001', teamId: 'team-001', isActive: true };
       const mockUser = { id: 'user-001', teamId: 'team-001', isActive: true };
-      const mockUserPin = { userId: 'user-001', pinHash: 'hash', salt: 'salt', retryCount: 0 };
+      const mockUserPin = { userId: 'user-001', pinHash: 'hash', salt: 'salt' };
 
       vi.mocked(db.select).mockReturnValue({
         where: vi.fn().mockReturnValue({

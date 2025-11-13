@@ -59,7 +59,6 @@ describe('API Integration Tests', () => {
       userId,
       pinHash: pinHash.hash,
       salt: pinHash.salt,
-      retryCount: 0,
     });
   });
 
