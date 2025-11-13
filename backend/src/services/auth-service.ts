@@ -514,7 +514,7 @@ export class AuthService {
 
       // Verify supervisor PIN
       const pinValid = await verifyPassword(
-        supervisorPin,
+        request.supervisorPin,
         supervisorPinData[0].pinHash,
         supervisorPinData[0].salt
       );
@@ -561,12 +561,17 @@ export class AuthService {
         token: overrideToken.token,
       };
     } catch (error) {
-      logger.error('Supervisor override error', { deviceId, error });
+      logger.error('Supervisor override error', {
+        deviceId,
+        error: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       return {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'An error occurred during supervisor override',
+          message: `An error occurred during supervisor override: ${error.message}`,
         },
       };
     }

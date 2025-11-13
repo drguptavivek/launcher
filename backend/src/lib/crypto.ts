@@ -215,7 +215,7 @@ export class JWTUtils {
     deviceId: string;
     sessionId: string;
     teamId: string;
-  }): { token: string; expiresAt: Date } {
+  }, type: 'access' | 'override' = 'access'): { token: string; expiresAt: Date } {
     const jti = generateJTI();
     const now = Math.floor(Date.now() / 1000);
 
@@ -248,7 +248,7 @@ export class JWTUtils {
         'x-device-id': payload.deviceId,
         'x-session-id': payload.sessionId,
         'x-team-id': payload.teamId,
-        type: 'access',
+        type: type,
       },
       env.JWT_ACCESS_SECRET,
       { algorithm: 'HS256' }

@@ -91,6 +91,7 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+    
     if (!token) {
       return res.status(401).json({
         ok: false,
@@ -101,8 +102,14 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
       });
     }
 
-    // Verify JWT token
-    const verification = await JWTService.verifyToken(token, 'access');
+    // Try to verify as access token first, then override token
+    let verification = await JWTService.verifyToken(token, 'access');
+    let tokenType = 'access';
+
+    if (!verification.valid) {
+      verification = await JWTService.verifyToken(token, 'override');
+      tokenType = 'override';
+    }
 
     if (!verification.valid || !verification.payload) {
       return res.status(401).json({
@@ -118,16 +125,35 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
     const userId = payload.sub;
     const sessionId = payload['x-session-id'];
 
-    const userResult = await UserService.getUser(userId);
-
-    if (!userResult.success || !userResult.user) {
-      return res.status(401).json({
-        ok: false,
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: 'User not found or inactive'
+    // For override tokens, we need to handle differently
+    let userResult;
+    if (tokenType === 'override') {
+      // Override tokens are issued to supervisor PIN IDs, not regular users
+      // Create a minimal user context for supervisor access
+      userResult = {
+        success: true,
+        user: {
+          id: userId,
+          code: 'SUPERVISOR',
+          teamId: payload['x-team-id'] || '',
+          displayName: 'Supervisor Override',
+          email: null,
+          role: 'SUPERVISOR' as const,
+          isActive: true
         }
-      });
+      };
+    } else {
+      userResult = await UserService.getUser(userId);
+
+      if (!userResult.success || !userResult.user) {
+        return res.status(401).json({
+          ok: false,
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found or inactive'
+          }
+        });
+      }
     }
 
     // Get session information

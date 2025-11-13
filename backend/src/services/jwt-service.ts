@@ -1,9 +1,10 @@
 import { JWTUtils, generateJTI, nowUTC } from '../lib/crypto';
 import { db } from '../lib/db';
-import { jwtRevocationss, sessions } from '../lib/db/schema';
+import { jwtRevocations, sessions } from '../lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../lib/logger';
 import { env } from '../lib/config';
+import jwt from 'jsonwebtoken';
 
 export interface JWTPayload {
   sub: string; // user_id
@@ -190,32 +191,33 @@ export class JWTService {
    * Create an override token (short-lived for supervisor access)
    */
   private static async createOverrideToken(payload: { userId: string; deviceId: string; sessionId: string }): Promise<{ token: string; expiresAt: Date }> {
-    const jti = generateJTI();
     const now = Math.floor(Date.now() / 1000);
+    const jti = generateJTI();
 
     // Override tokens are valid for 2 hours
     const ttlSeconds = 2 * 60 * 60; // 2 hours
     const expiresAt = new Date((now + ttlSeconds) * 1000);
 
-    const accessToken = JWTUtils.createAccessToken({
-      userId: payload.userId,
-      deviceId: payload.deviceId,
-      sessionId: payload.sessionId,
-      teamId: '',
-    });
-
-    // Store override token metadata for expiration tracking
-    await db.insert(jwtRevocations).values({
-      id: generateJTI(),
-      jti: jti,
-      revokedAt: nowUTC(),
-      expiresAt,
-      reason: 'override-token-expiry',
-      revokedBy: 'system',
-    });
+    // Create JWT token directly with override type and custom TTL
+    const token = jwt.sign(
+      {
+        sub: payload.userId,
+        aud: 'surveylauncher-client',
+        iss: 'surveylauncher-backend',
+        iat: now,
+        exp: now + ttlSeconds,
+        jti,
+        'x-device-id': payload.deviceId,
+        'x-session-id': payload.sessionId,
+        'x-team-id': '',
+        type: 'override',
+      },
+      env.JWT_ACCESS_SECRET,
+      { algorithm: 'HS256' }
+    );
 
     return {
-      token: accessToken.token,
+      token,
       expiresAt,
     };
   }
@@ -229,19 +231,28 @@ export class JWTService {
     error?: string;
     jti?: string;
   }> {
-    // Verify as access token first
-    const result = JWTUtils.verifyAccessToken(token);
+    try {
+      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+        audience: 'surveylauncher-client',
+        issuer: 'surveylauncher-backend',
+        algorithms: ['HS256'],
+      }) as any;
 
-    if (!result.valid || !result.payload) {
-      return result;
+      if (decoded.type !== 'override') {
+        return { valid: false, error: 'Invalid token type for override' };
+      }
+
+      return {
+        valid: true,
+        payload: decoded,
+        jti: decoded.jti,
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        error: error.message,
+      };
     }
-
-    // Check if it's an override token
-    if (result.payload.type !== 'override') {
-      return { valid: false, error: 'Invalid token type for override' };
-    }
-
-    return result;
   }
 
   /**

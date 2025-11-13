@@ -6,6 +6,7 @@ import { TeamService } from '../services/team-service';
 import { UserService } from '../services/user-service';
 import { DeviceService } from '../services/device-service';
 import { SupervisorPinService } from '../services/supervisor-pin-service';
+import { JWTService } from '../services/jwt-service';
 import { logger } from '../lib/logger';
 import {
   authenticateToken,
@@ -357,6 +358,12 @@ async function supervisorOverride(req: Request, res: Response) {
       });
     } else {
       const statusCode = result.error?.code === 'RATE_LIMITED' ? 429 : 401;
+
+      // Set retry-after header if rate limited
+      if (result.error?.code === 'RATE_LIMITED' && result.error?.retryAfter) {
+        res.set('Retry-After', result.error.retryAfter.toString());
+      }
+
       return res.status(statusCode).json({
         ok: false,
         error: {
@@ -374,6 +381,66 @@ async function supervisorOverride(req: Request, res: Response) {
       error: {
         code: 'INTERNAL_ERROR',
         message: 'An error occurred during supervisor override',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// POST /api/v1/supervisor/override/revoke
+async function supervisorOverrideRevoke(req: Request, res: Response) {
+  try {
+    // Extract token from authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: 'MISSING_TOKEN',
+          message: 'Authorization token required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const token = authHeader.substring(7);
+
+    // Verify it's an override token and get its JTI
+    const verification = await JWTService.verifyToken(token, 'override');
+    if (!verification.valid || !verification.jti) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid or expired override token',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    // Revoke the token
+    await JWTService.revokeToken(verification.jti, 'supervisor_revoke', 'system');
+
+    logger.info('Supervisor override revoked', {
+      jti: verification.jti,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+    });
+
+    return res.json({
+      ok: true,
+    });
+  } catch (error) {
+    logger.error('Supervisor override revoke error', {
+      error: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred during supervisor override revocation',
         request_id: req.headers['x-request-id'],
       },
     });
@@ -399,10 +466,9 @@ async function getPolicy(req: Request, res: Response) {
     const result = await PolicyService.issuePolicy(deviceId, req.ip);
 
     if (result.success) {
-      return res.json({
-        jws: result.jws,
-        payload: result.payload,
-      });
+      // Return the raw JWS with proper content type
+      res.setHeader('Content-Type', 'application/jose');
+      return res.send(result.jws);
     } else {
       return res.status(result.error?.code === 'DEVICE_NOT_FOUND' ? 404 : 500).json({
         ok: false,
@@ -1834,9 +1900,13 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
     return supervisorOverride(req, res);
   }
 
+  if (method === 'POST' && originalUrl === '/api/v1/supervisor/override/revoke') {
+    return supervisorOverrideRevoke(req, res);
+  }
+
   // Policy routes
   if (method === 'GET' && originalUrl.startsWith('/api/v1/policy/')) {
-    return getPolicy(req, res);
+    return authenticateToken(req as AuthenticatedRequest, res, () => getPolicy(req, res));
   }
 
   // Telemetry routes
