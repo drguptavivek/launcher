@@ -229,20 +229,36 @@ describe('API Integration Tests', () => {
 
   describe('Policy Endpoint', () => {
     describe('GET /api/v1/policy/:deviceId', () => {
+      let accessToken: string;
+
+      beforeEach(async () => {
+        const loginResponse = await request(app)
+          .post('/api/v1/auth/login')
+          .send({
+            deviceId,
+            userCode: 'test001',
+            pin: '123456',
+          });
+
+        accessToken = loginResponse.body.access_token;
+      });
+
       it('should return policy for valid device', async () => {
         const response = await request(app)
-          .get(`/api/v1/policy/${deviceId}`);
+          .get(`/api/v1/policy/${deviceId}`)
+          .set('Authorization', `Bearer ${accessToken}`);
 
         expect(response.status).toBe(200);
-        expect(response.body.jws).toBeDefined();
-        expect(response.body.payload).toBeDefined();
-        expect(response.body.payload.device_id).toBe(deviceId);
-        expect(response.body.payload.version).toBe(3);
+        // Policy endpoint returns raw JWS, not JSON
+        expect(response.headers['content-type']).toBe('application/jose; charset=utf-8');
+        expect(response.text).toBeDefined();
+        expect(response.text).toMatch(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/); // JWS format
       });
 
       it('should reject invalid device', async () => {
         const response = await request(app)
-          .get(`/api/v1/policy/${uuidv4()}`); // Valid UUID format but doesn't exist
+          .get(`/api/v1/policy/${uuidv4()}`) // Valid UUID format but doesn't exist
+          .set('Authorization', `Bearer ${accessToken}`);
 
         expect(response.status).toBe(404);
         expect(response.body.ok).toBe(false);

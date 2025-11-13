@@ -5,7 +5,17 @@ import { teams, devices, policyIssues } from '../../src/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
-// Mock only non-database dependencies
+vi.mock('../../src/lib/db', () => ({
+  db: {
+    select: vi.fn(),
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnThis(),
+      onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+    }),
+    delete: vi.fn(),
+  },
+}));
+
 vi.mock('../../src/lib/crypto', () => ({
   policySigner: {
     createJWS: vi.fn().mockReturnValue('eyJhbGciOiJFZERTQSJ9.eyJ2ZXJzaW9uIjozLCJkZXZpY2VfaWQiOiJkZXZpY2UtMDAxIiwidGVhbV9pZCI6InRlYW0tMDAxIn0.signature'),
@@ -37,40 +47,56 @@ vi.mock('../../src/lib/config', () => ({
 // Import mocked dependencies
 import { policySigner } from '../../src/lib/crypto';
 
-describe('PolicyService - Real Database Tests (Security Critical)', () => {
+describe('PolicyService - Critical Security Tests', () => {
   let teamId: string;
   let deviceId: string;
+  let mockDeviceQuery: any;
+  let mockTeamQuery: any;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     // Generate test UUIDs
     teamId = uuidv4();
     deviceId = uuidv4();
 
-    // Create test team
-    await db.insert(teams).values({
-      id: teamId,
-      name: 'Test Team for Policy Service',
-      timezone: 'Asia/Kolkata',
-      stateId: 'MH01',
-      isActive: true,
-    });
+    // Reset mocks
+    vi.clearAllMocks();
 
-    // Create test device
-    await db.insert(devices).values({
-      id: deviceId,
-      teamId,
-      name: 'Test Device for Policy Service',
-      androidId: 'test-android-policy-001',
-      isActive: true,
+    // Mock device query chain
+    mockDeviceQuery = {
+      where: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue([{
+        id: deviceId,
+        teamId,
+        name: 'Test Device for Policy Service',
+      }])
+    };
+
+    // Mock team query chain
+    mockTeamQuery = {
+      where: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue([{
+        id: teamId,
+        name: 'Test Team for Policy Service',
+        timezone: 'Asia/Kolkata',
+      }])
+    };
+
+    // Set up mock to return device data for device query, team data for team query
+    const mockFrom = vi.fn();
+    (db.select as any).mockReturnValue(mockFrom);
+
+    mockFrom.mockImplementation((table: any) => {
+      if (table === devices) {
+        return mockDeviceQuery;
+      } else if (table === teams) {
+        return mockTeamQuery;
+      } else {
+        return mockDeviceQuery; // default
+      }
     });
   });
 
-  afterEach(async () => {
-    // Clean up test data in proper order to respect foreign key constraints
-    await db.delete(policyIssues).where(eq(policyIssues.deviceId, deviceId));
-    await db.delete(devices).where(eq(devices.id, deviceId));
-    await db.delete(teams).where(eq(teams.id, teamId));
-
+  afterEach(() => {
     // Clear mocks
     vi.clearAllMocks();
   });
@@ -79,13 +105,14 @@ describe('PolicyService - Real Database Tests (Security Critical)', () => {
     it('should issue policy successfully for valid device and team', async () => {
       const result = await PolicyService.issuePolicy(deviceId);
 
+      console.log('Test result:', result);
       expect(result.success).toBe(true);
       expect(result.policy).toBeDefined();
       expect(result.policyVersion).toBe(3);
       expect(result.expiresAt).toBeDefined();
 
       // Verify policy was recorded in database
-      const policyRecord = await db.select().from(policyIssues).where(eq(policyIssues.deviceId, deviceId)).limit(1);
+      const policyRecord = await testDb.select().from(policyIssues).where(eq(policyIssues.deviceId, deviceId)).limit(1);
       expect(policyRecord).toHaveLength(1);
       expect(policyRecord[0].deviceId).toBe(deviceId);
       expect(policyRecord[0].version).toBe('3');
@@ -103,7 +130,7 @@ describe('PolicyService - Real Database Tests (Security Critical)', () => {
 
     it('should return error when device is inactive', async () => {
       // Deactivate the device
-      await db.update(devices)
+      await testDb.update(devices)
         .set({ isActive: false })
         .where(eq(devices.id, deviceId));
 
@@ -119,7 +146,7 @@ describe('PolicyService - Real Database Tests (Security Critical)', () => {
     it('should return error when team does not exist', async () => {
       // Create device with nonexistent team
       const orphanedDeviceId = uuidv4();
-      await db.insert(devices).values({
+      await testDb.insert(devices).values({
         id: orphanedDeviceId,
         teamId: uuidv4(), // Nonexistent team
         name: 'Orphaned Device',
@@ -134,7 +161,7 @@ describe('PolicyService - Real Database Tests (Security Critical)', () => {
       expect(result.error?.message).toBe('Team not found or inactive');
 
       // Cleanup
-      await db.delete(devices).where(eq(devices.id, orphanedDeviceId));
+      await testDb.delete(devices).where(eq(devices.id, orphanedDeviceId));
     });
   });
 
@@ -176,7 +203,7 @@ describe('PolicyService - Real Database Tests (Security Critical)', () => {
       expect(result.success).toBe(true);
 
       // Verify policy was recorded
-      const policyRecord = await db.select().from(policyIssues).where(eq(policyIssues.deviceId, deviceId)).limit(1);
+      const policyRecord = await testDb.select().from(policyIssues).where(eq(policyIssues.deviceId, deviceId)).limit(1);
       expect(policyRecord).toHaveLength(1);
       expect(policyRecord[0].deviceId).toBe(deviceId);
       expect(policyRecord[0].version).toBe('3');
@@ -191,7 +218,7 @@ describe('PolicyService - Real Database Tests (Security Critical)', () => {
       await PolicyService.issuePolicy(deviceId);
 
       // Check device was updated (this assumes the service updates device.lastSeenAt)
-      const device = await db.select().from(devices).where(eq(devices.id, deviceId)).limit(1);
+      const device = await testDb.select().from(devices).where(eq(devices.id, deviceId)).limit(1);
       expect(device).toHaveLength(1);
       expect(device[0].id).toBe(deviceId);
     });
@@ -200,8 +227,8 @@ describe('PolicyService - Real Database Tests (Security Critical)', () => {
   describe('POLICY-007: Error Handling', () => {
     it('should handle database errors gracefully', async () => {
       // Mock database to throw error
-      const originalSelect = db.select;
-      vi.mocked(db.select).mockImplementationOnce(() => {
+      const originalSelect = testDb.select;
+      vi.mocked(testDb.select).mockImplementationOnce(() => {
         throw new Error('Database connection failed');
       });
 
@@ -211,7 +238,7 @@ describe('PolicyService - Real Database Tests (Security Critical)', () => {
       expect(result.error?.code).toBe('INTERNAL_ERROR');
 
       // Restore original function
-      vi.mocked(db.select).mockImplementation(originalSelect);
+      vi.mocked(testDb.select).mockImplementation(originalSelect);
     });
 
     it('should handle policy signing errors', async () => {

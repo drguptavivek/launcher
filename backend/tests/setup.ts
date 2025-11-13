@@ -25,6 +25,9 @@ afterAll(async () => {
   await testDb.end();
 });
 
+// Export test database for use in tests
+export { testDbInstance as testDb };
+
 beforeEach(async () => {
   // Reset database state before each test if needed
 });
@@ -32,5 +35,3 @@ beforeEach(async () => {
 afterEach(async () => {
   // Clean up after each test if needed
 });
-
-export { testDb, testDbInstance };

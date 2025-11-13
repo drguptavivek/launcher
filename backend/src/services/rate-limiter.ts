@@ -278,6 +278,16 @@ export class PinLockoutService {
     const maxAttempts = 5;
     const remainingAttempts = Math.max(0, maxAttempts - lockout.attempts);
 
+    // Debug logging
+    logger.info('PIN failed attempt recorded', {
+      userId,
+      deviceId,
+      attempts: lockout.attempts,
+      maxAttempts,
+      remainingAttempts,
+      key
+    });
+
     if (lockout.attempts >= maxAttempts) {
       // Exponential backoff: 5min, 10min, 20min, 40min, max 1hour
       const lockoutMinutes = Math.min(Math.pow(2, lockout.attempts - maxAttempts) * 5, 60);

@@ -259,8 +259,9 @@ describe('JWTService', () => {
       });
 
       // Should fail to refresh with access token
-      await expect(JWTService.refreshToken(accessResult.token))
-        .rejects.toThrow('Invalid refresh token');
+      const result = await JWTService.refreshToken(accessResult.token);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Invalid refresh token');
     });
 
     it('JWT-018: should reject refresh token for non-existent session', async () => {
@@ -280,14 +281,16 @@ describe('JWTService', () => {
       const refreshToken = refreshResult.token;
 
       // Should fail to refresh due to non-existent session
-      await expect(JWTService.refreshToken(refreshToken))
-        .rejects.toThrow('Session not found or inactive');
+      const result = await JWTService.refreshToken(refreshToken);
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Session not found or inactive');
     });
 
     it('JWT-019: should reject malformed refresh token', async () => {
       // Test with completely invalid token
-      await expect(JWTService.refreshToken('invalid.token.format'))
-        .rejects.toThrow('Invalid refresh token');
+      const result = await JWTService.refreshToken('invalid.token.format');
+      expect(result.valid).toBe(false);
+      expect(result.error).toBe('Invalid refresh token');
     });
 
     it('JWT-020: should handle refresh token creation error cases', async () => {
