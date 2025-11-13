@@ -12,6 +12,7 @@ import { teams, devices, users, userPins, supervisorPins, sessions } from '../sr
 import { verifyPassword, hashPassword } from '../src/lib/crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../src/lib/logger';
+import { eq } from 'drizzle-orm';
 
 // Fixed test credentials - these should be used in all tests
 export const FIXED_USERS = {

@@ -170,8 +170,10 @@ async function login(req: Request, res: Response) {
 
 // POST /api/v1/auth/logout
 async function logout(req: Request, res: Response) {
+  let sessionId: string | undefined;
+
   try {
-    const { sessionId } = req.body;
+    sessionId = req.body.sessionId;
 
     if (!sessionId) {
       return res.status(400).json({

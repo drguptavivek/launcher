@@ -294,31 +294,45 @@ export class JWTService {
    * Refresh an access token using a refresh token
    */
   static async refreshToken(refreshToken: string): Promise<TokenResult> {
-    // Verify the refresh token
-    const verification = await this.verifyToken(refreshToken, 'refresh');
-    if (!verification.valid || !verification.payload) {
-      throw new Error('Invalid refresh token');
+    try {
+      // Verify the refresh token
+      const verification = await this.verifyToken(refreshToken, 'refresh');
+      if (!verification.valid || !verification.payload) {
+        return {
+          valid: false,
+          error: 'Invalid refresh token',
+        };
+      }
+
+      const payload = verification.payload;
+
+      // Check if the session is still active
+      const session = await db.select()
+        .from(sessions)
+        .where(eq(sessions.id, payload['x-session-id']))
+        .limit(1);
+
+      if (session.length === 0 || session[0].status !== 'open') {
+        return {
+          valid: false,
+          error: 'Session not found or inactive',
+        };
+      }
+
+      // Create new access token
+      return this.createToken({
+        userId: payload.sub,
+        deviceId: payload['x-device-id'],
+        sessionId: payload['x-session-id'],
+        teamId: payload['x-team-id'],
+        type: 'access',
+      });
+    } catch (error) {
+      logger.error('JWT refresh token error', { error: error?.message || error });
+      return {
+        valid: false,
+        error: error?.message || 'Token refresh failed',
+      };
     }
-
-    const payload = verification.payload;
-
-    // Check if the session is still active
-    const session = await db.select()
-      .from(sessions)
-      .where(eq(sessions.id, payload['x-session-id']))
-      .limit(1);
-
-    if (session.length === 0 || session[0].status !== 'open') {
-      throw new Error('Session not found or inactive');
-    }
-
-    // Create new access token
-    return this.createToken({
-      userId: payload.sub,
-      deviceId: payload['x-device-id'],
-      sessionId: payload['x-session-id'],
-      teamId: payload['x-team-id'],
-      type: 'access',
-    });
   }
 }

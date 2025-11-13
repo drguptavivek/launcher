@@ -127,7 +127,8 @@ export class RateLimiter {
    */
   static async checkPinLimit(userId: string, deviceId: string): Promise<RateLimitResult> {
     const key = `pin:${userId}:${deviceId}`;
-    return this.checkLimit(key, env.PIN_RATE_LIMIT_MAX, 15 * 60 * 1000); // 15 minutes
+    const windowMs = env.NODE_ENV === 'test' ? 2 * 1000 : 15 * 60 * 1000; // 2 seconds for tests, 15 minutes for production
+    return this.checkLimit(key, env.PIN_RATE_LIMIT_MAX, windowMs);
   }
 
   /**
@@ -137,7 +138,8 @@ export class RateLimiter {
     const key = `supervisor:${ipAddress}`;
     // Use lower limit during testing to ensure rate limiting is triggered
     const limit = env.NODE_ENV === 'test' ? 5 : 10;
-    return this.checkLimit(key, limit, 15 * 60 * 1000); // attempts per 15 minutes
+    const windowMs = env.NODE_ENV === 'test' ? 2 * 1000 : 15 * 60 * 1000; // 2 seconds for tests, 15 minutes for production
+    return this.checkLimit(key, limit, windowMs);
   }
 
   /**
@@ -360,5 +362,13 @@ export class PinLockoutService {
     if (cleaned > 0) {
       logger.debug('PIN lockout cleanup', { cleaned, totalLockouts: this.lockouts.size });
     }
+  }
+
+  /**
+   * Clear all lockouts (useful for tests)
+   */
+  static clearAll(): void {
+    this.lockouts.clear();
+    logger.info('All PIN lockouts cleared');
   }
 }

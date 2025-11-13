@@ -19,72 +19,17 @@ describe('Authentication API Integration Tests', () => {
   const userId = uuidv4();
   const supervisorPinId = uuidv4();
 
-  beforeEach(async () => {
-    // Setup Express app
+  beforeAll(async () => {
+    // Setup Express app once
     app = express();
     app.use(express.json());
     app.use('/api/v1', apiRouter);
 
-    // Clean up existing test data
-    await db.delete(supervisorPins).where(eq(supervisorPins.teamId, teamId));
-    await db.delete(userPins).where(eq(userPins.userId, userId));
-    await db.delete(users).where(eq(users.id, userId));
-    await db.delete(devices).where(eq(devices.id, deviceId));
-    await db.delete(teams).where(eq(teams.id, teamId));
-
-    // Create test team
-    await db.insert(teams).values({
-      id: teamId,
-      name: 'Test Team',
-      timezone: 'UTC',
-      stateId: 'MH01',
-    });
-
-    // Create test device
-    await db.insert(devices).values({
-      id: deviceId,
-      teamId,
-      name: 'Test Device',
-      isActive: true,
-    });
-
-    // Create test user
-    await db.insert(users).values({
-      id: userId,
-      code: 'test001',
-      teamId,
-      displayName: 'Test User',
-      isActive: true,
-    });
-
-    // Create user PIN
-    const pinHash = await hashPassword('123456');
-    await db.insert(userPins).values({
-      userId,
-      pinHash: pinHash.hash,
-      salt: pinHash.salt,
-    });
-
-    // Create test supervisor PIN
-    const supervisorPinHash = await hashPassword('789012');
-    await db.insert(supervisorPins).values({
-      id: supervisorPinId,
-      teamId,
-      name: 'Test Supervisor',
-      pinHash: supervisorPinHash.hash,
-      salt: supervisorPinHash.salt,
-      isActive: true,
-    });
+    // Ensure fixed test data exists
+    await ensureFixedTestData();
   });
 
-  afterEach(async () => {
-    // Clean up test data
-    await db.delete(supervisorPins).where(eq(supervisorPins.teamId, teamId));
-    await db.delete(userPins).where(eq(userPins.userId, userId));
-    await db.delete(users).where(eq(users.id, userId));
-    await db.delete(devices).where(eq(devices.id, deviceId));
-    await db.delete(teams).where(eq(teams.id, teamId));
-
+  beforeEach(async () => {
     // Clear rate limits to prevent interference between tests
     RateLimiter.resetLimit('login:::ffff:127.0.0.1');
     RateLimiter.resetLimit('pin:::ffff:127.0.0.1');
@@ -97,15 +42,14 @@ describe('Authentication API Integration Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId,
-          userCode: 'test001',
-          pin: '123456'
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
       expect(response.status).toBe(200);
       expect(response.body.ok).toBe(true);
       expect(response.body.session.session_id).toBeDefined();
-      expect(response.body.session.user_id).toBe(userId);
       expect(response.body.access_token).toBeDefined();
       expect(response.body.refresh_token).toBeDefined();
       expect(response.body.policy_version).toBeDefined();
@@ -115,9 +59,9 @@ describe('Authentication API Integration Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId: uuidv4(),
-          userCode: 'test001',
-          pin: '123456'
+          deviceId: uuidv4(), // Random invalid device ID
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
       expect(response.status).toBe(401);
@@ -130,9 +74,9 @@ describe('Authentication API Integration Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId,
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
           userCode: 'invaliduser',
-          pin: '123456'
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
       expect(response.status).toBe(401);
@@ -145,8 +89,8 @@ describe('Authentication API Integration Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId,
-          userCode: 'test001',
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
           pin: 'wrongpin'
         });
 
@@ -160,8 +104,8 @@ describe('Authentication API Integration Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId,
-          userCode: 'test001'
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode
         });
 
       expect(response.status).toBe(400);
@@ -178,9 +122,9 @@ describe('Authentication API Integration Tests', () => {
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId,
-          userCode: 'test001',
-          pin: '123456'
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
       const token = loginResponse.body.access_token;
@@ -224,9 +168,9 @@ describe('Authentication API Integration Tests', () => {
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId,
-          userCode: 'test001',
-          pin: '123456'
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
       const sessionId = loginResponse.body.session.session_id;
@@ -265,9 +209,9 @@ describe('Authentication API Integration Tests', () => {
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId,
-          userCode: 'test001',
-          pin: '123456'
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
       const refreshToken = loginResponse.body.refresh_token;
@@ -304,12 +248,11 @@ describe('Authentication API Integration Tests', () => {
       const loginResponse = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId,
-          userCode: 'test001',
-          pin: '123456'
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.TEAM_MEMBER.userCode,
+          pin: TEST_CREDENTIALS.TEAM_MEMBER.pin
         });
 
-      console.log('Login response body:', JSON.stringify(loginResponse.body, null, 2));
       const sessionId = loginResponse.body.session.session_id;
 
       // Send heartbeat

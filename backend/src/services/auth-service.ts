@@ -372,9 +372,19 @@ export class AuthService {
     try {
       const result = await JWTService.refreshToken(refreshToken);
 
+      if (!result.valid || !result.accessToken) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_REFRESH_TOKEN',
+            message: result.error || 'Invalid or expired refresh token',
+          },
+        };
+      }
+
       return {
         success: true,
-        accessToken: result.token,
+        accessToken: result.accessToken,
         expiresAt: result.expiresAt,
       };
     } catch (error) {
