@@ -265,7 +265,7 @@ describe('Security and Rate Limiting Tests', () => {
       expect(loginResponse.status).toBe(401);
       expect(loginResponse.body.error.code).toBe('ACCOUNT_LOCKED');
       expect(loginResponse.body.error.message).toContain('temporarily locked');
-      expect(loginResponse.body.error.retryAfter).toBeDefined();
+      expect(loginResponse.body.error.retry_after).toBeDefined();
     });
 
     it('should reset failed attempt counter after successful login', async () => {

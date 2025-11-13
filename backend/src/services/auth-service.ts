@@ -155,13 +155,15 @@ export class AuthService {
       if (isLockedOut) {
         const lockoutStatus = PinLockoutService.getLockoutStatus(userData.id, deviceId);
         await this.recordLoginAttempt(deviceId, userData.id, false, ipAddress, 'PIN_LOCKED_OUT');
+
+        const retryAfter = lockoutStatus.remainingTime ? Math.ceil(lockoutStatus.remainingTime / 1000) : undefined;
         return {
           success: false,
           policyVersion: 0,
           error: {
             code: 'ACCOUNT_LOCKED',
             message: 'Account temporarily locked due to too many failed attempts',
-            retryAfter: lockoutStatus.remainingTime ? Math.ceil(lockoutStatus.remainingTime / 1000) : undefined,
+            retryAfter,
           },
         };
       }
