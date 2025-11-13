@@ -17,6 +17,7 @@ export async function seedDatabase() {
       id: teamId,
       name: 'Sample Survey Team',
       timezone: 'Asia/Kolkata',
+      stateId: 'MH01',
     }).onConflictDoUpdate({
       target: teams.id,
       set: {
@@ -71,13 +72,11 @@ export async function seedDatabase() {
       userId,
       pinHash: userPinHash.hash,
       salt: userPinHash.salt,
-      retryCount: 0,
     }).onConflictDoUpdate({
       target: userPins.userId,
       set: {
         pinHash: userPinHash.hash,
         salt: userPinHash.salt,
-        retryCount: 0,
         updatedAt: new Date(),
       },
     });

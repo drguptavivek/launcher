@@ -1,0 +1,1 @@
+docker exec pg_minerva psql -U minerva -d minerva -f /app/minerva_db_backup_20251108_075134.sql

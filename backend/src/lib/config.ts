@@ -7,7 +7,7 @@ config();
 const envSchema = z.object({
   // Server Configuration
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().transform(Number).default('3000'),
+  PORT: z.string().transform(Number).pipe(z.number()).default(3000),
   HOST: z.string().default('localhost'),
 
   // Database Configuration
@@ -23,17 +23,17 @@ const envSchema = z.object({
   POLICY_SIGN_PRIVATE_BASE64: z.string().min(1),
 
   // Argon2 Configuration
-  ARGON2_MEMORY_SIZE: z.string().transform(Number).default('65536'),
-  ARGON2_ITERATIONS: z.string().transform(Number).default('3'),
-  ARGON2_PARALLELISM: z.string().transform(Number).default('1'),
-  ARGON2_SALT_LENGTH: z.string().transform(Number).default('16'),
-  ARGON2_HASH_LENGTH: z.string().transform(Number).default('32'),
+  ARGON2_MEMORY_SIZE: z.string().transform(Number).pipe(z.number()).default(65536),
+  ARGON2_ITERATIONS: z.string().transform(Number).pipe(z.number()).default(3),
+  ARGON2_PARALLELISM: z.string().transform(Number).pipe(z.number()).default(1),
+  ARGON2_SALT_LENGTH: z.string().transform(Number).pipe(z.number()).default(16),
+  ARGON2_HASH_LENGTH: z.string().transform(Number).pipe(z.number()).default(32),
 
   // Rate Limiting
-  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default('900000'),
-  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default('100'),
-  LOGIN_RATE_LIMIT_MAX: z.string().transform(Number).default('5'),
-  PIN_RATE_LIMIT_MAX: z.string().transform(Number).default('10'),
+  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).pipe(z.number()).default(900000),
+  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).pipe(z.number()).default(100),
+  LOGIN_RATE_LIMIT_MAX: z.string().transform(Number).pipe(z.number()).default(5),
+  PIN_RATE_LIMIT_MAX: z.string().transform(Number).pipe(z.number()).default(10),
 
   // CORS Configuration
   CORS_ALLOWED_ORIGINS: z.string().transform(val => val.split(',').map(s => s.trim())),
@@ -43,17 +43,17 @@ const envSchema = z.object({
   LOG_FORMAT: z.enum(['json', 'pretty']).default('json'),
 
   // Mock API
-  MOCK_API: z.string().transform(val => val === 'true').default('false'),
+  MOCK_API: z.string().transform(val => val === 'true').pipe(z.boolean()).default(false),
 
   // Security
-  MAX_CLOCK_SKEW_SEC: z.string().transform(Number).default('180'),
-  MAX_POLICY_AGE_SEC: z.string().transform(Number).default('86400'),
-  SESSION_TIMEOUT_HOURS: z.string().transform(Number).default('8'),
+  MAX_CLOCK_SKEW_SEC: z.string().transform(Number).pipe(z.number()).default(180),
+  MAX_POLICY_AGE_SEC: z.string().transform(Number).pipe(z.number()).default(86400),
+  SESSION_TIMEOUT_HOURS: z.string().transform(Number).pipe(z.number()).default(8),
 
   // Telemetry
-  TELEMETRY_BATCH_MAX: z.string().transform(Number).default('50'),
-  HEARTBEAT_MINUTES: z.string().transform(Number).default('10'),
-  GPS_FIX_INTERVAL_MINUTES: z.string().transform(Number).default('3'),
+  TELEMETRY_BATCH_MAX: z.string().transform(Number).pipe(z.number()).default(50),
+  HEARTBEAT_MINUTES: z.string().transform(Number).pipe(z.number()).default(10),
+  GPS_FIX_INTERVAL_MINUTES: z.string().transform(Number).pipe(z.number()).default(3),
 });
 
 function parseConfig() {
@@ -61,9 +61,9 @@ function parseConfig() {
     return envSchema.parse(process.env);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const missingVars = error.errors
+      const missingVars = error.issues
         .filter(err => err.code === 'invalid_type')
-        .map(err => `- ${err.path.join('.')}: ${err.message}`);
+        .map((err: any) => `- ${err.path.join('.')}: ${err.message}`);
 
       if (missingVars.length > 0) {
         console.error('❌ Missing or invalid environment variables:');

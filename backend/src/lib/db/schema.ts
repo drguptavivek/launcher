@@ -1,119 +1,166 @@
-import { sql } from 'drizzle-orm';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  boolean,
+  timestamp,
+  jsonb,
+  integer,
+  pgEnum
+} from 'drizzle-orm/pg-core';
+
+// Enums
+export const userRoleEnum = pgEnum('user_role', ['TEAM_MEMBER', 'SUPERVISOR', 'ADMIN']);
 
 // Teams table
-export const teams = sqliteTable('teams', {
-  id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  timezone: text('timezone').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+export const teams = pgTable('teams', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  timezone: varchar('timezone', { length: 50 }).notNull().default('UTC'),
+  stateId: varchar('state_id', { length: 16 }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  nameIdx: table.name,
+}));
 
 // Devices table
-export const devices = sqliteTable('devices', {
-  id: text('id').primaryKey(),
-  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  lastSeenAt: integer('last_seen_at', { mode: 'timestamp' }),
-  lastGpsAt: integer('last_gps_at', { mode: 'timestamp' }),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+export const devices = pgTable('devices', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  androidId: varchar('android_id', { length: 64 }), // Optional unique Android device ID
+  appVersion: varchar('app_version', { length: 32 }), // Optional app version
+  isActive: boolean('is_active').notNull().default(true),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+  lastGpsAt: timestamp('last_gps_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  androidIdIdx: table.androidId,
+  teamIdIdx: table.teamId,
+}));
 
 // Users table
-export const users = sqliteTable('users', {
-  id: text('id').primaryKey(),
-  code: text('code').notNull().unique(),
-  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
-  displayName: text('display_name').notNull(),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+export const users = pgTable('users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  code: varchar('code', { length: 32 }).notNull(),
+  teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  role: userRoleEnum('role').notNull().default('TEAM_MEMBER'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userCodeIdx: table.code,
+  teamIdIdx: table.teamId,
+}));
 
-// User PINs table (for server-verified PIN mode)
-export const userPins = sqliteTable('user_pins', {
-  userId: text('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
-  pinHash: text('pin_hash').notNull(),
-  salt: text('salt').notNull(),
-  retryCount: integer('retry_count').notNull().default(0),
-  lockedUntil: integer('locked_until', { mode: 'timestamp' }),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
+// User PINs table
+export const userPins = pgTable('user_pins', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  pinHash: varchar('pin_hash', { length: 255 }).notNull(), // Argon2id hash
+  salt: varchar('salt', { length: 255 }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  rotatedAt: timestamp('rotated_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Supervisor PINs table
-export const supervisorPins = sqliteTable('supervisor_pins', {
-  id: text('id').primaryKey(),
-  teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
-  name: text('name').notNull(),
-  pinHash: text('pin_hash').notNull(),
-  salt: text('salt').notNull(),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+export const supervisorPins = pgTable('supervisor_pins', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  pinHash: varchar('pin_hash', { length: 255 }).notNull(), // Argon2id hash
+  salt: varchar('salt', { length: 255 }).notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  rotatedAt: timestamp('rotated_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  teamIdIdx: table.teamId,
+}));
 
 // Sessions table
-export const sessions = sqliteTable('sessions', {
-  id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
-  startedAt: integer('started_at', { mode: 'timestamp' }).notNull(),
-  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-  overrideUntil: integer('override_until', { mode: 'timestamp' }),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-  updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+export const sessions = pgTable('sessions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  deviceId: uuid('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+  status: varchar('status', { length: 16 }).notNull().default('open'), // open, expired, ended
+  overrideUntil: timestamp('override_until', { withTimezone: true }),
+  tokenJti: varchar('token_jti', { length: 64 }),
+  lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: table.userId,
+  deviceIdIdx: table.deviceId,
+  tokenJtiIdx: table.tokenJti,
+}));
 
 // Telemetry events table
-export const telemetryEvents = sqliteTable('telemetry_events', {
-  id: text('id').primaryKey(),
-  deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  eventType: text('event_type').notNull(), // 'heartbeat', 'gps', 'app_usage', etc.
-  eventData: text('event_data'), // JSON string with event-specific data
-  timestamp: integer('timestamp', { mode: 'timestamp' }).notNull(),
-  receivedAt: integer('received_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+export const telemetryEvents = pgTable('telemetry_events', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  deviceId: uuid('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+  sessionId: uuid('session_id').references(() => sessions.id, { onDelete: 'cascade' }),
+  eventType: varchar('event_type', { length: 32 }).notNull(), // gps, heartbeat, gate.blocked, pin.verify
+  eventData: jsonb('event_data').notNull(), // JSON payload for the event
+  timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
+  receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  deviceIdIdx: table.deviceId,
+  sessionIdIdx: table.sessionId,
+  eventTypeIdx: table.eventType,
+  timestampIdx: table.timestamp,
+}));
 
-// Policy issues table (tracks when policies are delivered to devices)
-export const policyIssues = sqliteTable('policy_issues', {
-  id: text('id').primaryKey(),
-  deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
-  policyVersion: integer('policy_version').notNull(),
-  jws: text('jws').notNull(), // The signed policy
-  issuedAt: integer('issued_at', { mode: 'timestamp' }).notNull(),
-  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-  ipAddress: text('ip_address'),
-  createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
-});
+// Policy issues table
+export const policyIssues = pgTable('policy_issues', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  deviceId: uuid('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+  version: varchar('version', { length: 16 }).notNull(),
+  issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  jwsKid: varchar('jws_kid', { length: 64 }).notNull(),
+  policyData: jsonb('policy_data').notNull(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+}, (table) => ({
+  deviceIdIdx: table.deviceId,
+  expiresAtIdx: table.expiresAt,
+}));
 
-// JWT revocation list
-export const jwtRevocation = sqliteTable('jwt_revocation', {
-  id: text('id').primaryKey(),
-  jti: text('jti').notNull().unique(), // JWT ID
-  revokedAt: integer('revoked_at', { mode: 'timestamp' }).notNull(),
-  expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-  reason: text('reason'), // Optional reason for revocation
-  revokedBy: text('revoked_by'), // User or system that revoked the token
-});
+// JWT revocation table
+export const jwtRevocations = pgTable('jwt_revocations', {
+  jti: varchar('jti', { length: 64 }).primaryKey(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  reason: varchar('reason', { length: 64 }),
+  revokedBy: varchar('revoked_by', { length: 255 }), // User or system that revoked the token
+}, (table) => ({
+  jtiIdx: table.jti,
+  expiresAtIdx: table.expiresAt,
+}));
 
 // PIN validation attempts (for rate limiting and lockout)
-export const pinAttempts = sqliteTable('pin_attempts', {
-  id: text('id').primaryKey(),
-  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  deviceId: text('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
-  attemptType: text('attempt_type').notNull(), // 'user_pin', 'supervisor_pin'
-  success: integer('success', { mode: 'boolean' }).notNull(),
-  ipAddress: text('ip_address'),
-  attemptedAt: integer('attempted_at', { mode: 'timestamp' }).notNull(),
-});
+export const pinAttempts = pgTable('pin_attempts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  deviceId: uuid('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
+  attemptType: varchar('attempt_type', { length: 16 }).notNull(), // 'user_pin', 'supervisor_pin'
+  success: boolean('success').notNull(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  attemptedAt: timestamp('attempted_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: table.userId,
+  deviceIdIdx: table.deviceId,
+  attemptTypeIdx: table.attemptType,
+}));
 
 // Export types
 export type Team = typeof teams.$inferSelect;
@@ -140,8 +187,8 @@ export type NewTelemetryEvent = typeof telemetryEvents.$inferInsert;
 export type PolicyIssue = typeof policyIssues.$inferSelect;
 export type NewPolicyIssue = typeof policyIssues.$inferInsert;
 
-export type JwtRevocation = typeof jwtRevocation.$inferSelect;
-export type NewJwtRevocation = typeof jwtRevocation.$inferInsert;
+export type JwtRevocation = typeof jwtRevocations.$inferSelect;
+export type NewJwtRevocation = typeof jwtRevocations.$inferInsert;
 
 export type PinAttempt = typeof pinAttempts.$inferSelect;
 export type NewPinAttempt = typeof pinAttempts.$inferInsert;

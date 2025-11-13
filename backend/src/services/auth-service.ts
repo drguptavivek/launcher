@@ -68,6 +68,7 @@ export interface SupervisorOverrideResult {
   error?: {
     code: string;
     message: string;
+    retryAfter?: number;
   };
 }
 
