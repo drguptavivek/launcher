@@ -21,7 +21,8 @@ export const statusColors = {
 	warning: colors.warning[500],
 	error: colors.error[500],
 	info: colors.primary[500],
-	idle: colors.neutral[400]
+	idle: colors.neutral[400],
+	white: '#ffffff'
 };
 
 // Component state utilities
@@ -30,7 +31,7 @@ export const buttonStates = {
 		background: colors.primary[600],
 		hover: colors.primary[700],
 		active: colors.primary[800],
-		disabled: colors.neutral[300
+		disabled: colors.neutral[300]
 	},
 	secondary: {
 		background: colors.neutral[100],
@@ -67,7 +68,7 @@ export const formFieldStates = {
 	},
 	focus: {
 		border: colors.primary[500],
-		background: colors.white,
+		background: statusColors.white,
 		placeholder: colors.neutral[400]
 	},
 	error: {
@@ -95,7 +96,7 @@ export const layout = {
 	},
 	header: {
 		height: '64px',
-		background: colors.white,
+		background: statusColors.white,
 		border: colors.neutral[200]
 	}
 };
