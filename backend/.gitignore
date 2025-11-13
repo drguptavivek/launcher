@@ -32,3 +32,18 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Key backups
+.key-backups/
+rotation-report-*.md
+
+# Temporary files
+*.tmp
+*.temp
