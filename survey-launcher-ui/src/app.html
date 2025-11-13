@@ -3,9 +3,29 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<!-- SurveyLauncher Admin Styles -->
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+		<!-- Prevent FOUC -->
+		<style>
+			/* Critical CSS to prevent flash of unstyled content */
+			body {
+				margin: 0;
+				font-family: 'Inter', system-ui, sans-serif;
+				background-color: #f9fafb;
+				color: #111827;
+				line-height: 1.5;
+			}
+		</style>
+
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
+		<!-- Skip link for accessibility -->
+		<a href="#main-content" class="skip-link">Skip to main content</a>
+
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>
