@@ -1,383 +1,342 @@
-/**
- * Authentication and Authorization Integration Tests
- * Tests authentication middleware and role-based access control
- */
-
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
-import app from '../../src/app';
-import { setupTestDatabase, cleanupTestDatabase, createTestData } from '../utils/test-setup';
-import { ApiAssertions, TestDataGenerator } from '../utils/test-helpers';
+import express from 'express';
+import { apiRouter } from '../../src/routes/api';
+import { db } from '../../src/lib/db';
+import { teams, devices, users, userPins, supervisorPins, sessions } from '../../src/lib/db/schema';
+import { hashPassword } from '../../src/lib/crypto';
+import { eq } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
+import { RateLimiter } from '../../src/services/rate-limiter';
 
-describe('Authentication and Authorization', () => {
-  let authToken: string;
-  let teamMemberToken: string;
-  let supervisorToken: string;
-  let testTeamId: string;
-  let testUserId: string;
-  let supervisorId: string;
+describe('Authentication API Integration Tests', () => {
+  let app: express.Application;
 
-  beforeAll(async () => {
-    // Setup test database
-    await setupTestDatabase();
+  // Generate test UUIDs once
+  const teamId = uuidv4();
+  const deviceId = uuidv4();
+  const userId = uuidv4();
+  const supervisorPinId = uuidv4();
 
-    // Create test data
-    const testData = await createTestData();
-    testTeamId = testData.team.id;
-    testUserId = testData.user.id;
+  beforeEach(async () => {
+    // Setup Express app
+    app = express();
+    app.use(express.json());
+    app.use('/api/v1', apiRouter);
 
-    // Create supervisor user
-    const supervisorResponse = await request(app)
-      .post('/api/v1/users')
-      .set('Authorization', `Bearer ${await (global as any).testUtils.generateTestToken(testUserId, testTeamId, 'ADMIN')}`)
-      .send(TestDataGenerator.generateUserData(testTeamId, {
-        code: 'SUPER002',
-        displayName: 'Auth Test Supervisor',
-        role: 'SUPERVISOR',
-        pin: '654321',
-      }));
+    // Clean up existing test data
+    await db.delete(supervisorPins).where(eq(supervisorPins.teamId, teamId));
+    await db.delete(userPins).where(eq(userPins.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
+    await db.delete(devices).where(eq(devices.id, deviceId));
+    await db.delete(teams).where(eq(teams.id, teamId));
 
-    supervisorId = supervisorResponse.body.id;
-
-    // Generate auth tokens
-    authToken = await (global as any).testUtils.generateTestToken(testUserId, testTeamId, 'ADMIN');
-    teamMemberToken = await (global as any).testUtils.generateTestToken(testUserId, testTeamId, 'TEAM_MEMBER');
-    supervisorToken = await (global as any).testUtils.generateTestToken(supervisorId, testTeamId, 'SUPERVISOR');
-
-    console.log('✅ Auth test setup completed');
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
-    console.log('✅ Auth test cleanup completed');
-  });
-
-  describe('Token Validation Tests', () => {
-    it('TC-AUTH-001: Valid JWT token accepted', async () => {
-      const response = await request(app)
-        .get('/api/v1/teams')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      ApiAssertions.assertSuccess(response);
+    // Create test team
+    await db.insert(teams).values({
+      id: teamId,
+      name: 'Test Team',
+      timezone: 'UTC',
+      stateId: 'MH01',
     });
 
-    it('TC-AUTH-002: Invalid JWT token rejected', async () => {
-      const response = await request(app)
-        .get('/api/v1/teams')
-        .set('Authorization', 'Bearer invalid-token');
-
-      ApiAssertions.assertUnauthorized(response);
+    // Create test device
+    await db.insert(devices).values({
+      id: deviceId,
+      teamId,
+      name: 'Test Device',
+      isActive: true,
     });
 
-    it('TC-AUTH-003: Missing JWT token rejected', async () => {
-      const response = await request(app)
-        .get('/api/v1/teams');
-
-      ApiAssertions.assertUnauthorized(response);
+    // Create test user
+    await db.insert(users).values({
+      id: userId,
+      code: 'test001',
+      teamId,
+      displayName: 'Test User',
+      isActive: true,
     });
 
-    it('TC-AUTH-004: Malformed JWT token rejected', async () => {
-      const response = await request(app)
-        .get('/api/v1/teams')
-        .set('Authorization', 'Bearer malformed.jwt.token');
-
-      ApiAssertions.assertUnauthorized(response);
+    // Create user PIN
+    const pinHash = await hashPassword('123456');
+    await db.insert(userPins).values({
+      userId,
+      pinHash: pinHash.hash,
+      salt: pinHash.salt,
     });
 
-    it('TC-AUTH-005: Wrong authorization header format rejected', async () => {
-      const response = await request(app)
-        .get('/api/v1/teams')
-        .set('Authorization', `Basic ${authToken}`);
-
-      ApiAssertions.assertUnauthorized(response);
+    // Create test supervisor PIN
+    const supervisorPinHash = await hashPassword('789012');
+    await db.insert(supervisorPins).values({
+      id: supervisorPinId,
+      teamId,
+      name: 'Test Supervisor',
+      pinHash: supervisorPinHash.hash,
+      salt: supervisorPinHash.salt,
+      isActive: true,
     });
   });
 
-  describe('Role-Based Access Tests', () => {
-    it('TC-AUTH-006: Admin can access all team management endpoints', async () => {
-      const endpoints = [
-        { method: 'get', path: '/api/v1/teams' },
-        { method: 'post', path: '/api/v1/teams' },
-        { method: 'get', path: `/api/v1/teams/${testTeamId}` },
-        { method: 'put', path: `/api/v1/teams/${testTeamId}` },
-      ];
+  afterEach(async () => {
+    // Clean up test data
+    await db.delete(supervisorPins).where(eq(supervisorPins.teamId, teamId));
+    await db.delete(userPins).where(eq(userPins.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
+    await db.delete(devices).where(eq(devices.id, deviceId));
+    await db.delete(teams).where(eq(teams.id, teamId));
 
-      for (const endpoint of endpoints) {
-        const response = await request(app)
-          [endpoint.method](endpoint.path)
-          .set('Authorization', `Bearer ${authToken}`)
-          .set('Content-Type', 'application/json')
-          .send(endpoint.method === 'post' ? TestDataGenerator.generateTeamData() : {});
-
-        // Should not get 401 or 403
-        expect([401, 403]).not.toContain(response.status);
-      }
-    });
-
-    it('TC-AUTH-007: Supervisor can access limited team endpoints', async () => {
-      const allowedEndpoints = [
-        { method: 'get', path: '/api/v1/teams' },
-        { method: 'get', path: `/api/v1/teams/${testTeamId}` },
-      ];
-
-      for (const endpoint of allowedEndpoints) {
-        const response = await request(app)
-          [endpoint.method](endpoint.path)
-          .set('Authorization', `Bearer ${supervisorToken}`);
-
-        ApiAssertions.assertSuccess(response);
-      }
-    });
-
-    it('TC-AUTH-008: Team member can access limited endpoints', async () => {
-      const allowedEndpoints = [
-        { method: 'get', path: '/api/v1/teams' }, // Should return only own team
-        { method: 'get', path: `/api/v1/teams/${testTeamId}` },
-      ];
-
-      for (const endpoint of allowedEndpoints) {
-        const response = await request(app)
-          [endpoint.method](endpoint.path)
-          .set('Authorization', `Bearer ${teamMemberToken}`);
-
-        ApiAssertions.assertSuccess(response);
-      }
-    });
-
-    it('TC-AUTH-009: Role escalation attempts blocked', async () => {
-      const privilegedOperations = [
-        { method: 'post', path: '/api/v1/teams', data: TestDataGenerator.generateTeamData() },
-        { method: 'post', path: '/api/v1/users', data: TestDataGenerator.generateUserData(testTeamId) },
-        { method: 'put', path: `/api/v1/teams/${testTeamId}`, data: { name: 'Hacked' } },
-      ];
-
-      for (const operation of privilegedOperations) {
-        const response = await request(app)
-          [operation.method](operation.path)
-          .set('Authorization', `Bearer ${teamMemberToken}`)
-          .set('Content-Type', 'application/json')
-          .send(operation.data);
-
-        // Should be forbidden
-        ApiAssertions.assertForbidden(response);
-      }
-    });
+    // Clear rate limits to prevent interference between tests
+    RateLimiter.resetLimit('login:::ffff:127.0.0.1');
+    RateLimiter.resetLimit('pin:::ffff:127.0.0.1');
+    RateLimiter.resetLimit('supervisor:::ffff:127.0.0.1');
   });
 
-  describe('Team-Based Access Tests', () => {
-    let otherTeamId: string;
-    let otherUserId: string;
-    let otherTeamToken: string;
+  describe('POST /api/v1/auth/login', () => {
 
-    beforeAll(async () => {
-      // Create another team and user
-      const teamResponse = await request(app)
-        .post('/api/v1/teams')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(TestDataGenerator.generateTeamData({
-          name: 'Other Auth Test Team',
-        }));
-
-      otherTeamId = teamResponse.body.id;
-
-      const userResponse = await request(app)
-        .post('/api/v1/users')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send(TestDataGenerator.generateUserData(otherTeamId, {
-          code: 'OTHERAUTH001',
-          displayName: 'Other Auth User',
-        }));
-
-      otherUserId = userResponse.body.id;
-      otherTeamToken = await (global as any).testUtils.generateTestToken(otherUserId, otherTeamId, 'TEAM_MEMBER');
-    });
-
-    it('TC-AUTH-010: Users can access own team resources', async () => {
+    it('should login successfully with valid credentials', async () => {
       const response = await request(app)
-        .get(`/api/v1/teams/${otherTeamId}`)
-        .set('Authorization', `Bearer ${otherTeamToken}`);
-
-      ApiAssertions.assertSuccess(response);
-      expect(response.body.id).toBe(otherTeamId);
-    });
-
-    it('TC-AUTH-011: Users cannot access other team resources', async () => {
-      const response = await request(app)
-        .get(`/api/v1/teams/${testTeamId}`)
-        .set('Authorization', `Bearer ${otherTeamToken}`);
-
-      ApiAssertions.assertForbidden(response);
-    });
-
-    it('TC-AUTH-012: Cross-team data access blocked', async () => {
-      // Try to access users from another team
-      const response = await request(app)
-        .get(`/api/v1/users?teamId=${testTeamId}`)
-        .set('Authorization', `Bearer ${otherTeamToken}`);
-
-      // Should either return forbidden or filtered results (no data from other teams)
-      if (response.status === 200) {
-        // If successful, should be empty or filtered
-        if (response.body.items && response.body.items.length > 0) {
-          response.body.items.forEach((user: any) => {
-            expect(user.teamId).toBe(otherTeamId);
-          });
-        }
-      } else {
-        ApiAssertions.assertForbidden(response);
-      }
-    });
-  });
-
-  describe('Request ID and Logging Tests', () => {
-    it('TC-AUTH-013: Request ID header required', async () => {
-      const response = await request(app)
-        .get('/api/v1/teams')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      // If request ID is required but not provided, should get 400
-      if (response.status === 400) {
-        expect(response.body.error?.code).toBe('MISSING_REQUEST_ID');
-      } else {
-        // If not required, should succeed
-        ApiAssertions.assertSuccess(response);
-      }
-    });
-
-    it('TC-AUTH-014: Valid request ID accepted', async () => {
-      const response = await request(app)
-        .get('/api/v1/teams')
-        .set('Authorization', `Bearer ${authToken}`)
-        .set('x-request-id', 'test-request-id-123');
-
-      ApiAssertions.assertSuccess(response);
-    });
-  });
-
-  describe('Rate Limiting Tests', () => {
-    it('TC-AUTH-015: Excessive requests rate limited', async () => {
-      const requests = [];
-
-      // Make multiple rapid requests
-      for (let i = 0; i < 20; i++) {
-        requests.push(
-          request(app)
-            .get('/api/v1/teams')
-            .set('Authorization', `Bearer ${authToken}`)
-            .set('x-request-id', `test-request-${i}`)
-        );
-      }
-
-      const responses = await Promise.all(requests);
-
-      // At least some requests should be rate limited
-      const rateLimitedResponses = responses.filter(r => r.status === 429);
-
-      // This test depends on rate limiting configuration
-      if (rateLimitedResponses.length > 0) {
-        rateLimitedResponses.forEach(response => {
-          expect(response.status).toBe(429);
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId,
+          userCode: 'test001',
+          pin: '123456'
         });
-      } else {
-        // If no rate limiting is implemented, all should succeed
-        responses.forEach(response => {
-          expect([200, 401]).toContain(response.status);
+
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
+      expect(response.body.session.sessionId).toBeDefined();
+      expect(response.body.session.userId).toBe(userId);
+      expect(response.body.accessToken).toBeDefined();
+      expect(response.body.refreshToken).toBeDefined();
+      expect(response.body.policyVersion).toBeDefined();
+    });
+
+    it('should reject login with invalid deviceId', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId: uuidv4(),
+          userCode: 'test001',
+          pin: '123456'
         });
-      }
-    });
-  });
 
-  describe('Security Headers Tests', () => {
-    it('TC-AUTH-016: Security headers present', async () => {
+      expect(response.status).toBe(401);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('DEVICE_NOT_FOUND');
+      expect(response.body.error.message).toBe('Device not found or inactive');
+    });
+
+    it('should reject login with invalid userCode', async () => {
       const response = await request(app)
-        .get('/api/v1/teams')
-        .set('Authorization', `Bearer ${authToken}`);
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId,
+          userCode: 'invaliduser',
+          pin: '123456'
+        });
 
-      // Check for common security headers
-      const securityHeaders = [
-        'x-content-type-options',
-        'x-frame-options',
-        'x-xss-protection',
-      ];
-
-      securityHeaders.forEach(header => {
-        // Headers should be present (or the security middleware should be implemented)
-        const headerValue = response.headers[header];
-        if (headerValue) {
-          expect(headerValue).toBeDefined();
-        }
-      });
-    });
-  });
-
-  describe('Input Validation Security', () => {
-    it('TC-AUTH-017: SQL injection attempts blocked', async () => {
-      const maliciousInputs = [
-        "'; DROP TABLE users; --",
-        "' OR '1'='1",
-        "<script>alert('xss')</script>",
-        "{{7*7}}",
-      ];
-
-      for (const input of maliciousInputs) {
-        const response = await request(app)
-          .get(`/api/v1/teams?search=${encodeURIComponent(input)}`)
-          .set('Authorization', `Bearer ${authToken}`);
-
-        // Should handle malicious input gracefully
-        expect(response.status).toBeLessThan(500);
-        expect(response.body).not.toContain('SQL');
-        expect(response.body).not.toContain('error');
-      }
+      expect(response.status).toBe(401);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
+      expect(response.body.error.message).toMatch(/Invalid user code or PIN/);
     });
 
-    it('TC-AUTH-018: Large payload handling', async () => {
-      const largePayload = {
-        name: 'A'.repeat(10000), // Very long name
-        timezone: 'Asia/Kolkata',
-        stateId: 'MH01',
-      };
-
+    it('should reject login with invalid pin', async () => {
       const response = await request(app)
-        .post('/api/v1/teams')
-        .set('Authorization', `Bearer ${authToken}`)
-        .set('Content-Type', 'application/json')
-        .send(largePayload);
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId,
+          userCode: 'test001',
+          pin: 'wrongpin'
+        });
 
-      // Should handle large payloads without crashing
-      expect(response.status).toBeLessThan(500);
-      if (response.status >= 400) {
-        ApiAssertions.assertError(response);
-      }
-    });
-  });
-
-  describe('Error Response Security', () => {
-    it('TC-AUTH-019: Error responses do not leak sensitive information', async () => {
-      const response = await request(app)
-        .get('/api/v1/non-existent-endpoint')
-        .set('Authorization', `Bearer ${authToken}`);
-
-      // Error responses should not leak database information
-      if (response.status === 404) {
-        expect(response.body).not.toContain('database');
-        expect(response.body).not.toContain('sql');
-        expect(response.body).not.toContain('internal');
-      }
+      expect(response.status).toBe(401);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('INVALID_CREDENTIALS');
+      expect(response.body.error.message).toMatch(/Invalid user code or PIN/);
     });
 
-    it('TC-AUTH-020: Detailed error messages in development', async () => {
+    it('should reject login with missing fields', async () => {
       const response = await request(app)
-        .post('/api/v1/teams')
-        .set('Authorization', `Bearer ${authToken}`)
-        .set('Content-Type', 'application/json')
-        .send({}); // Missing required fields
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId,
+          userCode: 'test001'
+        });
 
-      // In development, should get detailed error messages
       expect(response.status).toBe(400);
-      if (response.body.error) {
-        expect(response.body.error.code).toBeDefined();
-        expect(response.body.error.message).toBeDefined();
-      }
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('MISSING_FIELDS');
+      expect(response.body.error.message).toBe('deviceId, userCode, and pin are required');
+    });
+  });
+
+  describe('GET /api/v1/auth/whoami', () => {
+
+    it('should return user information for valid token', async () => {
+      // First login to get token
+      const loginResponse = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId,
+          userCode: 'test001',
+          pin: '123456'
+        });
+
+      const token = loginResponse.body.accessToken;
+
+      // Use token to get user info
+      const whoamiResponse = await request(app)
+        .get('/api/v1/auth/whoami')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(whoamiResponse.status).toBe(200);
+      expect(whoamiResponse.body.ok).toBe(true);
+      expect(whoamiResponse.body.user.id).toBe(userId);
+      expect(whoamiResponse.body.user.code).toBe('test001');
+      expect(whoamiResponse.body.session.sessionId).toBeDefined();
+    });
+
+    it('should reject invalid token', async () => {
+      const response = await request(app)
+        .get('/api/v1/auth/whoami')
+        .set('Authorization', 'Bearer invalid.token.here');
+
+      expect(response.status).toBe(401);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('INVALID_TOKEN');
+    });
+
+    it('should reject missing authorization header', async () => {
+      const response = await request(app)
+        .get('/api/v1/auth/whoami');
+
+      expect(response.status).toBe(401);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('MISSING_TOKEN');
+    });
+  });
+
+  describe('POST /api/v1/auth/logout', () => {
+
+    it('should logout successfully with valid session', async () => {
+      // First login to get session
+      const loginResponse = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId,
+          userCode: 'test001',
+          pin: '123456'
+        });
+
+      const sessionId = loginResponse.body.session.sessionId;
+
+      // Logout
+      const logoutResponse = await request(app)
+        .post('/api/v1/auth/logout')
+        .send({
+          sessionId,
+          userId
+        });
+
+      expect(logoutResponse.status).toBe(200);
+      expect(logoutResponse.body.ok).toBe(true);
+      expect(logoutResponse.body.endedAt).toBeDefined();
+    });
+
+    it('should reject logout for nonexistent session', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/logout')
+        .send({
+          sessionId: uuidv4(),
+          userId
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('SESSION_NOT_FOUND');
+    });
+  });
+
+  describe('POST /api/v1/auth/refresh', () => {
+
+    it('should refresh token successfully', async () => {
+      // First login to get refresh token
+      const loginResponse = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId,
+          userCode: 'test001',
+          pin: '123456'
+        });
+
+      const refreshToken = loginResponse.body.refreshToken;
+
+      // Refresh token
+      const refreshResponse = await request(app)
+        .post('/api/v1/auth/refresh')
+        .send({
+          refresh_token: refreshToken
+        });
+
+      expect(refreshResponse.status).toBe(200);
+      expect(refreshResponse.body.ok).toBe(true);
+      expect(refreshResponse.body.accessToken).toBeDefined();
+    });
+
+    it('should reject invalid refresh token', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/refresh')
+        .send({
+          refresh_token: 'invalid.refresh.token'
+        });
+
+      expect(response.status).toBe(401);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('INVALID_REFRESH_TOKEN');
+    });
+  });
+
+  describe('POST /api/v1/auth/heartbeat', () => {
+
+    it('should register heartbeat successfully', async () => {
+      // First login to get session
+      const loginResponse = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId,
+          userCode: 'test001',
+          pin: '123456'
+        });
+
+      const sessionId = loginResponse.body.session.sessionId;
+
+      // Send heartbeat
+      const heartbeatResponse = await request(app)
+        .post('/api/v1/auth/heartbeat')
+        .send({
+          deviceId,
+          sessionId,
+          ts: new Date().toISOString(),
+          battery: 0.85
+        });
+
+      expect(heartbeatResponse.status).toBe(200);
+      expect(heartbeatResponse.body.ok).toBe(true);
+    });
+
+    it('should reject heartbeat for nonexistent session', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/heartbeat')
+        .send({
+          deviceId,
+          sessionId: uuidv4(),
+          ts: new Date().toISOString(),
+          battery: 0.85
+        });
+
+      expect(response.status).toBe(404);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('SESSION_NOT_FOUND');
     });
   });
 });

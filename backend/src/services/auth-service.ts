@@ -308,6 +308,22 @@ export class AuthService {
     };
   }> {
     try {
+      // First check if session exists
+      const sessionData = await db.select()
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .limit(1);
+
+      if (sessionData.length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'SESSION_NOT_FOUND',
+            message: 'Session not found or already ended',
+          },
+        };
+      }
+
       // Revoke session tokens
       await JWTService.revokeSessionTokens(sessionId, revokedBy);
 
@@ -315,7 +331,8 @@ export class AuthService {
 
       return { success: true };
     } catch (error) {
-      logger.error('Logout error', { sessionId, error });
+      logger.error('Failed to revoke session', { sessionId, error });
+
       return {
         success: false,
         error: {

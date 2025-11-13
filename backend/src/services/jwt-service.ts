@@ -152,18 +152,25 @@ export class JWTService {
 
       const sessionData = session[0];
 
-      // Mark session as inactive
+      // Mark session as ended
       await db.update(sessions)
         .set({
-          isActive: false,
-          updatedAt: nowUTC()
+          status: 'ended',
+          endedAt: nowUTC()
         })
         .where(eq(sessions.id, sessionId));
 
       logger.info('Session revoked', { sessionId, revokedBy });
     } catch (error) {
       logger.error('Failed to revoke session', { sessionId, error });
-      throw new Error('Failed to revoke session');
+
+      // Re-throw the original error so it can be properly handled
+      if (error.message === 'Session not found') {
+        throw error; // Re-throw session not found error
+      }
+
+      // For other database errors, wrap them
+      throw new Error(`Database error: ${error.message || 'Unknown error'}`);
     }
   }
 

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { AuthService } from '../../src/services/auth-service';
 import { db } from '../../src/lib/db';
 import { teams, devices, users, userPins, sessions, pinAttempts } from '../../src/lib/db/schema';
-import { hashPassword } from '../../src/lib/crypto';
+import { hashPassword, verifyPassword } from '../../src/lib/crypto';
+import { JWTService } from '../../src/services/jwt-service';
 import { eq } from 'drizzle-orm';
 
 // Mock the database
@@ -15,14 +16,11 @@ vi.mock('../../src/lib/db', () => ({
   },
 }));
 
-// Mock the logger
-vi.mock('../../src/lib/logger', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+// Mock password verification
+const mockVerifyPassword = vi.mocked(verifyPassword);
+
+// Mock JWT service
+const mockJWTService = vi.mocked(JWTService);
 
 describe('AuthService', () => {
   beforeEach(() => {
@@ -44,7 +42,7 @@ describe('AuthService', () => {
       } as any);
 
       // Mock password verification to return true
-      vi.mocked(require('../../src/lib/crypto').verifyPassword).mockResolvedValue(true);
+      mockVerifyPassword.mockResolvedValue(true);
 
       const result = await AuthService.login(
         { deviceId: 'device-001', userCode: 'test001', pin: '123456' },
@@ -107,7 +105,7 @@ describe('AuthService', () => {
       } as any);
 
       // Mock password verification to return false
-      vi.mocked(require('../../src/lib/crypto').verifyPassword).mockResolvedValue(false);
+      mockVerifyPassword.mockResolvedValue(false);
 
       const result = await AuthService.login(
         { deviceId: 'device-001', userCode: 'test001', pin: 'wrongpin' },
@@ -125,7 +123,7 @@ describe('AuthService', () => {
       const mockUser = { id: 'user-001', code: 'test001', teamId: 'team-001', displayName: 'Test User' };
       const mockSession = { sessionId: 'session-001', deviceId: 'device-001', expiresAt: new Date(), isActive: true };
 
-      vi.mocked(require('../../src/services/jwt-service').JWTService.verifyToken).mockResolvedValue({
+      mockJWTService.verifyToken.mockResolvedValue({
         valid: true,
         payload: {
           sub: 'user-001',
@@ -149,7 +147,7 @@ describe('AuthService', () => {
     });
 
     it('should reject invalid token', async () => {
-      vi.mocked(require('../../src/services/jwt-service').JWTService.verifyToken).mockResolvedValue({
+      mockJWTService.verifyToken.mockResolvedValue({
         valid: false,
         error: 'Invalid token',
       });
@@ -172,7 +170,7 @@ describe('AuthService', () => {
     it('should logout successfully', async () => {
       const mockSession = { sessionId: 'session-001', isActive: true };
 
-      vi.mocked(require('../../src/services/jwt-service').JWTService.verifyToken).mockResolvedValue({
+      mockJWTService.verifyToken.mockResolvedValue({
         valid: true,
         payload: {
           sub: 'user-001',
@@ -215,7 +213,7 @@ describe('AuthService', () => {
     it('should refresh token successfully', async () => {
       const mockSession = { sessionId: 'session-001', isActive: true };
 
-      vi.mocked(require('../../src/services/jwt-service').JWTService.verifyToken).mockResolvedValue({
+      mockJWTService.verifyToken.mockResolvedValue({
         valid: true,
         payload: {
           sub: 'user-001',
@@ -244,7 +242,7 @@ describe('AuthService', () => {
     });
 
     it('should reject invalid refresh token', async () => {
-      vi.mocked(require('../../src/services/jwt-service').JWTService.verifyToken).mockResolvedValue({
+      mockJWTService.verifyToken.mockResolvedValue({
         valid: false,
         error: 'Invalid token',
       });
@@ -258,7 +256,7 @@ describe('AuthService', () => {
     it('should reject refresh for inactive session', async () => {
       const mockSession = { sessionId: 'session-001', isActive: false };
 
-      vi.mocked(require('../../src/services/jwt-service').JWTService.verifyToken).mockResolvedValue({
+      mockJWTService.verifyToken.mockResolvedValue({
         valid: true,
         payload: {
           sub: 'user-001',
@@ -291,7 +289,7 @@ describe('AuthService', () => {
       } as any);
 
       // Mock password verification to return true
-      vi.mocked(require('../../src/lib/crypto').verifyPassword).mockResolvedValue(true);
+      mockVerifyPassword.mockResolvedValue(true);
 
       vi.mocked(require('../../src/services/jwt-service').JWTService.createToken).mockResolvedValue({
         token: 'override.token',
@@ -320,7 +318,7 @@ describe('AuthService', () => {
       } as any);
 
       // Mock password verification to return false
-      vi.mocked(require('../../src/lib/crypto').verifyPassword).mockResolvedValue(false);
+      mockVerifyPassword.mockResolvedValue(false);
 
       const result = await AuthService.supervisorOverride(
         { supervisorPin: 'wrongpin', deviceId: 'device-001' },

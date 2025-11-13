@@ -8,6 +8,10 @@ import { DeviceService } from '../services/device-service';
 import { SupervisorPinService } from '../services/supervisor-pin-service';
 import { JWTService } from '../services/jwt-service';
 import { logger } from '../lib/logger';
+import { db } from '../lib/db';
+import { devices, sessions, telemetryEvents } from '../lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 import {
   authenticateToken,
   requireRole,
@@ -113,15 +117,15 @@ async function login(req: Request, res: Response) {
       return res.json({
         ok: true,
         session: {
-          session_id: result.session?.sessionId,
-          user_id: result.session?.userId,
-          started_at: result.session?.startedAt?.toISOString(),
-          expires_at: result.session?.expiresAt?.toISOString(),
-          override_until: result.session?.overrideUntil?.toISOString(),
+          sessionId: result.session?.sessionId,
+          userId: result.session?.userId,
+          startedAt: result.session?.startedAt?.toISOString(),
+          expiresAt: result.session?.expiresAt?.toISOString(),
+          overrideUntil: result.session?.overrideUntil?.toISOString(),
         },
-        access_token: result.accessToken,
-        refresh_token: result.refreshToken,
-        policy_version: result.policyVersion,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        policyVersion: result.policyVersion,
       });
     } else {
       const statusCode = result.error?.code === 'RATE_LIMITED' ? 429 : 401;
@@ -151,29 +155,29 @@ async function login(req: Request, res: Response) {
 // POST /api/v1/auth/logout
 async function logout(req: Request, res: Response) {
   try {
-    const user = (req as any).user;
-    const session = (req as any).session;
+    const { sessionId, userId } = req.body;
 
-    if (!session) {
+    if (!sessionId || !userId) {
       return res.status(400).json({
         ok: false,
         error: {
-          code: 'NO_SESSION',
-          message: 'No active session found',
+          code: 'MISSING_FIELDS',
+          message: 'sessionId and userId are required',
           request_id: req.headers['x-request-id'],
         },
       });
     }
 
-    const result = await AuthService.logout(session.sessionId, user.id);
+    const result = await AuthService.logout(sessionId, userId);
 
     if (result.success) {
       return res.json({
         ok: true,
-        message: 'Logged out successfully',
+        endedAt: new Date().toISOString(),
       });
     } else {
-      return res.status(500).json({
+      const statusCode = result.error?.code === 'SESSION_NOT_FOUND' ? 404 : 500;
+      return res.status(statusCode).json({
         ok: false,
         error: {
           code: result.error?.code || 'LOGOUT_FAILED',
@@ -223,8 +227,8 @@ async function refreshToken(req: Request, res: Response) {
     if (result.success) {
       return res.json({
         ok: true,
-        access_token: result.accessToken,
-        expires_at: result.expiresAt?.toISOString(),
+        accessToken: result.accessToken,
+        expiresAt: result.expiresAt?.toISOString(),
       });
     } else {
       return res.status(401).json({
@@ -256,19 +260,20 @@ async function whoami(req: Request, res: Response) {
     const session = (req as any).session;
 
     return res.json({
+      ok: true,
       user: {
         id: user.id,
         code: user.code,
-        team_id: user.teamId,
-        display_name: user.displayName,
+        teamId: user.teamId,
+        displayName: user.displayName,
       },
       session: {
-        session_id: session.sessionId,
-        device_id: session.deviceId,
-        expires_at: session.expiresAt.toISOString(),
-        override_until: session.overrideUntil?.toISOString(),
+        sessionId: session.sessionId,
+        deviceId: session.deviceId,
+        expiresAt: session.expiresAt.toISOString(),
+        overrideUntil: session.overrideUntil?.toISOString(),
       },
-      policy_version: 3,
+      policyVersion: 3,
     });
   } catch (error) {
     logger.error('Whoami endpoint error', { error });
@@ -277,6 +282,71 @@ async function whoami(req: Request, res: Response) {
       error: {
         code: 'INTERNAL_ERROR',
         message: 'An error occurred while fetching user information',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// POST /api/v1/auth/heartbeat
+async function heartbeat(req: Request, res: Response) {
+  try {
+    const { deviceId, sessionId, ts, battery } = req.body;
+
+    if (!deviceId || !sessionId || !ts) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_FIELDS',
+          message: 'deviceId, sessionId, and ts are required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    // Verify session exists and is active
+    const sessionData = await db.select()
+      .from(sessions)
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+
+    if (sessionData.length === 0 || sessionData[0].status !== 'open') {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: 'SESSION_NOT_FOUND',
+          message: 'Session not found or inactive',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    // Update device last seen timestamp
+    await db.update(devices)
+      .set({ lastSeenAt: new Date() })
+      .where(eq(devices.id, deviceId));
+
+    // Record heartbeat telemetry (if needed)
+    if (battery !== undefined) {
+      await db.insert(telemetryEvents).values({
+        id: uuidv4(),
+        deviceId,
+        sessionId,
+        timestamp: new Date(ts),
+        eventType: 'heartbeat',
+        eventData: { battery },
+        receivedAt: new Date(),
+      });
+    }
+
+    return res.json({ ok: true });
+  } catch (error) {
+    logger.error('Heartbeat endpoint error', { error, body: req.body });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred during heartbeat',
         request_id: req.headers['x-request-id'],
       },
     });
@@ -1851,7 +1921,7 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
   }
 
   if (method === 'POST' && originalUrl === '/api/v1/auth/logout') {
-    return authenticateToken(req as AuthenticatedRequest, res, () => logout(req, res));
+    return logout(req, res);
   }
 
   if (method === 'POST' && originalUrl === '/api/v1/auth/refresh') {
@@ -1864,6 +1934,10 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
 
   if (method === 'POST' && originalUrl === '/api/v1/auth/session/end') {
     return authenticateToken(req as AuthenticatedRequest, res, () => endSession(req, res));
+  }
+
+  if (method === 'POST' && originalUrl === '/api/v1/auth/heartbeat') {
+    return heartbeat(req, res);
   }
 
   // Supervisor PIN management routes
