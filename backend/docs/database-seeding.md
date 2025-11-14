@@ -1,19 +1,57 @@
 # Database Seeding for Testing
 
-**Production-Ready Database Seeding System for Android MDM Testing**
-Last Updated: November 13, 2025
+**Enterprise-Grade Database Seeding System with 9-Role RBAC for Android MDM Testing**
+Last Updated: November 14, 2025
 
 ## Overview
 
-The SurveyLauncher backend includes a comprehensive database seeding system that generates realistic test data for Android MDM functionality:
+The SurveyLauncher backend includes a comprehensive database seeding system that generates realistic test data for Android MDM functionality with enterprise-grade role-based access control:
 
-- **Enhanced Seeding**: Large volumes of realistic data using Faker.js v10.1.0
+- **Enhanced RBAC Seeding**: Full 9-role system with granular permissions
 - **Configurable**: Different data volumes for unit, integration, and load testing
-- **Realistic Simulation**: Indian geographic data, Android device simulation
+- **Realistic Simulation**: Indian organizational structure, geographic data, Android device simulation
 - **Foreign Key Safe**: Proper relationship handling to prevent constraint violations
+- **Multi-Tenant Support**: Organization and team scoped role assignments
 - **Production Ready**: Scalable test data generation for any test environment
 
+## 🎯 NEW: 9-Role RBAC System
+
+The seeding system now supports the complete enterprise-grade RBAC implementation:
+
+### Field Operations Roles
+- **TEAM_MEMBER**: Frontline survey operators
+- **FIELD_SUPERVISOR**: On-site supervisors managing field operations
+- **REGIONAL_MANAGER**: Multi-team regional oversight
+
+### Technical Operations Roles
+- **SYSTEM_ADMIN**: Full system configuration and maintenance
+- **SUPPORT_AGENT**: User support and troubleshooting
+- **AUDITOR**: Read-only audit access and compliance monitoring
+
+### Specialized Roles
+- **DEVICE_MANAGER**: Android device lifecycle management
+- **POLICY_ADMIN**: Policy creation and management
+- **NATIONAL_SUPPORT_ADMIN**: Cross-team operational access (no system settings)
+
+## 🏢 Realistic Organizational Structure
+
+The seeding system now creates authentic healthcare survey teams based on Indian institutions:
+
+### Primary Test Organization
+- **AIIMS Delhi Survey Team** (DL07)
+- Realistic employee codes and role distribution
+- Geographic-specific data for accurate testing
+
 ## Recent Major Updates
+
+### ✅ **November 14, 2025 - RBAC Integration Release**
+
+- **9-Role RBAC System**: Complete migration from 3-role to enterprise 9-role system
+- **Realistic Organizational Structure**: AIIMS Delhi based test organization
+- **Enhanced Role Distribution**: Proper mapping of field, technical, and specialized roles
+- **Fixed User Seeding**: Deterministic credentials for all 9 roles in testing
+- **Cross-Team Access Support**: NATIONAL_SUPPORT_ADMIN cross-team functionality
+- **System Settings Protection**: RBAC-aware access control for sensitive operations
 
 ### ✅ **November 13, 2025 - Production Release**
 
@@ -139,13 +177,15 @@ interface SeedConfig {
 - Real Indian names
 - Unique employee codes
 - Email addresses
-- Roles (TEAM_MEMBER, SUPERVISOR, ADMIN)
+- **9 Enterprise Roles**: TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER, SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN
 - Secure PINs (6-digit) with Argon2 hashing
+- Role-based team assignments for realistic organizational hierarchy
 
 ### Supervisor PINs
-- Role-based names (Lead, Manager, Supervisor, etc.)
-- 6-digit PINs
+- **Role-specific override PINs**: Field Supervisor, Regional Manager, System Admin
+- 6-digit PINs with hierarchical access levels
 - Active/inactive status
+- Organization-scoped assignment
 
 ### Telemetry Events
 - Heartbeat events with battery, signal strength
@@ -178,20 +218,52 @@ interface SeedConfig {
 
 ## Sample Login Credentials
 
-After running the enhanced seed script, you'll have numerous test users:
+After running the fixed seeding script, you'll have deterministic test users for all 9 roles:
+
+### Fixed User Credentials (for Unit Testing)
 
 ```
-Sample User Credentials:
-  1. emp1000 / [PIN] - [User Name] (TEAM_MEMBER)
-  2. emp1001 / [PIN] - [User Name] (SUPERVISOR)
-  3. emp1002 / [PIN] - [User Name] (ADMIN)
-  ...
+👤 Field Operations Roles:
+  test001 / 123456 (TEAM_MEMBER) - Test Team Member
+  test002 / 654321 (FIELD_SUPERVISOR) - Test Field Supervisor
+  test003 / 789012 (REGIONAL_MANAGER) - Test Regional Manager
+
+🔧 Technical Operations Roles:
+  test004 / admin123 (SYSTEM_ADMIN) - Test System Admin
+  test005 / support456 (SUPPORT_AGENT) - Test Support Agent
+  test006 / audit789 (AUDITOR) - Test Auditor
+
+⚙️ Specialized Roles:
+  test007 / device012 (DEVICE_MANAGER) - Test Device Manager
+  test008 / policy345 (POLICY_ADMIN) - Test Policy Admin
+  test009 / national678 (NATIONAL_SUPPORT_ADMIN) - Test National Support Admin
+
+🔐 Supervisor Override PINs:
+  111111 - Field Supervisor Override PIN
+  222222 - Regional Manager Override PIN
+  333333 - System Administrator Override PIN
+
+📱 Test Device:
+  550e8400-e29b-41d4-a716-446655440001 - Test Device 001
+
+🏢 Test Organization:
+  550e8400-e29b-41d4-a716-446655440002 - AIIMS Delhi Survey Team (DL07)
+```
+
+### Enhanced Seeding Users
+
+For larger test datasets, the enhanced seeding creates realistic users:
+
+```
+Enhanced User Credentials:
+  1. emp1000 / [PIN] - [Indian Name] (TEAM_MEMBER)
+  2. emp1001 / [PIN] - [Indian Name] (FIELD_SUPERVISOR)
+  3. emp1002 / [PIN] - [Indian Name] (REGIONAL_MANAGER)
+  4. emp1003 / [PIN] - [Indian Name] (SYSTEM_ADMIN)
+  ... (and so on for all 9 roles)
 
 Supervisor Override PINs:
-  1. [11] - [Supervisor Name]
-  2. [22] - [Supervisor Name]
-  3. [33] - [Supervisor Name]
-  ...
+  Multiple role-specific PINs for different organizational levels
 ```
 
 ## Cleaning Database
@@ -199,6 +271,114 @@ Supervisor Override PINs:
 To clear all test data:
 ```bash
 npm run db:clean
+```
+
+## 🎯 Fixed Test Credentials (Complete Reference)
+
+### Quick Reference for All Tests
+
+```bash
+# Seed fixed users with all 9 roles
+npm run db:seed-fixed
+
+# Fixed credentials that work every time
+# Use these for unit tests, integration tests, and API testing
+```
+
+### 👤 Field Operations Roles
+
+| User Code | PIN | Role | Display Name | User ID |
+|-----------|-----|------|--------------|---------|
+| test001 | 123456 | TEAM_MEMBER | Test Team Member | 550e8400-e29b-41d4-a716-446655440003 |
+| test002 | 654321 | FIELD_SUPERVISOR | Test Field Supervisor | 550e8400-e29b-41d4-a716-446655440004 |
+| test003 | 789012 | REGIONAL_MANAGER | Test Regional Manager | 550e8400-e29b-41d4-a716-446655440005 |
+
+### 🔧 Technical Operations Roles
+
+| User Code | PIN | Role | Display Name | User ID |
+|-----------|-----|------|--------------|---------|
+| test004 | admin123 | SYSTEM_ADMIN | Test System Admin | 550e8400-e29b-41d4-a716-446655440006 |
+| test005 | support456 | SUPPORT_AGENT | Test Support Agent | 550e8400-e29b-41d4-a716-446655440007 |
+| test006 | audit789 | AUDITOR | Test Auditor | 550e8400-e29b-41d4-a716-446655440008 |
+
+### ⚙️ Specialized Roles
+
+| User Code | PIN | Role | Display Name | User ID |
+|-----------|-----|------|--------------|---------|
+| test007 | device012 | DEVICE_MANAGER | Test Device Manager | 550e8400-e29b-41d4-a716-446655440009 |
+| test008 | policy345 | POLICY_ADMIN | Test Policy Admin | 550e8400-e29b-41d4-a716-446655440010 |
+| test009 | national678 | NATIONAL_SUPPORT_ADMIN | Test National Support Admin | 550e8400-e29b-41d4-a716-446655440011 |
+
+### 🔐 Supervisor Override PINs
+
+| PIN | Name | PIN ID | Team Context |
+|-----|------|--------|--------------|
+| 111111 | Field Supervisor Override PIN | 550e8400-e29b-41d4-a716-446655440006 | AIIMS Delhi Survey Team |
+| 222222 | Regional Manager Override PIN | 550e8400-e29b-41d4-a716-446655440007 | AIIMS Delhi Survey Team |
+| 333333 | System Administrator Override PIN | 550e8400-e29b-41d4-a716-446655440008 | AIIMS Delhi Survey Team |
+
+### 📱 Device & Team Information
+
+| Type | ID | Name | Context |
+|------|----|------|---------|
+| Device | 550e8400-e29b-41d4-a716-446655440001 | Test Device 001 | Android test device |
+| Team | 550e8400-e29b-41d4-a716-446655440002 | AIIMS Delhi Survey Team | DL07, Asia/Kolkata |
+
+### 🚀 Usage Examples
+
+```bash
+# Test login with different roles
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "550e8400-e29b-41d4-a716-446655440001",
+    "team_id": "550e8400-e29b-41d4-a716-446655440002",
+    "user_code": "test001",
+    "pin": "123456"
+  }'
+
+# Test supervisor override
+curl -X POST http://localhost:3000/api/v1/supervisor/override/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "device_id": "550e8400-e29b-41d4-a716-446655440001",
+    "team_id": "550e8400-e29b-41d4-a716-446655440002",
+    "pin": "111111",
+    "reason": "Field emergency access"
+  }'
+```
+
+## 🎯 RBAC Testing Scenarios
+
+The seeding system supports comprehensive RBAC testing scenarios:
+
+### Role-Based Access Testing
+```bash
+# Seed all 9 roles for permission testing
+npm run db:seed-fixed
+
+# Test role-specific access patterns
+# - Field Supervisor can manage team devices
+# - Regional Manager can access multiple teams
+# - National Support Admin has cross-team operational access
+# - System Admin has full system configuration access
+# - Auditor has read-only audit log access
+```
+
+### Cross-Team Boundary Testing
+```bash
+# NATIONAL_SUPPORT_ADMIN cross-team access validation
+# - Can access telemetry across all teams
+# - Cannot access system settings
+# - Respects organizational boundaries for sensitive operations
+```
+
+### Permission Inheritance Testing
+```bash
+# Test role hierarchy and permission inheritance
+# - Regional Manager inherits Field Supervisor permissions
+# - System Admin has all technical permissions
+# - Policy Admin can manage policies but not system settings
 ```
 
 ## Integration with Test Runners
@@ -310,21 +490,12 @@ tsx src/lib/seed-test-enhanced.ts seed '{
 ```
 
 
-  👤 Users:
-  - test001 / 123456 (TEAM_MEMBER) - Test Team Member
-  - test002 / 654321 (SUPERVISOR) - Test Supervisor
-  - test003 / admin123 (ADMIN) - Test Admin
-
-  🔐 Supervisor PINs:
-  - 111111 - Supervisor PIN 1
-  - 222222 - Supervisor PIN 2
-  - 333333 - Supervisor PIN 3
-
-  📱 Device:
-  - 550e8400-e29b-41d4-a716-446655440001 - Test Device 001
-
-  🏢 Team:
-  - 550e8400-e29b-41d4-a716-446655440002 - Test Team 001
+  🏢 NEW: 9-Role RBAC Fixed Seeding
+  - All 9 enterprise roles with deterministic credentials
+  - Realistic AIIMS Delhi organizational structure
+  - Cross-team access support for NATIONAL_SUPPORT_ADMIN
+  - Role-specific supervisor override PINs
+  - Permission-aware test scenarios
 
   4. Improved Test Reliability ✅
 

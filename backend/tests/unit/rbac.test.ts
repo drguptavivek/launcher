@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { db, roles, permissions, rolePermissions, userRoleAssignments, users, teams, permissionCache } from '../../lib/db';
-import { AuthorizationService } from '../../services/authorization-service';
-import { RoleService } from '../../services/role-service';
+import { db, roles, permissions, rolePermissions, userRoleAssignments, users, teams, permissionCache } from '../../src/lib/db';
+import { AuthorizationService } from '../../src/services/authorization-service';
+import { RoleService } from '../../src/services/role-service';
 import { v4 as uuidv4 } from 'uuid';
+import { eq } from 'drizzle-orm';
 
 // Test data interfaces
 interface TestUser {

@@ -534,7 +534,7 @@ export class RoleService {
         roleId,
         assignedBy: options.assignedBy,
         teamId: options.teamId,
-        organizationId: 'default-org' // TODO: Make this configurable
+        organizationId: options.teamId || userId
       });
 
       // Verify user exists
@@ -596,7 +596,7 @@ export class RoleService {
       const newAssignment: NewUserRoleAssignment = {
         userId,
         roleId,
-        organizationId: 'default-org', // TODO: Make this configurable
+        organizationId: options.teamId || userId, // Use team ID as org context, fallback to user ID
         teamId: options.teamId || null,
         regionId: options.regionId || null,
         grantedBy: options.assignedBy,

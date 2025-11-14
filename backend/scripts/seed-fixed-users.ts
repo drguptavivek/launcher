@@ -15,39 +15,81 @@ import { logger } from '../src/lib/logger';
 import { eq } from 'drizzle-orm';
 
 // Fixed test credentials - these should be used in all tests
+// Updated for new 9-role RBAC system
 export const FIXED_USERS = {
+  // Field Operations Roles
   TEAM_MEMBER: {
     userCode: 'test001',
     pin: '123456',
     displayName: 'Test Team Member',
     role: 'TEAM_MEMBER' as const
   },
-  SUPERVISOR: {
+  FIELD_SUPERVISOR: {
     userCode: 'test002',
     pin: '654321',
-    displayName: 'Test Supervisor',
-    role: 'SUPERVISOR' as const
+    displayName: 'Test Field Supervisor',
+    role: 'FIELD_SUPERVISOR' as const
   },
-  ADMIN: {
+  REGIONAL_MANAGER: {
     userCode: 'test003',
+    pin: '789012',
+    displayName: 'Test Regional Manager',
+    role: 'REGIONAL_MANAGER' as const
+  },
+
+  // Technical Operations Roles
+  SYSTEM_ADMIN: {
+    userCode: 'test004',
     pin: 'admin123',
-    displayName: 'Test Admin',
-    role: 'ADMIN' as const
+    displayName: 'Test System Admin',
+    role: 'SYSTEM_ADMIN' as const
+  },
+  SUPPORT_AGENT: {
+    userCode: 'test005',
+    pin: 'support456',
+    displayName: 'Test Support Agent',
+    role: 'SUPPORT_AGENT' as const
+  },
+  AUDITOR: {
+    userCode: 'test006',
+    pin: 'audit789',
+    displayName: 'Test Auditor',
+    role: 'AUDITOR' as const
+  },
+
+  // Specialized Roles
+  DEVICE_MANAGER: {
+    userCode: 'test007',
+    pin: 'device012',
+    displayName: 'Test Device Manager',
+    role: 'DEVICE_MANAGER' as const
+  },
+  POLICY_ADMIN: {
+    userCode: 'test008',
+    pin: 'policy345',
+    displayName: 'Test Policy Admin',
+    role: 'POLICY_ADMIN' as const
+  },
+  NATIONAL_SUPPORT_ADMIN: {
+    userCode: 'test009',
+    pin: 'national678',
+    displayName: 'Test National Support Admin',
+    role: 'NATIONAL_SUPPORT_ADMIN' as const
   }
 } as const;
 
 export const FIXED_SUPERVISOR_PINS = {
-  SUPERVISOR1: {
+  FIELD_SUPERVISOR_PIN: {
     pin: '111111',
-    name: 'Supervisor PIN 1'
+    name: 'Field Supervisor Override PIN'
   },
-  SUPERVISOR2: {
+  REGIONAL_MANAGER_PIN: {
     pin: '222222',
-    name: 'Supervisor PIN 2'
+    name: 'Regional Manager Override PIN'
   },
-  SUPERVISOR3: {
+  SYSTEM_ADMIN_PIN: {
     pin: '333333',
-    name: 'Supervisor PIN 3'
+    name: 'System Administrator Override PIN'
   }
 } as const;
 
@@ -58,8 +100,8 @@ export const FIXED_DEVICE = {
 
 export const FIXED_TEAM = {
   teamId: '550e8400-e29b-41d4-a716-446655440002',
-  name: 'Test Team 001',
-  stateId: 'MH01',
+  name: 'AIIMS Delhi Survey Team',
+  stateId: 'DL07',
   timezone: 'Asia/Kolkata'
 } as const;
 
@@ -108,11 +150,17 @@ async function seedFixedUsers() {
       }
     });
 
-    // Create fixed users
+    // Create fixed users - Updated for new 9-role RBAC system
     const userIds: Record<string, string> = {
       TEAM_MEMBER: '550e8400-e29b-41d4-a716-446655440003',
-      SUPERVISOR: '550e8400-e29b-41d4-a716-446655440004',
-      ADMIN: '550e8400-e29b-41d4-a716-446655440005'
+      FIELD_SUPERVISOR: '550e8400-e29b-41d4-a716-446655440004',
+      REGIONAL_MANAGER: '550e8400-e29b-41d4-a716-446655440005',
+      SYSTEM_ADMIN: '550e8400-e29b-41d4-a716-446655440006',
+      SUPPORT_AGENT: '550e8400-e29b-41d4-a716-446655440007',
+      AUDITOR: '550e8400-e29b-41d4-a716-446655440008',
+      DEVICE_MANAGER: '550e8400-e29b-41d4-a716-446655440009',
+      POLICY_ADMIN: '550e8400-e29b-41d4-a716-446655440010',
+      NATIONAL_SUPPORT_ADMIN: '550e8400-e29b-41d4-a716-446655440011'
     };
 
     for (const [userType, userConfig] of Object.entries(FIXED_USERS)) {
