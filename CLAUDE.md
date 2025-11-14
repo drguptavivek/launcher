@@ -1,6 +1,7 @@
 # SurveyLauncher — Complete Mobile Device Management System
 
-Last-Updated: 2025-11-13 23:05:00Z
+ - Last-Updated: 2025-11-13 23:05:00Z
+ - AGENTS.md is a symbolic link to CLAUDE.md
 
 **System Status**: Backend ✅ Complete | Admin Frontend ✅ Complete | Android App 🔄 In Development
 

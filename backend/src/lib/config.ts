@@ -54,6 +54,11 @@ const envSchema = z.object({
   TELEMETRY_BATCH_MAX: z.string().transform(Number).pipe(z.number()).default(50),
   HEARTBEAT_MINUTES: z.string().transform(Number).pipe(z.number()).default(10),
   GPS_FIX_INTERVAL_MINUTES: z.string().transform(Number).pipe(z.number()).default(3),
+  GPS_ACCURACY_THRESHOLD_M: z.string().transform(Number).pipe(z.number()).default(20),
+  GPS_MAX_AGE_MINUTES: z.string().transform(Number).pipe(z.number()).default(5),
+  TELEMETRY_RETRY_ATTEMPTS: z.string().transform(Number).pipe(z.number()).default(3),
+  TELEMETRY_UPLOAD_INTERVAL_MINUTES: z.string().transform(Number).pipe(z.number()).default(15),
+  POLICY_UI_BLOCKED_MESSAGE: z.string().default('Access outside working hours. Please contact your supervisor.'),
 });
 
 function parseConfig() {

@@ -5,7 +5,6 @@ import { logger } from '../lib/logger';
 import { env } from '../lib/config';
 import { eq, and, desc } from 'drizzle-orm';
 import { generateJTI, nowUTC, getExpiryTimestamp, isWithinClockSkew } from '../lib/crypto';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface PolicyPayload {
   version: number;
@@ -35,10 +34,17 @@ export interface PolicyPayload {
   gps: {
     active_fix_interval_minutes: number;
     min_displacement_m: number;
+    accuracy_threshold_m: number;
+    max_age_minutes: number;
   };
   telemetry: {
     heartbeat_minutes: number;
     batch_max: number;
+    retry_attempts: number;
+    upload_interval_minutes: number;
+  };
+  ui: {
+    blocked_message: string;
   };
   meta: {
     issued_at: string;
@@ -62,6 +68,7 @@ export interface PolicyIssueResult {
 export class PolicyService {
   private static POLICY_VERSION = 3;
   private static POLICY_TTL_HOURS = 24; // Policies are valid for 24 hours
+  private static policyCache = new Map<string, { payload: PolicyPayload; jws: string; expiresAt: Date }>();
 
   /**
    * Issue a signed policy for a device
@@ -108,8 +115,29 @@ export class PolicyService {
         };
       }
 
+      const cachedPolicy = this.getCachedPolicy(deviceId);
+      if (cachedPolicy) {
+        await this.updateDeviceLastSeen(deviceId);
+        return {
+          success: true,
+          jws: cachedPolicy.jws,
+          payload: cachedPolicy.payload,
+        };
+      }
+
       // Create policy payload
       const payload = this.createPolicyPayload(deviceId, device[0].teamId, team[0].timezone);
+
+      const validation = this.validatePolicyPayload(payload);
+      if (!validation.valid) {
+        return {
+          success: false,
+          error: {
+            code: 'POLICY_VALIDATION_FAILED',
+            message: validation.errors.join('; ') || 'Policy payload validation failed',
+          },
+        };
+      }
 
       // Sign the policy
       const jws = policySigner.createJWS(payload);
@@ -129,13 +157,8 @@ export class PolicyService {
         ipAddress,
       });
 
-      // Update device last seen
-      await db.update(devices)
-        .set({
-          lastSeenAt: nowUTC(),
-          updatedAt: nowUTC(),
-        })
-        .where(eq(devices.id, deviceId));
+      this.cachePolicyPayload(deviceId, payload, jws);
+      await this.updateDeviceLastSeen(deviceId);
 
       logger.info('Policy issued', {
         deviceId,
@@ -202,12 +225,19 @@ export class PolicyService {
         cooldown_seconds: 300,
       },
       gps: {
-        active_fix_interval_minutes: 3,
+        active_fix_interval_minutes: env.GPS_FIX_INTERVAL_MINUTES,
         min_displacement_m: 50,
+        accuracy_threshold_m: env.GPS_ACCURACY_THRESHOLD_M,
+        max_age_minutes: env.GPS_MAX_AGE_MINUTES,
       },
       telemetry: {
         heartbeat_minutes: env.HEARTBEAT_MINUTES,
         batch_max: env.TELEMETRY_BATCH_MAX,
+        retry_attempts: env.TELEMETRY_RETRY_ATTEMPTS,
+        upload_interval_minutes: env.TELEMETRY_UPLOAD_INTERVAL_MINUTES,
+      },
+      ui: {
+        blocked_message: env.POLICY_UI_BLOCKED_MESSAGE,
       },
       meta: {
         issued_at: now.toISOString(),
@@ -369,9 +399,63 @@ export class PolicyService {
       }
     }
 
+    if (!payload.gps) {
+      errors.push('Missing gps configuration');
+    } else {
+      const { accuracy_threshold_m, max_age_minutes } = payload.gps;
+      if (typeof accuracy_threshold_m !== 'number' || accuracy_threshold_m <= 0) {
+        errors.push('Invalid gps.accuracy_threshold_m');
+      }
+      if (typeof max_age_minutes !== 'number' || max_age_minutes <= 0) {
+        errors.push('Invalid gps.max_age_minutes');
+      }
+    }
+
+    if (!payload.telemetry) {
+      errors.push('Missing telemetry configuration');
+    } else {
+      const { retry_attempts, upload_interval_minutes } = payload.telemetry;
+      if (typeof retry_attempts !== 'number' || retry_attempts < 0) {
+        errors.push('Invalid telemetry.retry_attempts');
+      }
+      if (typeof upload_interval_minutes !== 'number' || upload_interval_minutes < 0) {
+        errors.push('Invalid telemetry.upload_interval_minutes');
+      }
+    }
+
+    if (!payload.ui) {
+      errors.push('Missing ui configuration');
+    } else if (typeof payload.ui.blocked_message !== 'string' || payload.ui.blocked_message.trim() === '') {
+      errors.push('Invalid ui.blocked_message');
+    }
+
     return {
       valid: errors.length === 0,
       errors,
     };
+  }
+
+  private static cachePolicyPayload(deviceId: string, payload: PolicyPayload, jws: string) {
+    const expiresAt = new Date(payload.meta.expires_at);
+    this.policyCache.set(deviceId, { payload, jws, expiresAt });
+  }
+
+  static getCachedPolicy(deviceId: string): { payload: PolicyPayload; jws: string } | null {
+    const cached = this.policyCache.get(deviceId);
+    if (!cached) return null;
+    if (cached.expiresAt.getTime() <= nowUTC().getTime()) {
+      this.policyCache.delete(deviceId);
+      return null;
+    }
+    return { payload: cached.payload, jws: cached.jws };
+  }
+
+  private static async updateDeviceLastSeen(deviceId: string) {
+    await db.update(devices)
+      .set({
+        lastSeenAt: nowUTC(),
+        updatedAt: nowUTC(),
+      })
+      .where(eq(devices.id, deviceId));
   }
 }
