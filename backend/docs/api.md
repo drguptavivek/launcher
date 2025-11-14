@@ -29,10 +29,47 @@ Authorization: Bearer <access_token>
 
 ## Role-Based Access Control
 
-The API implements role-based access control (RBAC) with three roles:
-- **ADMIN**: Full access to all resources
-- **SUPERVISOR**: Read access to most resources, can manage devices, view users
-- **TEAM_MEMBER**: Basic read access to their own team resources
+The API implements enterprise-grade role-based access control (RBAC) with nine specialized roles organized into three categories:
+
+### Field Operations Roles
+- **TEAM_MEMBER**: Frontline survey operators with access to own team resources
+- **FIELD_SUPERVISOR**: On-site supervisors managing field operations and team devices
+- **REGIONAL_MANAGER**: Multi-team regional oversight with cross-team access within region
+
+### Technical Operations Roles
+- **SYSTEM_ADMIN**: Full system configuration and administrative access
+- **SUPPORT_AGENT**: User support and troubleshooting capabilities
+- **AUDITOR**: Read-only audit access and compliance monitoring
+
+### Specialized Roles
+- **DEVICE_MANAGER**: Android device lifecycle management
+- **POLICY_ADMIN**: Policy creation and management
+- **NATIONAL_SUPPORT_ADMIN**: Cross-team operational access (no system settings)
+
+### Role Management Endpoints
+
+The API provides comprehensive role management endpoints for administrating the RBAC system:
+
+#### POST /api/v1/roles
+Create a new role. Requires SYSTEM_ADMIN or NATIONAL_SUPPORT_ADMIN role.
+
+#### GET /api/v1/roles
+List roles with pagination and search. Requires SYSTEM_ADMIN, NATIONAL_SUPPORT_ADMIN, or REGIONAL_MANAGER role.
+
+#### PUT /api/v1/roles/:id
+Update an existing role. Requires SYSTEM_ADMIN or NATIONAL_SUPPORT_ADMIN role.
+
+#### DELETE /api/v1/roles/:id
+Soft delete a role. Requires SYSTEM_ADMIN role only.
+
+#### POST /api/v1/users/:userId/roles
+Assign a role to a user. Requires SYSTEM_ADMIN, NATIONAL_SUPPORT_ADMIN, or REGIONAL_MANAGER role.
+
+#### DELETE /api/v1/users/:userId/roles/:roleId
+Remove a role from a user. Requires SYSTEM_ADMIN, NATIONAL_SUPPORT_ADMIN, or REGIONAL_MANAGER role.
+
+#### GET /api/v1/users/:userId/permissions
+Get a user's effective permissions including inherited permissions. Requires authentication.
 
 ## Response Format
 
