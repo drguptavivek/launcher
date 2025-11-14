@@ -6,6 +6,7 @@ import compression from 'compression';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from './lib/config';
 import { logger } from './lib/logger';
+import { apiRouter } from './routes/api';
 
 // Create Express app
 const app = express();
@@ -33,7 +34,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('combined'));
 
 // API Routes
-app.use('/api/v1', require('./routes'));
+app.use('/api/v1', apiRouter);
 
 // Error handling middleware
 app.use((err: Error, req, res, next) => {

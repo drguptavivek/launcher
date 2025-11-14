@@ -49,13 +49,13 @@ describe('Fixed Credentials Authentication Test', () => {
       console.log('✅ Team member login successful');
     });
 
-    it('should login successfully with supervisor credentials', async () => {
+    it('should login successfully with field supervisor credentials', async () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
           deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
-          userCode: TEST_CREDENTIALS.SUPERVISOR.userCode,
-          pin: TEST_CREDENTIALS.SUPERVISOR.pin
+          userCode: TEST_CREDENTIALS.FIELD_SUPERVISOR.userCode,
+          pin: TEST_CREDENTIALS.FIELD_SUPERVISOR.pin
         });
 
       expect(response.status).toBe(200);
@@ -65,13 +65,13 @@ describe('Fixed Credentials Authentication Test', () => {
       console.log('✅ Supervisor login successful');
     });
 
-    it('should login successfully with admin credentials', async () => {
+    it('should login successfully with system admin credentials', async () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
           deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
-          userCode: TEST_CREDENTIALS.ADMIN.userCode,
-          pin: TEST_CREDENTIALS.ADMIN.pin
+          userCode: TEST_CREDENTIALS.SYSTEM_ADMIN.userCode,
+          pin: TEST_CREDENTIALS.SYSTEM_ADMIN.pin
         });
 
       expect(response.status).toBe(200);

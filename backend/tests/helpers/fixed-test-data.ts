@@ -57,17 +57,17 @@ export const TEST_CREDENTIALS = {
     displayName: FIXED_USERS.TEAM_MEMBER.displayName,
     role: FIXED_USERS.TEAM_MEMBER.role
   },
-  SUPERVISOR: {
-    userCode: FIXED_USERS.SUPERVISOR.userCode,
-    pin: FIXED_USERS.SUPERVISOR.pin,
-    displayName: FIXED_USERS.SUPERVISOR.displayName,
-    role: FIXED_USERS.SUPERVISOR.role
+  FIELD_SUPERVISOR: {
+    userCode: FIXED_USERS.FIELD_SUPERVISOR.userCode,
+    pin: FIXED_USERS.FIELD_SUPERVISOR.pin,
+    displayName: FIXED_USERS.FIELD_SUPERVISOR.displayName,
+    role: FIXED_USERS.FIELD_SUPERVISOR.role
   },
-  ADMIN: {
-    userCode: FIXED_USERS.ADMIN.userCode,
-    pin: FIXED_USERS.ADMIN.pin,
-    displayName: FIXED_USERS.ADMIN.displayName,
-    role: FIXED_USERS.ADMIN.role
+  SYSTEM_ADMIN: {
+    userCode: FIXED_USERS.SYSTEM_ADMIN.userCode,
+    pin: FIXED_USERS.SYSTEM_ADMIN.pin,
+    displayName: FIXED_USERS.SYSTEM_ADMIN.displayName,
+    role: FIXED_USERS.SYSTEM_ADMIN.role
   },
   DEVICE: {
     deviceId: FIXED_DEVICE.deviceId,

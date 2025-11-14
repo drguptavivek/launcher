@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { AuthorizationService } from '../../src/services/authorization-service';
 import { db, roles, permissions, rolePermissions, userRoleAssignments, users, teams, permissionCache } from '../../src/lib/db';
 import { logger } from '../../src/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 
 // Mock the database and logger
-jest.mock('../../src/lib/db');
-jest.mock('../../src/lib/logger');
+vi.mock('../../src/lib/db');
+vi.mock('../../src/lib/logger');
 
-const mockDb = db as any;
-const mockLogger = logger as any;
+const mockDb = vi.mocked(db);
+const mockLogger = vi.mocked(logger);
 
 describe('AuthorizationService', () => {
   let testUserId: string;
@@ -21,7 +21,7 @@ describe('AuthorizationService', () => {
   let mockUserRoleAssignment: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     testUserId = uuidv4();
     testRoleId = uuidv4();
@@ -62,7 +62,7 @@ describe('AuthorizationService', () => {
     };
 
     // Mock the checkSystemSettingsAccess method for all tests
-    jest.spyOn(AuthorizationService as any, 'checkSystemSettingsAccess').mockImplementation(
+    vi.spyOn(AuthorizationService as any, 'checkSystemSettingsAccess').mockImplementation(
       async (userId: string, action: string, context?: PermissionContext, requestId?: string) => {
         // Call the logger.warn to match the test expectation
         mockLogger.warn('System settings access denied - no SYSTEM_ADMIN role', {
@@ -77,46 +77,46 @@ describe('AuthorizationService', () => {
     );
 
     // Setup default mock returns
-    mockDb.select = jest.fn().mockReturnValue({
-      from: jest.fn().mockReturnValue({
-        where: jest.fn().mockReturnValue({
-          limit: jest.fn().mockResolvedValue([mockRole])
+    mockDb.select = vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue([mockRole])
         })
       })
     });
 
-    mockDb.insert = jest.fn().mockReturnValue({
-      values: jest.fn().mockReturnValue({
-        returning: jest.fn().mockResolvedValue([mockRole])
+    mockDb.insert = vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([mockRole])
       }),
-      onConflictDoUpdate: jest.fn().mockReturnValue({
-        set: jest.fn().mockReturnValue({
-          where: jest.fn().mockResolvedValue([])
+      onConflictDoUpdate: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([])
         })
       })
     });
 
-    mockDb.delete = jest.fn().mockReturnValue({
-      where: jest.fn().mockResolvedValue(1)
+    mockDb.delete = vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(1)
     });
 
-    mockDb.update = jest.fn().mockReturnValue({
-      set: jest.fn().mockReturnValue({
-        where: jest.fn().mockResolvedValue([])
+    mockDb.update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([])
       })
     });
 
     // Mock logger methods
-    mockLogger.info = jest.fn();
-    mockLogger.warn = jest.fn();
-    mockLogger.error = jest.fn();
-    mockLogger.audit = jest.fn();
-    mockLogger.debug = jest.fn();
-    mockLogger.info = jest.fn();
+    mockLogger.info = vi.fn();
+    mockLogger.warn = vi.fn();
+    mockLogger.error = vi.fn();
+    mockLogger.audit = vi.fn();
+    mockLogger.debug = vi.fn();
+    mockLogger.info = vi.fn();
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('checkPermission', () => {
@@ -133,29 +133,29 @@ describe('AuthorizationService', () => {
 
       mockDb.select
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockUserRoleAssignment])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockUserRoleAssignment])
             })
           })
         })
         .mockReturnValueOnce({
-          from: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([mockPermission])
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([mockPermission])
             })
           })
         });
 
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([mockUserRoleAssignment]);
-      jest.spyOn(AuthorizationService as any, 'resolveRolesWithHierarchy')
+      vi.spyOn(AuthorizationService as any, 'resolveRolesWithHierarchy')
         .mockResolvedValue([mockRole]);
-      jest.spyOn(AuthorizationService as any, 'getPermissionsForRoles')
+      vi.spyOn(AuthorizationService as any, 'getPermissionsForRoles')
         .mockResolvedValue([mockPermission]);
-      jest.spyOn(AuthorizationService as any, 'applyRoleInheritance')
+      vi.spyOn(AuthorizationService as any, 'applyRoleInheritance')
         .mockResolvedValue(mockPermissions);
-      jest.spyOn(AuthorizationService as any, 'evaluatePermissions')
+      vi.spyOn(AuthorizationService as any, 'evaluatePermissions')
         .mockResolvedValue({ allowed: true });
 
       // Act
@@ -181,9 +181,9 @@ describe('AuthorizationService', () => {
 
     it('should deny access when user lacks required permission', async () => {
       // Arrange
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([]);
-      jest.spyOn(AuthorizationService as any, 'computeEffectivePermissions')
+      vi.spyOn(AuthorizationService as any, 'computeEffectivePermissions')
         .mockResolvedValue({
           userId: testUserId,
           permissions: [],
@@ -242,10 +242,10 @@ describe('AuthorizationService', () => {
       };
 
       mockDb.select.mockReturnValue({
-        from: jest.fn().mockReturnValue({
-          innerJoin: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnValue({
-              limit: jest.fn().mockResolvedValue([systemAdminAssignment])
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([systemAdminAssignment])
             })
           })
         })
@@ -256,7 +256,7 @@ describe('AuthorizationService', () => {
         assignment: systemAdminAssignment,
         role: systemAdminRole
       }];
-      jest.spyOn(AuthorizationService as any, 'checkSystemSettingsAccess').mockResolvedValue({
+      vi.spyOn(AuthorizationService as any, 'checkSystemSettingsAccess').mockResolvedValue({
         allowed: true,
         grantedBy: [{
           roleId: systemAdminRole.id,
@@ -295,17 +295,17 @@ describe('AuthorizationService', () => {
         isCrossTeam: false
       }];
 
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([mockUserRoleAssignment]);
-      jest.spyOn(AuthorizationService as any, 'resolveRolesWithHierarchy')
+      vi.spyOn(AuthorizationService as any, 'resolveRolesWithHierarchy')
         .mockResolvedValue([mockRole]);
-      jest.spyOn(AuthorizationService as any, 'getPermissionsForRoles')
+      vi.spyOn(AuthorizationService as any, 'getPermissionsForRoles')
         .mockResolvedValue([mockPermission]);
-      jest.spyOn(AuthorizationService as any, 'applyRoleInheritance')
+      vi.spyOn(AuthorizationService as any, 'applyRoleInheritance')
         .mockResolvedValue(mockPermissions);
-      jest.spyOn(AuthorizationService as any, 'getCachedPermissions')
+      vi.spyOn(AuthorizationService as any, 'getCachedPermissions')
         .mockResolvedValue(null);
-      jest.spyOn(AuthorizationService as any, 'cacheEffectivePermissions')
+      vi.spyOn(AuthorizationService as any, 'cacheEffectivePermissions')
         .mockResolvedValue();
 
       // Act
@@ -326,7 +326,7 @@ describe('AuthorizationService', () => {
 
     it('should return empty permissions when no role assignments found', async () => {
       // Arrange
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([]);
 
       // Act
@@ -347,7 +347,7 @@ describe('AuthorizationService', () => {
         role: { ...mockRole, name: 'NATIONAL_SUPPORT_ADMIN' }
       };
 
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([nationalSupportAssignment]);
 
       // Act
@@ -364,7 +364,7 @@ describe('AuthorizationService', () => {
 
     it('should deny cross-team access for regular team members', async () => {
       // Arrange
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([mockUserRoleAssignment]);
 
       // Act
@@ -381,7 +381,7 @@ describe('AuthorizationService', () => {
 
     it('should allow same-team access for regular team members', async () => {
       // Arrange
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([mockUserRoleAssignment]);
 
       // Act
@@ -440,7 +440,7 @@ describe('AuthorizationService', () => {
         roles: []
       };
 
-      jest.spyOn(AuthorizationService, 'computeEffectivePermissions')
+      vi.spyOn(AuthorizationService, 'computeEffectivePermissions')
         .mockResolvedValue(mockEffectivePermissions);
 
       // Act
@@ -478,7 +478,7 @@ describe('AuthorizationService', () => {
         roles: []
       };
 
-      jest.spyOn(AuthorizationService, 'computeEffectivePermissions')
+      vi.spyOn(AuthorizationService, 'computeEffectivePermissions')
         .mockResolvedValue(mockEffectivePermissions);
 
       // Act
@@ -495,10 +495,10 @@ describe('AuthorizationService', () => {
       // Arrange
       mockDb.select
         .mockReturnValue({
-          from: jest.fn().mockReturnValue({
-            innerJoin: jest.fn().mockReturnValue({
-              where: jest.fn().mockReturnValue({
-                limit: jest.fn().mockResolvedValue([mockUserRoleAssignment])
+          from: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              where: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([mockUserRoleAssignment])
               })
             })
           })
@@ -515,10 +515,10 @@ describe('AuthorizationService', () => {
       // Arrange
       mockDb.select
         .mockReturnValue({
-          from: jest.fn().mockReturnValue({
-            innerJoin: jest.fn().mockReturnValue({
-              where: jest.fn().mockReturnValue({
-                limit: jest.fn().mockResolvedValue([])
+          from: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              where: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([])
               })
             })
           })
@@ -541,7 +541,7 @@ describe('AuthorizationService', () => {
         { ...mockUserRoleAssignment, role: supervisorRole }
       ];
 
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue(assignments);
 
       // Act
@@ -553,7 +553,7 @@ describe('AuthorizationService', () => {
 
     it('should return 0 when user has no roles', async () => {
       // Arrange
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([]);
 
       // Act
@@ -634,7 +634,7 @@ describe('AuthorizationService', () => {
 
     it('should handle permission check errors gracefully', async () => {
       // Arrange
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockRejectedValue(new Error('Service error'));
 
       // Act
@@ -655,9 +655,9 @@ describe('AuthorizationService', () => {
       // Arrange
       const startTime = Date.now();
 
-      jest.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
+      vi.spyOn(AuthorizationService as any, 'getUserRoleAssignments')
         .mockResolvedValue([mockUserRoleAssignment]);
-      jest.spyOn(AuthorizationService as any, 'computeEffectivePermissions')
+      vi.spyOn(AuthorizationService as any, 'computeEffectivePermissions')
         .mockResolvedValue({
           userId: testUserId,
           permissions: [{
@@ -673,7 +673,7 @@ describe('AuthorizationService', () => {
           version: 1,
           roles: []
         });
-      jest.spyOn(AuthorizationService as any, 'evaluatePermissions')
+      vi.spyOn(AuthorizationService as any, 'evaluatePermissions')
         .mockResolvedValue({ allowed: true });
 
       // Act
