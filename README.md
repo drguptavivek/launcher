@@ -83,19 +83,19 @@ Sample Credentials (for testing)
 ```mermaid
 flowchart TB
     subgraph "Mobile Layer" [Mobile Layer]
-        A1[Android Launcher App<br/>• Device Authentication<br/>• Policy Enforcement<br/>• GPS Telemetry<br/>• Time Window Control]
+        A1[Android Launcher App• Device Authentication• Policy Enforcement• GPS Telemetry• Time Window Control]
     end
 
     subgraph "API Layer" [API Layer]
-        B1[Backend Service<br/>Express.js + TypeScript<br/>• 8 REST Endpoints<br/>• JWT Authentication<br/>• JWS Policy Signing<br/>• Rate Limiting]
+        B1[Backend ServiceExpress.js + TypeScript• 8 REST Endpoints• JWT Authentication• JWS Policy Signing• Rate Limiting]
     end
 
     subgraph "Web Layer" [Web Layer]
-        C1[Admin Frontend<br/>SvelteKit 5 + TailwindCSS<br/>• User Management<br/>• Device Monitoring<br/>• Telemetry Analytics<br/>• Policy Configuration]
+        C1[Admin FrontendSvelteKit 5 + TailwindCSS• User Management• Device Monitoring• Telemetry Analytics• Policy Configuration]
     end
 
     subgraph "Data Layer" [Data Layer]
-        D1[SQLite Database<br/>Drizzle ORM<br/>• 9 Relational Tables<br/>• Session Management<br/>• Telemetry Storage<br/>• Audit Logging]
+        D1[SQLite DatabaseDrizzle ORM• 9 Relational Tables• Session Management• Telemetry Storage• Audit Logging]
     end
 
     %% Interconnections
@@ -104,7 +104,7 @@ flowchart TB
     B1 <-->|ORM Queries| D1
 
     %% External Services
-    E1[External Services<br/>• NTP Time Sync<br/>• GPS Satellites<br/>• Certificate Authority] --> A1
+    E1[External Services• NTP Time Sync• GPS Satellites• Certificate Authority] --> A1
     E1 --> B1
 
     style A1 fill:#e3f2fd
@@ -121,7 +121,7 @@ flowchart TB
 ```mermaid
 flowchart TD
     %% Admin Registration
-    Admin[Admin User] --> Frontend[Admin Frontend<br/>SvelteKit]
+    Admin[Admin User] --> Frontend[Admin FrontendSvelteKit]
     Frontend --> |POST /api/v1/users| API[Backend API]
 
     %% Team Creation
@@ -145,9 +145,9 @@ flowchart TD
     Frontend --> Admin
 
     %% Validation Steps
-    API --> |Validate| Input[Input Validation<br/>Zod Schemas]
-    API --> |Rate Limit| RateLimiter[Rate Limiter<br/>5 req/15min]
-    API --> |Audit Log| AuditLog[Audit Logging<br/>RFC-5424]
+    API --> |Validate| Input[Input ValidationZod Schemas]
+    API --> |Rate Limit| RateLimiter[Rate Limiter5 req/15min]
+    API --> |Audit Log| AuditLog[Audit LoggingRFC-5424]
 
     style Admin fill:#e3f2fd
     style Frontend fill:#e8f5e8
@@ -164,22 +164,22 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph "Android App" [Android Launcher App]
-        Login[LoginActivity<br/>Device ID + User Code + PIN]
+        Login[LoginActivityDevice ID + User Code + PIN]
     end
 
     subgraph "Backend API" [Authentication Service]
-        Auth1[POST /api/v1/auth/login<br/>Multi-factor validation]
+        Auth1[POST /api/v1/auth/loginMulti-factor validation]
         Auth2[Device-Team Binding Check]
-        Auth3[PIN Verification<br/>Scrypt Hash + Salt]
-        Auth4[JWT Token Generation<br/>Access + Refresh + Override]
-        Auth5[Session Creation<br/>Database Record]
-        Auth6[Rate Limiting<br/>5 attempts/15min]
+        Auth3[PIN VerificationScrypt Hash + Salt]
+        Auth4[JWT Token GenerationAccess + Refresh + Override]
+        Auth5[Session CreationDatabase Record]
+        Auth6[Rate Limiting5 attempts/15min]
     end
 
     subgraph "Database" [Session Management]
-        Session[(sessions table)<br/>userId, deviceId<br/>startedAt, expiresAt<br/>overrideUntil, tokenJti]
-        Device[(devices table)<br/>lastSeenAt update]
-        Revocation[(jwtRevocation table)<br/>Token tracking]
+        Session[(sessions table)userId, deviceIdstartedAt, expiresAtoverrideUntil, tokenJti]
+        Device[(devices table)lastSeenAt update]
+        Revocation[(jwtRevocation table)Token tracking]
     end
 
     %% Authentication Flow
@@ -213,25 +213,26 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph "Policy Configuration" [Policy Management]
-        AdminPolicy[Admin: Configure Policy<br/>• Time Windows<br/>• GPS Settings<br/>• Grace Periods]
-        PolicyAPI[GET /api/v1/policy/:deviceId<br/>Policy Generation]
+        AdminPolicy[Admin: Configure Policy• Time Windows• GPS Settings• Grace Periods]
+        PolicyAPI[GET /api/v1/policy/:deviceIdPolicy Generation]
     end
 
     subgraph "Policy Service" [Policy Processing]
-        PolicyGen[Generate Policy JSON<br/>• Device-specific rules<br/>• Team configurations<br/>• Time constraints]
-        JWS_Sign[JWS Signing<br/>Ed25519 Private Key<br/>Cryptographic Signature]
-        PolicyValidation[Policy Validation<br/>• Time anchor check<br/>• Clock skew ±180s<br/>• Expiry validation]
+        PolicyGen[Generate Policy JSON• Device-specific rules• Team configurations• Time constraints]
+        JWS_Sign[JWS SigningEd25519 Private KeyCryptographic Signature]
+        PolicyValidation[Policy Validation• Time anchor check• Clock skew ±180s• Expiry validation]
     end
 
     subgraph "Device Integration" [Android Policy Integration]
-        PolicyFetch[Device: Fetch Policy<br/>HTTPS + Device JWT]
-        PolicyVerify[Verify JWS Signature<br/>Ed25519 Public Key]
-        PolicyEnforce[Enforce Policy<br/>• Time window checks<br/>• GPS requirements<br/>• Supervisor overrides]
+        PolicyFetch[Device: Fetch PolicyHTTPS + Device JWT]
+        PolicyVerify[Verify JWS SignatureEd25519 Public Key]
+        PolicyEnforce[Enforce Policy• Time window checks• GPS requirements• Supervisor overrides]
     end
 
     subgraph "Database" [Policy Storage]
-        PolicyTable["(policyIssues table)<br/>deviceId, version<br/>jwsKid, issuedAt, expiresAt"]
-        DeviceTable["(devices table)<br/>Policy tracking"]
+        PolicyTable["(policyIssues table)deviceId, versionjwsKid, issuedAt, expiresAt"]
+        DeviceTable["(devices table)Policy tracking"
+        ]
     end
 
     %% Policy Flow
@@ -265,35 +266,35 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph "Android Device" [Telemetry Generation]
-        GPS[GPS Service<br/>3-min intervals<br/>50m displacement]
-        Heartbeat[Heartbeat Service<br/>10-min intervals<br/>Battery status]
-        AppUsage[App Usage Tracking<br/>Screen time<br/>Application events]
-        Events[System Events<br/>Network, Battery<br/>Error conditions]
+        GPS[GPS Service3-min intervals50m displacement]
+        Heartbeat[Heartbeat Service10-min intervalsBattery status]
+        AppUsage[App Usage TrackingScreen timeApplication events]
+        Events[System EventsNetwork, BatteryError conditions]
     end
 
     subgraph "Batch Processing" [Telemetry Batching]
-        Collect[Collect Events<br/>Max 50 events]
-        Validate[Validate Events<br/>• GPS coordinates<br/>• Battery ranges<br/>• Timestamp validation]
-        Batch[Create Batch<br/>JSON array<br/>Device metadata]
+        Collect[Collect EventsMax 50 events]
+        Validate[Validate Events• GPS coordinates• Battery ranges• Timestamp validation]
+        Batch[Create BatchJSON arrayDevice metadata]
     end
 
     subgraph "Backend API" [Telemetry Service]
-        TelemetryAPI[POST /api/v1/telemetry<br/>Batch ingestion]
-        ProcessEvents[Event Processing<br/>• Type validation<br/>• Data integrity<br/>• Age verification]
-        StoreEvents[Database Storage<br/>Event categorization<br/>Device tracking]
-        DeviceUpdate[Device Status Update<br/>lastSeenAt, lastGpsAt]
+        TelemetryAPI[POST /api/v1/telemetryBatch ingestion]
+        ProcessEvents[Event Processing• Type validation• Data integrity• Age verification]
+        StoreEvents[Database StorageEvent categorizationDevice tracking]
+        DeviceUpdate[Device Status UpdatelastSeenAt, lastGpsAt]
     end
 
     subgraph "Database" [Telemetry Storage]
-        EventTable[(telemetryEvents table)<br/>deviceId, sessionId<br/>type, payloadJson, ts]
-        DeviceTable[(devices table)<br/>Activity tracking]
-        SessionTable[(sessions table)<br/>Event correlation]
+        EventTable[(telemetryEvents table)deviceId, sessionIdtype, payloadJson, ts]
+        DeviceTable[(devices table)Activity tracking]
+        SessionTable[(sessions table)Event correlation]
     end
 
     subgraph "Analytics" [Data Consumption]
-        RealTime[Real-time Dashboard<br/>Device status<br/>GPS tracking]
-        Analytics[Analytics Engine<br/>Usage patterns<br/>Performance metrics]
-        Reports[Reporting System<br/>Historical data<br/>Compliance reports]
+        RealTime[Real-time DashboardDevice statusGPS tracking]
+        Analytics[Analytics EngineUsage patternsPerformance metrics]
+        Reports[Reporting SystemHistorical dataCompliance reports]
     end
 
     %% Telemetry Flow
@@ -332,26 +333,26 @@ flowchart TD
 ```mermaid
 flowchart TD
     subgraph "Override Request" [Supervisor Override]
-        BlockScreen[Blocker Activity<br/>Time window exceeded<br/>Access denied]
-        OverrideDialog[Supervisor PIN Dialog<br/>Override request<br/>Reason entry]
+        BlockScreen[Blocker ActivityTime window exceededAccess denied]
+        OverrideDialog[Supervisor PIN DialogOverride requestReason entry]
     end
 
     subgraph "Backend API" [Override Service]
-        OverrideAPI[POST /api/v1/supervisor/override/login<br/>Supervisor authentication]
-        PINVerify[Supervisor PIN Verification<br/>Hash validation<br/>Team-specific PINs]
-        OverrideToken[Override Token Generation<br/>2-hour validity<br/>Override scope]
-        SessionExtend[Session Extension<br/>overrideUntil update<br/>Audit logging]
+        OverrideAPI[POST /api/v1/supervisor/override/loginSupervisor authentication]
+        PINVerify[Supervisor PIN VerificationHash validationTeam-specific PINs]
+        OverrideToken[Override Token Generation2-hour validityOverride scope]
+        SessionExtend[Session ExtensionoverrideUntil updateAudit logging]
     end
 
     subgraph "Database" [Override Storage]
-        SupPIN[(supervisorPins table)<br/>teamId, verifierHash<br/>rotatedAt, active]
-        SessionTable[(sessions table)<br/>overrideUntil update<br/>Extension tracking]
-        AuditLog[(Audit Records)<br/>Override events<br/>Supervisor actions]
+        SupPIN[(supervisorPins table)teamId, verifierHashrotatedAt, active]
+        SessionTable[(sessions table)overrideUntil updateExtension tracking]
+        AuditLog[(Audit Records)Override eventsSupervisor actions]
     end
 
     subgraph "Device Recovery" [Session Recovery]
-        SessionRecovery[Session Recovery<br/>Override token application<br/>Time window extension]
-        FullAccess[Full Access Restored<br/>GPS tracking resumes<br/>Normal operations]
+        SessionRecovery[Session RecoveryOverride token applicationTime window extension]
+        FullAccess[Full Access RestoredGPS tracking resumesNormal operations]
     end
 
     %% Override Flow
@@ -370,8 +371,8 @@ flowchart TD
     SessionRecovery --> FullAccess
 
     %% Security Features
-    OverrideAPI --> RateLimit[Override Rate Limit<br/>10 attempts/15min]
-    OverrideAPI --> AuditTracking[Audit Tracking<br/>Complete override chain]
+    OverrideAPI --> RateLimit[Override Rate Limit10 attempts/15min]
+    OverrideAPI --> AuditTracking[Audit TrackingComplete override chain]
 
     style BlockScreen fill:#ffebee
     style OverrideDialog fill:#fff8e1
@@ -386,33 +387,33 @@ flowchart TD
 flowchart TD
     %% Data Sources Layer
     subgraph "Data Sources" [Data Sources Layer]
-        DS1[Android Devices<br/>GPS + Heartbeat<br/>App Usage + Events]
-        DS2[Admin Users<br/>User Management<br/>Device Configuration<br/>Policy Creation]
-        DS3[External Services<br/>NTP Time Sync<br/>GPS Satellites<br/>Certificate Authority]
+        DS1[Android DevicesGPS + HeartbeatApp Usage + Events]
+        DS2[Admin UsersUser ManagementDevice ConfigurationPolicy Creation]
+        DS3[External ServicesNTP Time SyncGPS SatellitesCertificate Authority]
     end
 
     %% Processing Layer
     subgraph "Processing Layer" [Processing Layer]
-        PL1[Input Validation<br/>Zod Schemas<br/>Type Safety<br/>Sanitization]
-        PL2[Business Logic<br/>Authentication<br/>Policy Enforcement<br/>Telemetry Processing]
-        PL3[Security Layer<br/>JWT Management<br/>JWS Signing<br/>Rate Limiting]
-        PL4[Audit Layer<br/>Request Tracking<br/>Security Logging<br/>Compliance Records]
+        PL1[Input ValidationZod SchemasType SafetySanitization]
+        PL2[Business LogicAuthenticationPolicy EnforcementTelemetry Processing]
+        PL3[Security LayerJWT ManagementJWS SigningRate Limiting]
+        PL4[Audit LayerRequest TrackingSecurity LoggingCompliance Records]
     end
 
     %% Storage Layer
     subgraph "Storage Layer" [Storage Layer]
-        SL1[Session Storage<br/>Active Sessions<br/>Token Management<br/>Override Tracking]
-        SL2[Telemetry Storage<br/>GPS Events<br/>Heartbeat Data<br/>System Events]
-        SL3[Configuration Storage<br/>User Data<br/>Device Records<br/>Policy Rules]
-        SL4[Security Storage<br/>PIN Hashes<br/>Revocation List<br/>Audit Trails]
+        SL1[Session StorageActive SessionsToken ManagementOverride Tracking]
+        SL2[Telemetry StorageGPS EventsHeartbeat DataSystem Events]
+        SL3[Configuration StorageUser DataDevice RecordsPolicy Rules]
+        SL4[Security StoragePIN HashesRevocation ListAudit Trails]
     end
 
     %% Consumption Layer
     subgraph "Consumption Layer" [Consumption Layer]
-        CL1[Android Apps<br/>Policy Enforcement<br/>Session Management<br/>Telemetry Upload]
-        CL2[Admin Dashboard<br/>User Management<br/>Device Monitoring<br/>System Analytics]
-        CL3[Analytics Engine<br/>Real-time Processing<br/>Historical Reports<br/>Compliance Monitoring]
-        CL4[Monitoring System<br/>Health Checks<br/>Security Alerts<br/>Performance Metrics]
+        CL1[Android AppsPolicy EnforcementSession ManagementTelemetry Upload]
+        CL2[Admin DashboardUser ManagementDevice MonitoringSystem Analytics]
+        CL3[Analytics EngineReal-time ProcessingHistorical ReportsCompliance Monitoring]
+        CL4[Monitoring SystemHealth ChecksSecurity AlertsPerformance Metrics]
     end
 
     %% Vertical Data Flow
