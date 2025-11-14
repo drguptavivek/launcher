@@ -316,29 +316,27 @@ describe('TeamBoundaryService', () => {
         from: vi.fn().mockReturnThis(),
         leftJoin: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
-      };
-
-      // Mock the result without .limit() to match the actual implementation
-      const mockResult = [
-        {
-          user: mockUser,
-          team: mockTeam,
-          assignments: {
-            assignment: {
-              userId: mockUserId,
-              teamId: mockTeamId,
-              regionId: mockRegionId,
-              isActive: true
-            },
-            role: {
-              name: 'SYSTEM_ADMIN',
-              isActive: true
-            }
+        limit: vi.fn().mockResolvedValue([
+          {
+            user: mockUser,
+            team: mockTeam,
+            assignments: [
+              {
+                assignment: {
+                  userId: mockUserId,
+                  teamId: mockTeamId,
+                  regionId: mockRegionId,
+                  isActive: true
+                },
+                role: {
+                  name: 'SYSTEM_ADMIN',
+                  isActive: true
+                }
+              }
+            ]
           }
-        }
-      ];
-
-      mockQueryBuilder.limit = vi.fn().mockResolvedValue(mockResult);
+        ])
+      };
 
       vi.mocked(db.select).mockReturnValue(mockQueryBuilder as any);
 

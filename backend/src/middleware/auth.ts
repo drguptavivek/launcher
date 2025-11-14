@@ -451,6 +451,27 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
     next();
   } catch (error) {
     logger.error('Authentication error', { error, requestId: req.headers['x-request-id'] });
+
+    // For AuthorizationService errors, fail gracefully with fallback user info
+    if (error instanceof Error && error.message.includes('Service unavailable')) {
+      // Create fallback user context
+      const fallbackUser = {
+        ...userResult.user,
+        roles: [{
+          id: 'fallback-role',
+          name: 'TEAM_MEMBER',
+          displayName: 'Team Member',
+          hierarchyLevel: 1
+        }],
+        effectivePermissions: [],
+        role: 'TEAM_MEMBER'
+      };
+
+      req.user = fallbackUser;
+      next();
+      return;
+    }
+
     return res.status(500).json({
       success: false,
       error: {
