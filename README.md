@@ -125,17 +125,17 @@ flowchart TD
     Frontend --> |POST /api/v1/users| API[Backend API]
 
     %% Team Creation
-    API --> |Create Team| DB_Team[(teams table)]
+    API --> |Create Team| DB_Team[teams table ]
 
     %% User Creation
-    API --> |Create User| DB_User[(users table)]
-    API --> |Hash PIN| DB_UserPIN[(userPins table)]
+    API --> |Create User| DB_User[users table ]
+    API --> |Hash PIN| DB_UserPIN[userPins table ]
 
     %% Device Registration
-    API --> |Register Device| DB_Device[(devices table)]
+    API --> |Register Device| DB_Device[devices table ]
 
     %% Supervisor Setup
-    API --> |Create Supervisor PIN| DB_Supervisor[(supervisorPins table)]
+    API --> |Create Supervisor PIN| DB_Supervisor[supervisorPins table ]
 
     %% Response Flow
     DB_Team --> API
@@ -177,9 +177,9 @@ flowchart TD
     end
 
     subgraph "Database" [Session Management]
-        Session[(sessions table)userId, deviceIdstartedAt, expiresAtoverrideUntil, tokenJti]
-        Device[(devices table)lastSeenAt update]
-        Revocation[(jwtRevocation table)Token tracking]
+        Session[sessions table userId, deviceIdstartedAt, expiresAtoverrideUntil, tokenJti]
+        Device[devices table lastSeenAt update]
+        Revocation[jwtRevocation table Token tracking]
     end
 
     %% Authentication Flow
@@ -230,8 +230,8 @@ flowchart TD
     end
 
     subgraph "Database" [Policy Storage]
-        PolicyTable["(policyIssues table)deviceId, versionjwsKid, issuedAt, expiresAt"]
-        DeviceTable["(devices table)Policy tracking"
+        PolicyTable["(policyIssues table deviceId, versionjwsKid, issuedAt, expiresAt"]
+        DeviceTable["(devices table Policy tracking"
         ]
     end
 
@@ -286,9 +286,9 @@ flowchart TD
     end
 
     subgraph "Database" [Telemetry Storage]
-        EventTable[(telemetryEvents table)deviceId, sessionIdtype, payloadJson, ts]
-        DeviceTable[(devices table)Activity tracking]
-        SessionTable[(sessions table)Event correlation]
+        EventTable[telemetryEvents table deviceId, sessionIdtype, payloadJson, ts]
+        DeviceTable[devices table Activity tracking]
+        SessionTable[sessions table Event correlation]
     end
 
     subgraph "Analytics" [Data Consumption]
@@ -345,9 +345,9 @@ flowchart TD
     end
 
     subgraph "Database" [Override Storage]
-        SupPIN[(supervisorPins table)teamId, verifierHashrotatedAt, active]
-        SessionTable[(sessions table)overrideUntil updateExtension tracking]
-        AuditLog[(Audit Records)Override eventsSupervisor actions]
+        SupPIN[supervisorPins table teamId, verifierHashrotatedAt, active]
+        SessionTable[sessions table overrideUntil updateExtension tracking]
+        AuditLog[Audit Records Override eventsSupervisor actions]
     end
 
     subgraph "Device Recovery" [Session Recovery]
