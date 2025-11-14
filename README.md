@@ -1,6 +1,3 @@
-
-
-
 ##  Backened Service
 
 Complete Backend Functionality Overview
@@ -233,8 +230,8 @@ flowchart TD
     end
 
     subgraph "Database" [Policy Storage]
-        PolicyTable[(policyIssues table)<br/>deviceId, version<br/>jwsKid, issuedAt, expiresAt]
-        DeviceTable[(devices table)<br/>Policy tracking]
+        PolicyTable["(policyIssues table)<br/>deviceId, version<br/>jwsKid, issuedAt, expiresAt"]
+        DeviceTable["(devices table)<br/>Policy tracking"]
     end
 
     %% Policy Flow
