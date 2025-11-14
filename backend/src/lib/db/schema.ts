@@ -10,8 +10,59 @@ import {
   pgEnum
 } from 'drizzle-orm/pg-core';
 
-// Enums
-export const userRoleEnum = pgEnum('user_role', ['TEAM_MEMBER', 'SUPERVISOR', 'ADMIN']);
+// Enums - Enhanced RBAC with 9 roles for enterprise-scale access control
+export const userRoleEnum = pgEnum('user_role', [
+  // Field Operations Roles
+  'TEAM_MEMBER',
+  'FIELD_SUPERVISOR',
+  'REGIONAL_MANAGER',
+
+  // Technical Operations Roles
+  'SYSTEM_ADMIN',
+  'SUPPORT_AGENT',
+  'AUDITOR',
+
+  // Specialized Roles
+  'DEVICE_MANAGER',
+  'POLICY_ADMIN',
+  'NATIONAL_SUPPORT_ADMIN'
+]);
+
+// Permission scopes for fine-grained access control
+export const permissionScopeEnum = pgEnum('permission_scope', [
+  'ORGANIZATION', // Full organizational access
+  'REGION',      // Multi-team regional access
+  'TEAM',        // Single team access
+  'USER',        // Personal access only
+  'SYSTEM'       // System-level configuration access
+]);
+
+// Permission action types
+export const permissionActionEnum = pgEnum('permission_action', [
+  'CREATE',
+  'READ',
+  'UPDATE',
+  'DELETE',
+  'LIST',
+  'MANAGE',     // Full control including permissions
+  'EXECUTE',    // Execute operations (e.g., overrides)
+  'AUDIT'       // Read-only audit access
+]);
+
+// Resource types for permission management
+export const resourceTypeEnum = pgEnum('resource_type', [
+  'TEAMS',
+  'USERS',
+  'DEVICES',
+  'SUPERVISOR_PINS',
+  'TELEMETRY',
+  'POLICY',
+  'AUTH',
+  'SYSTEM_SETTINGS',
+  'AUDIT_LOGS',
+  'SUPPORT_TICKETS',
+  'ORGANIZATION'
+]);
 
 // Teams table
 export const teams = pgTable('teams', {
@@ -162,6 +213,84 @@ export const pinAttempts = pgTable('pin_attempts', {
   attemptTypeIdx: table.attemptType,
 }));
 
+// ===== ENHANCED RBAC SYSTEM =====
+
+// Role definitions table - stores dynamic role configurations
+export const roles = pgTable('roles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 50 }).notNull().unique(),
+  displayName: varchar('display_name', { length: 120 }).notNull(),
+  description: text('description'),
+  isSystemRole: boolean('is_system_role').notNull().default(false), // Predefined system roles
+  isActive: boolean('is_active').notNull().default(true),
+  hierarchyLevel: integer('hierarchy_level').notNull().default(0), // For role inheritance
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  nameIdx: table.name,
+}));
+
+// Granular permissions table
+export const permissions = pgTable('permissions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  resource: resourceTypeEnum('resource').notNull(),
+  action: permissionActionEnum('action').notNull(),
+  scope: permissionScopeEnum('scope').notNull().default('TEAM'),
+  description: text('description'),
+  conditions: jsonb('conditions'), // Additional permission conditions (temporal, geo, etc.)
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  resourceActionIdx: table.resource,
+  nameIdx: table.name,
+}));
+
+// Role-permission mapping table
+export const rolePermissions = pgTable('role_permissions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  roleId: uuid('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+  permissionId: uuid('permission_id').notNull().references(() => permissions.id, { onDelete: 'cascade' }),
+  grantedBy: uuid('granted_by').references(() => users.id),
+  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+  isActive: boolean('is_active').notNull().default(true),
+}, (table) => ({
+  roleIdIdx: table.roleId,
+  permissionIdIdx: table.permissionId,
+}));
+
+// User role assignments table - supports multiple roles per user
+export const userRoleAssignments = pgTable('user_role_assignments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  roleId: uuid('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+  organizationId: uuid('organization_id').notNull(), // For multi-tenant support
+  teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }),
+  regionId: varchar('region_id', { length: 32 }), // Geographic/organizational region
+  grantedBy: uuid('granted_by').references(() => users.id),
+  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }), // Temporary role assignments
+  isActive: boolean('is_active').notNull().default(true),
+  context: jsonb('context'), // Additional context for the role assignment
+}, (table) => ({
+  userIdIdx: table.userId,
+  roleIdIdx: table.roleId,
+  teamIdIdx: table.teamId,
+  organizationIdIdx: table.organizationId,
+}));
+
+// Permission cache table for performance optimization
+export const permissionCache = pgTable('permission_cache', {
+  userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  effectivePermissions: jsonb('effective_permissions').notNull(), // Cached resolved permissions
+  computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  version: integer('version').notNull().default(1), // Cache invalidation version
+}, (table) => ({
+  userIdIdx: table.userId,
+  expiresAtIdx: table.expiresAt,
+}));
+
 // Export types
 export type Team = typeof teams.$inferSelect;
 export type NewTeam = typeof teams.$inferInsert;
@@ -192,3 +321,19 @@ export type NewJwtRevocation = typeof jwtRevocations.$inferInsert;
 
 export type PinAttempt = typeof pinAttempts.$inferSelect;
 export type NewPinAttempt = typeof pinAttempts.$inferInsert;
+
+// RBAC System Types
+export type Role = typeof roles.$inferSelect;
+export type NewRole = typeof roles.$inferInsert;
+
+export type Permission = typeof permissions.$inferSelect;
+export type NewPermission = typeof permissions.$inferInsert;
+
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type NewRolePermission = typeof rolePermissions.$inferInsert;
+
+export type UserRoleAssignment = typeof userRoleAssignments.$inferSelect;
+export type NewUserRoleAssignment = typeof userRoleAssignments.$inferInsert;
+
+export type PermissionCache = typeof permissionCache.$inferSelect;
+export type NewPermissionCache = typeof permissionCache.$inferInsert;
