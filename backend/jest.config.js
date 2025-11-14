@@ -13,6 +13,8 @@ export default {
       useESM: true,
       tsconfig: {
         module: 'ESNext',
+        esModuleInterop: true,
+        allowSyntheticDefaultImports: true,
       },
     }],
   },
@@ -20,7 +22,7 @@ export default {
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(uuid|jsonwebtoken|drizzle-orm|postgres|tweetnacl)/)'
+    'node_modules/(?!(uuid|jsonwebtoken|drizzle-orm|postgres|tweetnacl|crypto|tweetnacl-util|assert|url|querystring|util|buffer|stream|events)/)'
   ],
   collectCoverageFrom: [
     'src/**/*.ts',

@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth-service';
-import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { PolicyService } from '../services/policy-service';
 import { TelemetryService } from '../services/telemetry-service';
 import { TeamService } from '../services/team-service';
@@ -8,6 +7,8 @@ import { UserService } from '../services/user-service';
 import { DeviceService } from '../services/device-service';
 import { SupervisorPinService } from '../services/supervisor-pin-service';
 import { JWTService } from '../services/jwt-service';
+import { RoleService } from '../services/role-service';
+import { AuthorizationService } from '../services/authorization-service';
 import { logger } from '../lib/logger';
 import { db } from '../lib/db';
 import { devices, sessions, telemetryEvents } from '../lib/db/schema';
@@ -210,9 +211,9 @@ async function logout(req: Request, res: Response) {
     }
   } catch (error) {
     logger.error('Logout endpoint error', {
-      error: error?.message || error,
-      stack: error?.stack,
-      name: error?.name,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'UnknownError',
       sessionId
     });
     return res.status(500).json({
@@ -543,9 +544,9 @@ async function supervisorOverrideRevoke(req: Request, res: Response) {
     });
   } catch (error) {
     logger.error('Supervisor override revoke error', {
-      error: error.message,
-      stack: error.stack,
-      name: error.name
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'UnknownError'
     });
     return res.status(500).json({
       ok: false,
@@ -1883,6 +1884,406 @@ async function getActiveSupervisorPin(req: Request, res: Response) {
   }
 }
 
+// ================== ROLE MANAGEMENT ENDPOINTS ==================
+
+// POST /api/v1/roles - Create role
+async function createRole(req: Request, res: Response) {
+  try {
+    const { name, displayName, description, isSystemRole, hierarchyLevel, permissionIds } = req.body;
+
+    if (!name || !displayName) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_FIELDS',
+          message: 'name and displayName are required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await RoleService.createRole({
+      name: name.trim(),
+      displayName: displayName.trim(),
+      description: description?.trim(),
+      isSystemRole,
+      hierarchyLevel,
+      permissionIds
+    });
+
+    if (result.success) {
+      return res.status(201).json({
+        ok: true,
+        role: {
+          id: result.role?.id,
+          name: result.role?.name,
+          display_name: result.role?.displayName,
+          description: result.role?.description,
+          is_system_role: result.role?.isSystemRole,
+          is_active: result.role?.isActive,
+          hierarchy_level: result.role?.hierarchyLevel,
+          created_at: result.role?.createdAt?.toISOString(),
+          updated_at: result.role?.updatedAt?.toISOString(),
+        },
+      });
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'ROLE_CREATE_FAILED',
+          message: result.error?.message || 'Failed to create role',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Create role endpoint error', { error, body: req.body });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while creating role',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// GET /api/v1/roles - List roles with pagination
+async function listRoles(req: Request, res: Response) {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const search = req.query.search as string;
+    const includeInactive = req.query.include_inactive === 'true';
+    const includeSystemRoles = req.query.include_system_roles !== 'false'; // default true
+
+    const result = await RoleService.listRoles({
+      page,
+      limit,
+      search,
+      includeInactive,
+      includeSystemRoles
+    });
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        roles: result.roles?.map(role => ({
+          id: role.id,
+          name: role.name,
+          display_name: role.displayName,
+          description: role.description,
+          is_system_role: role.isSystemRole,
+          is_active: role.isActive,
+          hierarchy_level: role.hierarchyLevel,
+          created_at: role.createdAt?.toISOString(),
+          updated_at: role.updatedAt?.toISOString(),
+        })) || [],
+        pagination: {
+          page,
+          limit,
+          total: result.pagination?.total || 0,
+          pages: result.pagination?.totalPages || 0,
+        },
+      });
+    } else {
+      return res.status(500).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'ROLES_LIST_FAILED',
+          message: result.error?.message || 'Failed to list roles',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('List roles endpoint error', { error, query: req.query });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while listing roles',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// PUT /api/v1/roles/:id - Update role
+async function updateRole(req: Request, res: Response) {
+  try {
+    const roleId = req.params.id;
+    const { displayName, description, isActive, hierarchyLevel, permissionIds } = req.body;
+
+    if (!roleId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_ROLE_ID',
+          message: 'Role ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await RoleService.updateRole(roleId, {
+      displayName: displayName?.trim(),
+      description: description?.trim(),
+      isActive,
+      hierarchyLevel,
+      permissionIds
+    });
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        role: {
+          id: result.role?.id,
+          name: result.role?.name,
+          display_name: result.role?.displayName,
+          description: result.role?.description,
+          is_system_role: result.role?.isSystemRole,
+          is_active: result.role?.isActive,
+          hierarchy_level: result.role?.hierarchyLevel,
+          created_at: result.role?.createdAt?.toISOString(),
+          updated_at: result.role?.updatedAt?.toISOString(),
+        },
+      });
+    } else {
+      const statusCode = result.error?.code === 'ROLE_NOT_FOUND' ? 404 : 400;
+      return res.status(statusCode).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'ROLE_UPDATE_FAILED',
+          message: result.error?.message || 'Failed to update role',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Update role endpoint error', { error, params: req.params, body: req.body });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while updating role',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// DELETE /api/v1/roles/:id - Delete role
+async function deleteRole(req: Request, res: Response) {
+  try {
+    const roleId = req.params.id;
+
+    if (!roleId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_ROLE_ID',
+          message: 'Role ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await RoleService.deleteRole(roleId);
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        message: 'Role deactivated successfully',
+      });
+    } else {
+      const statusCode = result.error?.code === 'ROLE_NOT_FOUND' ? 404 : 400;
+      return res.status(statusCode).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'ROLE_DELETE_FAILED',
+          message: result.error?.message || 'Failed to delete role',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Delete role endpoint error', { error, params: req.params });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while deleting role',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// POST /api/v1/users/:userId/roles - Assign role to user
+async function assignRoleToUser(req: Request, res: Response) {
+  try {
+    const userId = req.params.userId;
+    const { roleId, teamId, regionId, expiresAt, context } = req.body;
+    const assignedBy = (req as AuthenticatedRequest).user?.id;
+
+    if (!userId || !roleId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_FIELDS',
+          message: 'userId and roleId are required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await RoleService.assignRoleToUser(userId, roleId, {
+      assignedBy: assignedBy || 'system',
+      teamId,
+      regionId,
+      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      context
+    });
+
+    if (result.success) {
+      return res.status(201).json({
+        ok: true,
+        assignment: {
+          id: result.assignment?.id,
+          user_id: result.assignment?.userId,
+          role_id: result.assignment?.roleId,
+          organization_id: result.assignment?.organizationId,
+          team_id: result.assignment?.teamId,
+          region_id: result.assignment?.regionId,
+          granted_by: result.assignment?.grantedBy,
+          granted_at: result.assignment?.grantedAt?.toISOString(),
+          expires_at: result.assignment?.expiresAt?.toISOString(),
+          is_active: result.assignment?.isActive,
+          context: result.assignment?.context,
+        },
+      });
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'ROLE_ASSIGNMENT_FAILED',
+          message: result.error?.message || 'Failed to assign role to user',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Assign role to user endpoint error', { error, params: req.params, body: req.body });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while assigning role to user',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// DELETE /api/v1/users/:userId/roles/:roleId - Remove role from user
+async function removeRoleFromUser(req: Request, res: Response) {
+  try {
+    const userId = req.params.userId;
+    const roleId = req.params.roleId;
+
+    if (!userId || !roleId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_FIELDS',
+          message: 'userId and roleId are required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await RoleService.removeRoleFromUser(userId, roleId);
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        message: 'Role removed from user successfully',
+      });
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'ROLE_REMOVAL_FAILED',
+          message: result.error?.message || 'Failed to remove role from user',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Remove role from user endpoint error', { error, params: req.params });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while removing role from user',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// GET /api/v1/users/:userId/permissions - Get user's effective permissions
+async function getUserPermissions(req: Request, res: Response) {
+  try {
+    const userId = req.params.userId;
+    const { resource } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_USER_ID',
+          message: 'User ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const permissions = await AuthorizationService.getInheritedPermissions(
+      userId,
+      resource as string
+    );
+
+    return res.json({
+      ok: true,
+      user_id: userId,
+      permissions: permissions.map(perm => ({
+        id: perm.id,
+        resource: perm.resource,
+        action: perm.action,
+        scope: perm.scope,
+        conditions: perm.conditions,
+        inherited_from: perm.inheritedFrom,
+        is_cross_team: perm.isCrossTeam,
+        expires_at: perm.expiresAt?.toISOString(),
+      })),
+      computed_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    logger.error('Get user permissions endpoint error', { error, params: req.params, query: req.query });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while fetching user permissions',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
 // Real API endpoint router
 export function apiRouter(req: Request, res: Response, next: NextFunction) {
   const { method, originalUrl } = req;
@@ -1956,6 +2357,35 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
     return withAuthAndPermission(Resource.USERS, Action.DELETE)(req, res, next, () => deleteUser(req, res));
   }
 
+  // Role management routes
+  if (method === 'POST' && originalUrl === '/api/v1/roles') {
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN, UserRole.NATIONAL_SUPPORT_ADMIN])(req, res, next, () => createRole(req, res));
+  }
+
+  if (method === 'GET' && originalUrl === '/api/v1/roles') {
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN, UserRole.NATIONAL_SUPPORT_ADMIN, UserRole.REGIONAL_MANAGER])(req, res, next, () => listRoles(req, res));
+  }
+
+  if (method === 'PUT' && originalUrl.startsWith('/api/v1/roles/') && req.params.id) {
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN, UserRole.NATIONAL_SUPPORT_ADMIN])(req, res, next, () => updateRole(req, res));
+  }
+
+  if (method === 'DELETE' && originalUrl.startsWith('/api/v1/roles/') && req.params.id) {
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN])(req, res, next, () => deleteRole(req, res));
+  }
+
+  if (method === 'POST' && originalUrl.match(/^\/api\/v1\/users\/[^\/]+\/roles$/)) {
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN, UserRole.NATIONAL_SUPPORT_ADMIN, UserRole.REGIONAL_MANAGER])(req, res, next, () => assignRoleToUser(req, res));
+  }
+
+  if (method === 'DELETE' && originalUrl.match(/^\/api\/v1\/users\/[^\/]+\/roles\/[^\/]+$/)) {
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN, UserRole.NATIONAL_SUPPORT_ADMIN, UserRole.REGIONAL_MANAGER])(req, res, next, () => removeRoleFromUser(req, res));
+  }
+
+  if (method === 'GET' && originalUrl.match(/^\/api\/v1\/users\/[^\/]+\/permissions$/)) {
+    return withAuth(req, res, next, () => getUserPermissions(req, res));
+  }
+
   // Auth routes
   if (method === 'POST' && originalUrl === '/api/v1/auth/login') {
     return login(req, res);
@@ -1983,31 +2413,31 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
 
   // Supervisor PIN management routes
   if (method === 'POST' && originalUrl === '/api/v1/supervisor/pins') {
-    return withAuthAndRole([UserRole.ADMIN])(req, res, next, () => createSupervisorPin(req, res));
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN])(req, res, next, () => createSupervisorPin(req, res));
   }
 
   if (method === 'GET' && originalUrl === '/api/v1/supervisor/pins') {
-    return withAuthAndRole([UserRole.ADMIN, UserRole.SUPERVISOR])(req, res, next, () => listSupervisorPins(req, res));
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN, UserRole.NATIONAL_SUPPORT_ADMIN])(req, res, next, () => listSupervisorPins(req, res));
   }
 
   if (method === 'GET' && originalUrl.startsWith('/api/v1/supervisor/pins/') && req.params.id && !originalUrl.includes('/rotate') && !originalUrl.includes('/active')) {
-    return withAuthAndRole([UserRole.ADMIN, UserRole.SUPERVISOR])(req, res, next, () => getSupervisorPin(req, res));
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN, UserRole.NATIONAL_SUPPORT_ADMIN])(req, res, next, () => getSupervisorPin(req, res));
   }
 
   if (method === 'PUT' && originalUrl.startsWith('/api/v1/supervisor/pins/') && req.params.id) {
-    return withAuthAndRole([UserRole.ADMIN])(req, res, next, () => updateSupervisorPin(req, res));
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN])(req, res, next, () => updateSupervisorPin(req, res));
   }
 
   if (method === 'DELETE' && originalUrl.startsWith('/api/v1/supervisor/pins/') && req.params.id) {
-    return withAuthAndRole([UserRole.ADMIN])(req, res, next, () => deleteSupervisorPin(req, res));
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN])(req, res, next, () => deleteSupervisorPin(req, res));
   }
 
   if (method === 'POST' && originalUrl.startsWith('/api/v1/supervisor/pins/') && originalUrl.endsWith('/rotate')) {
-    return withAuthAndRole([UserRole.ADMIN])(req, res, next, () => rotateSupervisorPin(req, res));
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN])(req, res, next, () => rotateSupervisorPin(req, res));
   }
 
   if (method === 'GET' && originalUrl.startsWith('/api/v1/supervisor/pins/') && originalUrl.endsWith('/active')) {
-    return withAuthAndRole([UserRole.ADMIN, UserRole.SUPERVISOR])(req, res, next, () => getActiveSupervisorPin(req, res));
+    return withAuthAndRole([UserRole.SYSTEM_ADMIN, UserRole.NATIONAL_SUPPORT_ADMIN])(req, res, next, () => getActiveSupervisorPin(req, res));
   }
 
   // Supervisor override routes

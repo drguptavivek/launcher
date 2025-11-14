@@ -87,7 +87,7 @@ export class UserService {
     code: string;
     displayName: string;
     email?: string;
-    role?: 'TEAM_MEMBER' | 'SUPERVISOR' | 'ADMIN';
+    role?: 'TEAM_MEMBER' | 'FIELD_SUPERVISOR' | 'REGIONAL_MANAGER' | 'SYSTEM_ADMIN' | 'SUPPORT_AGENT' | 'AUDITOR' | 'DEVICE_MANAGER' | 'POLICY_ADMIN' | 'NATIONAL_SUPPORT_ADMIN';
     pin: string;
   }): Promise<UserCreateResult> {
     try {
@@ -146,13 +146,17 @@ export class UserService {
       }
 
       // Validate role
-      const validRoles = ['TEAM_MEMBER', 'SUPERVISOR', 'ADMIN'];
+      const validRoles = [
+        'TEAM_MEMBER', 'FIELD_SUPERVISOR', 'REGIONAL_MANAGER',
+        'SYSTEM_ADMIN', 'SUPPORT_AGENT', 'AUDITOR',
+        'DEVICE_MANAGER', 'POLICY_ADMIN', 'NATIONAL_SUPPORT_ADMIN'
+      ];
       if (userData.role && !validRoles.includes(userData.role)) {
         return {
           success: false,
           error: {
             code: 'INVALID_ROLE',
-            message: 'Invalid role. Must be TEAM_MEMBER, SUPERVISOR, or ADMIN',
+            message: 'Invalid role. Must be one of: TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER, SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN',
           },
         };
       }
@@ -378,7 +382,7 @@ export class UserService {
     updateData: {
       displayName?: string;
       email?: string;
-      role?: 'TEAM_MEMBER' | 'SUPERVISOR' | 'ADMIN';
+      role?: 'TEAM_MEMBER' | 'FIELD_SUPERVISOR' | 'REGIONAL_MANAGER' | 'SYSTEM_ADMIN' | 'SUPPORT_AGENT' | 'AUDITOR' | 'DEVICE_MANAGER' | 'POLICY_ADMIN' | 'NATIONAL_SUPPORT_ADMIN';
       isActive?: boolean;
       pin?: string; // For PIN updates
     }
@@ -407,13 +411,17 @@ export class UserService {
 
       // Validate role if provided
       if (updateData.role) {
-        const validRoles = ['TEAM_MEMBER', 'SUPERVISOR', 'ADMIN'];
+        const validRoles = [
+        'TEAM_MEMBER', 'FIELD_SUPERVISOR', 'REGIONAL_MANAGER',
+        'SYSTEM_ADMIN', 'SUPPORT_AGENT', 'AUDITOR',
+        'DEVICE_MANAGER', 'POLICY_ADMIN', 'NATIONAL_SUPPORT_ADMIN'
+      ];
         if (!validRoles.includes(updateData.role)) {
           return {
             success: false,
             error: {
               code: 'INVALID_ROLE',
-              message: 'Invalid role. Must be TEAM_MEMBER, SUPERVISOR, or ADMIN',
+              message: 'Invalid role. Must be one of: TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER, SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN',
             },
           };
         }

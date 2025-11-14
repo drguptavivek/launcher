@@ -400,7 +400,7 @@ async function createSamplePinAttempts(testData: TestSeedData) {
         deviceId: scenario.deviceId,
         attemptType: scenario.type,
         success: scenario.type === 'user_pin' && i < scenario.count / 2 ? scenario.success :
-                 scenario.type === 'supervisor_pin' && i < 2 : scenario.success,
+                 (scenario.type === 'supervisor_pin' && i < 2 ? scenario.success : false),
         ipAddress: '192.168.1.100',
         attemptedAt: new Date(now.getTime() - Math.random() * 60 * 60 * 1000), // Random time in last hour
       });

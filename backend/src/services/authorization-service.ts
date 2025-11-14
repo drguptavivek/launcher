@@ -20,7 +20,8 @@ import {
   lt,
   gt,
   desc,
-  asc
+  asc,
+  sql
 } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -176,6 +177,9 @@ export class AuthorizationService {
   // In-memory permission cache (fallback)
   private static memoryCache: Map<string, PermissionCacheEntry> = new Map();
 
+  // Simple lock mechanism for concurrent access protection
+  private static computeLocks: Map<string, Promise<EffectivePermissions>> = new Map();
+
   /**
    * Core permission checking method with caching and context validation
    */
@@ -311,6 +315,46 @@ export class AuthorizationService {
         return cachedPermissions;
       }
 
+      // Use lock mechanism to prevent concurrent computation
+      const lockKey = `compute-permissions:${userId}`;
+
+      if (this.computeLocks.has(lockKey)) {
+        // Wait for existing computation to complete
+        return this.computeLocks.get(lockKey)!;
+      }
+
+      // Start computation with lock
+      const computation = this.doComputeEffectivePermissions(userId, context);
+      this.computeLocks.set(lockKey, computation);
+
+      try {
+        const result = await computation;
+        return result;
+      } finally {
+        // Remove lock after computation
+        this.computeLocks.delete(lockKey);
+      }
+    } catch (error) {
+      logger.error('Failed to compute effective permissions', {
+        error: error instanceof Error ? error.message : String(error),
+        userId,
+        computationTime: Date.now() - startTime
+      });
+
+      return this.createEmptyEffectivePermissions(userId);
+    }
+  }
+
+  /**
+   * Actual computation method (extracted for locking)
+   */
+  private static async doComputeEffectivePermissions(
+    userId: string,
+    context?: PermissionContext
+  ): Promise<EffectivePermissions> {
+    const startTime = Date.now();
+
+    try {
       // Get user's role assignments
       const roleAssignments = await this.getUserRoleAssignments(userId);
       if (!roleAssignments || roleAssignments.length === 0) {
@@ -421,9 +465,9 @@ export class AuthorizationService {
         if (targetResource.teamId) {
           const userTeamIds = userRoles
             .map(assignment => assignment.teamId)
-            .filter(Boolean);
+            .filter((teamId): teamId is string => Boolean(teamId));
 
-          if (!userTeamIds.includes(targetResource.teamId)) {
+          if (userTeamIds.length === 0 || !userTeamIds.includes(targetResource.teamId)) {
             logger.warn('Team boundary violation', {
               userId,
               userTeamIds,
@@ -441,9 +485,9 @@ export class AuthorizationService {
         if (targetResource.regionId) {
           const userRegionIds = userRoles
             .map(assignment => assignment.regionId)
-            .filter(Boolean);
+            .filter((regionId): regionId is string => Boolean(regionId));
 
-          if (userRegionIds.length > 0 && !userRegionIds.includes(targetResource.regionId)) {
+          if (userRegionIds.length === 0 || !userRegionIds.includes(targetResource.regionId)) {
             logger.warn('Region boundary violation', {
               userId,
               userRegionIds,
@@ -631,6 +675,14 @@ export class AuthorizationService {
       const memoryEntry = this.memoryCache.get(cacheKey);
 
       if (memoryEntry && memoryEntry.expiresAt > new Date()) {
+        // If cache contains empty permissions, it means no permissions were found
+        if (!memoryEntry.permissions || memoryEntry.permissions.length === 0) {
+          return {
+            allowed: false,
+            reason: 'NO_PERMISSIONS'
+          };
+        }
+
         const permission = memoryEntry.permissions.find(p =>
           p.resource === resource &&
           (p.action === action || p.action === 'MANAGE')
@@ -1211,11 +1263,21 @@ export class AuthorizationService {
 
       // Clean memory cache
       const now = new Date();
-      for (const [key, entry] of this.memoryCache.entries()) {
+      this.memoryCache.forEach((entry, key) => {
         if (entry.expiresAt < now) {
           this.memoryCache.delete(key);
         }
-      }
+      });
+
+      // Clean expired compute locks
+      this.computeLocks.forEach((computation, key) => {
+        // Check if computation has been running too long (timeout)
+        const lockStart = new Date();
+        lockStart.setMinutes(lockStart.getMinutes() - 10); // 10 minute timeout
+        if (lockStart < now) {
+          this.computeLocks.delete(key);
+        }
+      });
 
       logger.info('Permission cache cleanup completed');
 

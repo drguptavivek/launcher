@@ -5,6 +5,12 @@
 
 import { hashPassword } from '../../src/lib/crypto';
 
+// Mock uuid module to avoid ESM issues
+jest.mock('uuid', () => ({
+  v4: () => 'test-uuid-123',
+  validate: () => true
+}));
+
 // Set test environment
 process.env.NODE_ENV = 'test';
 

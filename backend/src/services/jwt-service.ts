@@ -4,7 +4,7 @@ import { jwtRevocations, sessions } from '../lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logger } from '../lib/logger';
 import { env } from '../lib/config';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 
 export interface JWTPayload {
   sub: string; // user_id

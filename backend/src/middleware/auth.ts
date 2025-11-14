@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user-service';
 import { JWTService } from '../services/jwt-service';
+import { AuthorizationService } from '../services/authorization-service';
 import { db, sessions } from '../lib/db';
 import { logger } from '../lib/logger';
 import { eq } from 'drizzle-orm';
@@ -12,8 +13,25 @@ export interface AuthenticatedRequest extends Request {
     teamId: string;
     displayName: string;
     email: string | null;
-    role: 'TEAM_MEMBER' | 'SUPERVISOR' | 'ADMIN';
     isActive: boolean;
+    // Enhanced with multi-role support
+    roles: Array<{
+      id: string;
+      name: string;
+      displayName: string;
+      hierarchyLevel: number;
+      teamId?: string;
+      regionId?: string;
+    }>;
+    // Computed effective permissions for caching
+    effectivePermissions?: Array<{
+      resource: string;
+      action: string;
+      scope: string;
+      inheritedFrom: string;
+    }>;
+    // Legacy role field for backward compatibility
+    role: string;
   };
   session?: {
     id: string;
@@ -29,49 +47,54 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export enum UserRole {
+  // Field Operations Roles
   TEAM_MEMBER = 'TEAM_MEMBER',
-  SUPERVISOR = 'SUPERVISOR',
-  ADMIN = 'ADMIN'
+  FIELD_SUPERVISOR = 'FIELD_SUPERVISOR',
+  REGIONAL_MANAGER = 'REGIONAL_MANAGER',
+
+  // Technical Operations Roles
+  SYSTEM_ADMIN = 'SYSTEM_ADMIN',
+  SUPPORT_AGENT = 'SUPPORT_AGENT',
+  AUDITOR = 'AUDITOR',
+
+  // Specialized Roles
+  DEVICE_MANAGER = 'DEVICE_MANAGER',
+  POLICY_ADMIN = 'POLICY_ADMIN',
+  NATIONAL_SUPPORT_ADMIN = 'NATIONAL_SUPPORT_ADMIN',
+
+  // Legacy compatibility mappings
+  SUPERVISOR = 'FIELD_SUPERVISOR', // Map legacy SUPERVISOR to FIELD_SUPERVISOR
+  ADMIN = 'SYSTEM_ADMIN' // Map legacy ADMIN to SYSTEM_ADMIN
 }
 
 export enum Resource {
-  TEAMS = 'teams',
-  USERS = 'users',
-  DEVICES = 'devices',
-  SUPERVISOR_PINS = 'supervisor_pins',
-  TELEMETRY = 'telemetry',
-  POLICY = 'policy',
-  AUTH = 'auth'
+  TEAMS = 'TEAMS',
+  USERS = 'USERS',
+  DEVICES = 'DEVICES',
+  SUPERVISOR_PINS = 'SUPERVISOR_PINS',
+  TELEMETRY = 'TELEMETRY',
+  POLICY = 'POLICY',
+  AUTH = 'AUTH',
+  SYSTEM_SETTINGS = 'SYSTEM_SETTINGS',
+  AUDIT_LOGS = 'AUDIT_LOGS',
+  SUPPORT_TICKETS = 'SUPPORT_TICKETS',
+  ORGANIZATION = 'ORGANIZATION'
 }
 
 export enum Action {
-  CREATE = 'create',
-  READ = 'read',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list'
+  CREATE = 'CREATE',
+  READ = 'READ',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  LIST = 'LIST',
+  MANAGE = 'MANAGE',     // Full control including permissions
+  EXECUTE = 'EXECUTE',    // Execute operations (e.g., overrides)
+  AUDIT = 'AUDIT'        // Read-only audit access
 }
 
-// Role-based access control matrix
+// Role-based access control matrix - Updated for 9-role system with complete resource coverage
 const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
-  [UserRole.ADMIN]: {
-    [Resource.TEAMS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST],
-    [Resource.USERS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST],
-    [Resource.DEVICES]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST],
-    [Resource.SUPERVISOR_PINS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST],
-    [Resource.TELEMETRY]: [Action.READ, Action.LIST],
-    [Resource.POLICY]: [Action.READ, Action.LIST],
-    [Resource.AUTH]: [Action.READ, Action.LIST]
-  },
-  [UserRole.SUPERVISOR]: {
-    [Resource.TEAMS]: [Action.READ, Action.LIST],
-    [Resource.USERS]: [Action.READ, Action.LIST, Action.UPDATE], // Can update users but not delete
-    [Resource.DEVICES]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage devices
-    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST], // Can only view supervisor PINs
-    [Resource.TELEMETRY]: [Action.READ, Action.LIST],
-    [Resource.POLICY]: [Action.READ],
-    [Resource.AUTH]: [Action.READ]
-  },
+  // Field Operations Roles
   [UserRole.TEAM_MEMBER]: {
     [Resource.TEAMS]: [Action.READ, Action.LIST],
     [Resource.USERS]: [Action.READ, Action.LIST],
@@ -79,9 +102,229 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SUPERVISOR_PINS]: [], // No access to supervisor PINs
     [Resource.TELEMETRY]: [Action.READ, Action.LIST],
     [Resource.POLICY]: [Action.READ],
-    [Resource.AUTH]: [Action.READ]
+    [Resource.AUTH]: [Action.READ],
+    [Resource.SYSTEM_SETTINGS]: [], // No system settings access
+    [Resource.AUDIT_LOGS]: [], // No audit access
+    [Resource.SUPPORT_TICKETS]: [Action.READ, Action.LIST], // Can view own tickets
+    [Resource.ORGANIZATION]: [Action.READ] // Limited organization view
+  },
+
+  [UserRole.FIELD_SUPERVISOR]: {
+    [Resource.TEAMS]: [Action.READ, Action.LIST],
+    [Resource.USERS]: [Action.READ, Action.LIST, Action.UPDATE], // Can manage team users
+    [Resource.DEVICES]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage devices
+    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST], // Can view supervisor PINs
+    [Resource.TELEMETRY]: [Action.READ, Action.LIST],
+    [Resource.POLICY]: [Action.READ],
+    [Resource.AUTH]: [Action.READ, Action.EXECUTE], // Can perform supervisor overrides
+    [Resource.SYSTEM_SETTINGS]: [], // No system settings access
+    [Resource.AUDIT_LOGS]: [Action.READ], // Can view team audit logs
+    [Resource.SUPPORT_TICKETS]: [Action.CREATE, Action.READ, Action.LIST, Action.UPDATE],
+    [Resource.ORGANIZATION]: [Action.READ]
+  },
+
+  [UserRole.REGIONAL_MANAGER]: {
+    [Resource.TEAMS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage teams in region
+    [Resource.USERS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Full user management in region
+    [Resource.DEVICES]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST],
+    [Resource.SUPERVISOR_PINS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage PINs in region
+    [Resource.TELEMETRY]: [Action.READ, Action.LIST],
+    [Resource.POLICY]: [Action.READ, Action.UPDATE], // Can update regional policies
+    [Resource.AUTH]: [Action.READ, Action.LIST, Action.EXECUTE],
+    [Resource.SYSTEM_SETTINGS]: [], // No system settings access
+    [Resource.AUDIT_LOGS]: [Action.READ, Action.LIST], // Regional audit access
+    [Resource.SUPPORT_TICKETS]: [Action.CREATE, Action.READ, Action.LIST, Action.UPDATE, Action.DELETE],
+    [Resource.ORGANIZATION]: [Action.READ, Action.UPDATE] // Can update regional org settings
+  },
+
+  // Technical Operations Roles
+  [UserRole.SUPPORT_AGENT]: {
+    [Resource.TEAMS]: [Action.READ, Action.LIST],
+    [Resource.USERS]: [Action.READ, Action.LIST, Action.UPDATE], // Limited user support access
+    [Resource.DEVICES]: [Action.READ, Action.LIST, Action.UPDATE], // Can help with device issues
+    [Resource.SUPERVISOR_PINS]: [Action.READ], // Can view but not manage
+    [Resource.TELEMETRY]: [Action.READ, Action.LIST], // For troubleshooting
+    [Resource.POLICY]: [Action.READ],
+    [Resource.AUTH]: [Action.READ],
+    [Resource.SYSTEM_SETTINGS]: [], // No system settings access
+    [Resource.AUDIT_LOGS]: [Action.READ], // For investigation
+    [Resource.SUPPORT_TICKETS]: [Action.MANAGE], // Full ticket management
+    [Resource.ORGANIZATION]: [Action.READ]
+  },
+
+  [UserRole.SYSTEM_ADMIN]: {
+    [Resource.TEAMS]: [Action.MANAGE], // Full team management
+    [Resource.USERS]: [Action.MANAGE], // Full user management
+    [Resource.DEVICES]: [Action.MANAGE], // Full device management
+    [Resource.SUPERVISOR_PINS]: [Action.MANAGE], // Full PIN management
+    [Resource.TELEMETRY]: [Action.MANAGE], // Full telemetry access
+    [Resource.POLICY]: [Action.MANAGE], // Full policy management
+    [Resource.AUTH]: [Action.MANAGE], // Full auth management
+    [Resource.SYSTEM_SETTINGS]: [Action.MANAGE], // Full system settings access
+    [Resource.AUDIT_LOGS]: [Action.MANAGE], // Full audit access
+    [Resource.SUPPORT_TICKETS]: [Action.MANAGE],
+    [Resource.ORGANIZATION]: [Action.MANAGE] // Full org management
+  },
+
+  [UserRole.AUDITOR]: {
+    [Resource.TEAMS]: [Action.READ, Action.LIST, Action.AUDIT], // Read-only audit access
+    [Resource.USERS]: [Action.READ, Action.LIST, Action.AUDIT],
+    [Resource.DEVICES]: [Action.READ, Action.LIST, Action.AUDIT],
+    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.AUDIT],
+    [Resource.TELEMETRY]: [Action.READ, Action.LIST, Action.AUDIT],
+    [Resource.POLICY]: [Action.READ, Action.AUDIT],
+    [Resource.AUTH]: [Action.READ, Action.AUDIT],
+    [Resource.SYSTEM_SETTINGS]: [Action.READ, Action.AUDIT], // Read-only system settings audit
+    [Resource.AUDIT_LOGS]: [Action.MANAGE], // Full audit log access
+    [Resource.SUPPORT_TICKETS]: [Action.READ, Action.AUDIT],
+    [Resource.ORGANIZATION]: [Action.READ, Action.AUDIT]
+  },
+
+  // Specialized Roles
+  [UserRole.DEVICE_MANAGER]: {
+    [Resource.TEAMS]: [Action.READ, Action.LIST],
+    [Resource.USERS]: [Action.READ, Action.LIST],
+    [Resource.DEVICES]: [Action.MANAGE], // Full device management specialization
+    [Resource.SUPERVISOR_PINS]: [], // No PIN access
+    [Resource.TELEMETRY]: [Action.MANAGE], // Full telemetry access for device monitoring
+    [Resource.POLICY]: [Action.READ], // Can view policies
+    [Resource.AUTH]: [Action.READ],
+    [Resource.SYSTEM_SETTINGS]: [], // Limited system access for device config only
+    [Resource.AUDIT_LOGS]: [Action.READ], // Device-related audit logs
+    [Resource.SUPPORT_TICKETS]: [Action.CREATE, Action.READ, Action.LIST, Action.UPDATE], // Device-related tickets
+    [Resource.ORGANIZATION]: [Action.READ]
+  },
+
+  [UserRole.POLICY_ADMIN]: {
+    [Resource.TEAMS]: [Action.READ, Action.LIST],
+    [Resource.USERS]: [Action.READ, Action.LIST],
+    [Resource.DEVICES]: [Action.READ, Action.LIST],
+    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST],
+    [Resource.TELEMETRY]: [Action.READ, Action.LIST],
+    [Resource.POLICY]: [Action.MANAGE], // Full policy management specialization
+    [Resource.AUTH]: [Action.READ],
+    [Resource.SYSTEM_SETTINGS]: [], // Limited system access for policy config
+    [Resource.AUDIT_LOGS]: [Action.READ], // Policy-related audit logs
+    [Resource.SUPPORT_TICKETS]: [Action.CREATE, Action.READ, Action.LIST, Action.UPDATE], // Policy-related tickets
+    [Resource.ORGANIZATION]: [Action.READ]
+  },
+
+  [UserRole.NATIONAL_SUPPORT_ADMIN]: {
+    [Resource.TEAMS]: [Action.READ, Action.LIST], // Can view all teams nationally
+    [Resource.USERS]: [Action.READ, Action.LIST, Action.UPDATE], // Can support users nationally
+    [Resource.DEVICES]: [Action.READ, Action.LIST, Action.UPDATE], // Can support devices nationally
+    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST], // View supervisor PINs nationally
+    [Resource.TELEMETRY]: [Action.MANAGE], // Full telemetry access for national monitoring
+    [Resource.POLICY]: [Action.READ, Action.UPDATE], // Can update operational policies
+    [Resource.AUTH]: [Action.READ, Action.EXECUTE], // Can perform overrides nationally
+    [Resource.SYSTEM_SETTINGS]: [], // NO system settings access - important security boundary
+    [Resource.AUDIT_LOGS]: [Action.READ, Action.LIST], // National audit access
+    [Resource.SUPPORT_TICKETS]: [Action.MANAGE], // National ticket management
+    [Resource.ORGANIZATION]: [Action.READ, Action.UPDATE] // National org updates
   }
 };
+
+/**
+ * Enhanced user context with multi-role support and effective permissions
+ */
+async function enhanceUserWithRoles(
+  user: any,
+  context: {
+    requestId?: string;
+    teamId?: string;
+    sessionId?: string;
+  }
+): Promise<AuthenticatedRequest['user']> {
+  try {
+    // For override tokens, create minimal context with supervisor role
+    if (user.code === 'SUPERVISOR') {
+      return {
+        ...user,
+        roles: [{
+          id: 'supervisor-override',
+          name: 'FIELD_SUPERVISOR',
+          displayName: 'Supervisor Override',
+          hierarchyLevel: 4,
+          teamId: user.teamId
+        }],
+        effectivePermissions: [], // Will be computed on-demand
+        role: 'FIELD_SUPERVISOR' // Updated for new role system
+      };
+    }
+
+    // Get user's effective permissions and roles from AuthorizationService
+    const effectivePermissions = await AuthorizationService.computeEffectivePermissions(
+      user.id,
+      {
+        teamId: context.teamId,
+        sessionId: context.sessionId,
+        requestId: context.requestId,
+        userId: user.id
+      }
+    );
+
+    // Extract role information from effective permissions
+    const roles = effectivePermissions.roles.map(role => ({
+      id: role.id,
+      name: role.name,
+      displayName: role.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      hierarchyLevel: role.hierarchyLevel,
+      teamId: role.teamId,
+      regionId: role.regionId
+    }));
+
+    // Create simplified effective permissions for caching
+    const simplifiedPermissions = effectivePermissions.permissions.map(perm => ({
+      resource: perm.resource,
+      action: perm.action,
+      scope: perm.scope,
+      inheritedFrom: perm.inheritedFrom || 'unknown'
+    }));
+
+    // Determine primary role for backward compatibility (highest hierarchy level)
+    const primaryRole = roles.length > 0
+      ? roles.reduce((highest, current) =>
+          current.hierarchyLevel > highest.hierarchyLevel ? current : highest
+        ).name
+      : 'TEAM_MEMBER';
+
+    logger.info('User enhanced with multi-role context', {
+      userId: user.id,
+      roleCount: roles.length,
+      permissionCount: simplifiedPermissions.length,
+      primaryRole,
+      roles: roles.map(r => r.name),
+      requestId: context.requestId
+    });
+
+    return {
+      ...user,
+      roles,
+      effectivePermissions: simplifiedPermissions,
+      role: primaryRole // Backward compatibility
+    };
+
+  } catch (error) {
+    logger.error('Failed to enhance user with roles', {
+      error: error instanceof Error ? error.message : String(error),
+      userId: user.id,
+      requestId: context.requestId
+    });
+
+    // Fail gracefully with basic user info and TEAM_MEMBER role
+    return {
+      ...user,
+      roles: [{
+        id: 'fallback-role',
+        name: 'TEAM_MEMBER',
+        displayName: 'Team Member',
+        hierarchyLevel: 1
+      }],
+      effectivePermissions: [],
+      role: 'TEAM_MEMBER'
+    };
+  }
+}
 
 /**
  * Authentication middleware - verifies JWT token and sets user in request
@@ -180,7 +423,14 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
       }
     }
 
-    req.user = userResult.user as any;
+    // Enhanced user loading with multi-role support and effective permissions
+    const enhancedUser = await enhanceUserWithRoles(userResult.user, {
+      requestId: req.headers['x-request-id'] as string,
+      teamId: sessionData?.teamId,
+      sessionId: sessionData?.id
+    });
+
+    req.user = enhancedUser;
     req.session = sessionData ? {
       sessionId: sessionData.id,
       userId: sessionData.userId,
@@ -212,10 +462,10 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
 };
 
 /**
- * Role-based access control middleware factory
+ * Role-based access control middleware factory - Enhanced with multi-role support
  */
 export const requireRole = (allowedRoles: UserRole[]) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -226,38 +476,66 @@ export const requireRole = (allowedRoles: UserRole[]) => {
       });
     }
 
-    if (!allowedRoles.includes(req.user.role as UserRole)) {
-      logger.warn('Access denied - insufficient role', {
+    try {
+      // Check if user has any of the required roles using AuthorizationService
+      const hasRequiredRole = await AuthorizationService.hasAnyRole(
+        req.user.id,
+        allowedRoles
+      );
+
+      if (!hasRequiredRole) {
+        const userRoleNames = req.user.roles?.map(r => r.name) || [req.user.role];
+
+        logger.warn('Access denied - insufficient role', {
+          userId: req.user.id,
+          userRoles: userRoleNames,
+          primaryRole: req.user.role,
+          requiredRoles: allowedRoles,
+          requestId: req.headers['x-request-id']
+        });
+
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'INSUFFICIENT_PERMISSIONS',
+            message: 'Insufficient permissions to access this resource'
+          }
+        });
+      }
+
+      logger.info('Role-based access granted', {
         userId: req.user.id,
-        userRole: req.user.role,
+        userRoles: req.user.roles?.map(r => r.name) || [req.user.role],
+        primaryRole: req.user.role,
         requiredRoles: allowedRoles,
         requestId: req.headers['x-request-id']
       });
 
-      return res.status(403).json({
+      next();
+    } catch (error) {
+      logger.error('Role check failed', {
+        error: error instanceof Error ? error.message : String(error),
+        userId: req.user.id,
+        requiredRoles: allowedRoles,
+        requestId: req.headers['x-request-id']
+      });
+
+      return res.status(500).json({
         success: false,
         error: {
-          code: 'INSUFFICIENT_PERMISSIONS',
-          message: 'Insufficient permissions to access this resource'
+          code: 'ROLE_CHECK_ERROR',
+          message: 'Failed to verify user roles'
         }
       });
     }
-
-    logger.info('Role-based access granted', {
-      userId: req.user.id,
-      userRole: req.user.role,
-      requestId: req.headers['x-request-id']
-    });
-
-    next();
   };
 };
 
 /**
- * Resource-based access control middleware factory
+ * Resource-based access control middleware factory - Enhanced with AuthorizationService
  */
 export const requirePermission = (resource: Resource, action: Action) => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -268,45 +546,83 @@ export const requirePermission = (resource: Resource, action: Action) => {
       });
     }
 
-    const userRole = req.user.role as UserRole;
-    const allowedActions = RBAC_MATRIX[userRole]?.[resource] || [];
-
-    if (!allowedActions.includes(action)) {
-      logger.warn('Access denied - insufficient permissions', {
-        userId: req.user.id,
-        userRole,
+    try {
+      // Use AuthorizationService for comprehensive permission checking
+      const permissionResult = await AuthorizationService.checkPermission(
+        req.user.id,
         resource,
         action,
-        allowedActions,
+        {
+          teamId: req.user.teamId,
+          userId: req.user.id,
+          sessionId: req.session?.sessionId,
+          deviceId: req.session?.deviceId,
+          requestId: req.headers['x-request-id'] as string,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent']
+        }
+      );
+
+      if (!permissionResult.allowed) {
+        logger.warn('Access denied - insufficient permissions', {
+          userId: req.user.id,
+          userRoles: req.user.roles?.map(r => r.name) || [req.user.role],
+          resource,
+          action,
+          reason: permissionResult.reason,
+          grantedBy: permissionResult.grantedBy,
+          cacheHit: permissionResult.cacheHit,
+          evaluationTime: permissionResult.evaluationTime,
+          requestId: req.headers['x-request-id']
+        });
+
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'INSUFFICIENT_PERMISSIONS',
+            message: permissionResult.reason || `Insufficient permissions to ${action} ${resource}`
+          }
+        });
+      }
+
+      logger.info('Permission-based access granted', {
+        userId: req.user.id,
+        userRoles: req.user.roles?.map(r => r.name) || [req.user.role],
+        resource,
+        action,
+        grantedBy: permissionResult.grantedBy,
+        cacheHit: permissionResult.cacheHit,
+        evaluationTime: permissionResult.evaluationTime,
         requestId: req.headers['x-request-id']
       });
 
-      return res.status(403).json({
+      next();
+    } catch (error) {
+      logger.error('Permission check failed', {
+        error: error instanceof Error ? error.message : String(error),
+        userId: req.user.id,
+        resource,
+        action,
+        requestId: req.headers['x-request-id']
+      });
+
+      return res.status(500).json({
         success: false,
         error: {
-          code: 'INSUFFICIENT_PERMISSIONS',
-          message: `Insufficient permissions to ${action} ${resource}`
+          code: 'PERMISSION_CHECK_ERROR',
+          message: 'Failed to verify permissions'
         }
       });
     }
-
-    logger.info('Permission-based access granted', {
-      userId: req.user.id,
-      userRole,
-      resource,
-      action,
-      requestId: req.headers['x-request-id']
-    });
-
-    next();
   };
 };
 
 /**
  * Team access middleware - ensures users can only access resources from their own team
+ * Enhanced with cross-team role support
  */
 export const requireTeamAccess = (teamIdParam: string = 'teamId') => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -315,11 +631,6 @@ export const requireTeamAccess = (teamIdParam: string = 'teamId') => {
           message: 'Authentication required'
         }
       });
-    }
-
-    // Admins can access any team
-    if (req.user.role === UserRole.ADMIN) {
-      return next();
     }
 
     const resourceTeamId = req.params[teamIdParam] || req.body[teamIdParam] || req.query[teamIdParam];
@@ -334,38 +645,78 @@ export const requireTeamAccess = (teamIdParam: string = 'teamId') => {
       });
     }
 
-    if (req.user.teamId !== resourceTeamId) {
-      logger.warn('Access denied - team mismatch', {
+    try {
+      // Use AuthorizationService for contextual access checking
+      const contextualResult = await AuthorizationService.checkContextualAccess(
+        req.user.id,
+        {
+          teamId: resourceTeamId,
+          type: 'RESOURCE'
+        },
+        'READ', // Use READ as baseline permission for team access
+        {
+          teamId: req.user.teamId,
+          userId: req.user.id,
+          sessionId: req.session?.sessionId,
+          requestId: req.headers['x-request-id'] as string
+        }
+      );
+
+      if (!contextualResult.allowed) {
+        logger.warn('Access denied - team boundary violation', {
+          userId: req.user.id,
+          userRoles: req.user.roles?.map(r => r.name) || [req.user.role],
+          userTeamId: req.user.teamId,
+          requestedTeamId: resourceTeamId,
+          reason: contextualResult.reason,
+          requestId: req.headers['x-request-id']
+        });
+
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'TEAM_ACCESS_DENIED',
+            message: contextualResult.reason || 'Access denied to resources from this team'
+          }
+        });
+      }
+
+      logger.info('Team access granted', {
+        userId: req.user.id,
+        userRoles: req.user.roles?.map(r => r.name) || [req.user.role],
+        userTeamId: req.user.teamId,
+        requestedTeamId: resourceTeamId,
+        crossTeamAccess: resourceTeamId !== req.user.teamId,
+        requestId: req.headers['x-request-id']
+      });
+
+      next();
+    } catch (error) {
+      logger.error('Team access check failed', {
+        error: error instanceof Error ? error.message : String(error),
         userId: req.user.id,
         userTeamId: req.user.teamId,
         requestedTeamId: resourceTeamId,
         requestId: req.headers['x-request-id']
       });
 
-      return res.status(403).json({
+      return res.status(500).json({
         success: false,
         error: {
-          code: 'TEAM_ACCESS_DENIED',
-          message: 'Access denied to resources from this team'
+          code: 'TEAM_ACCESS_CHECK_ERROR',
+          message: 'Failed to verify team access'
         }
       });
     }
-
-    logger.info('Team access granted', {
-      userId: req.user.id,
-      teamId: req.user.teamId,
-      requestId: req.headers['x-request-id']
-    });
-
-    next();
   };
 };
 
 /**
  * Owner access middleware - ensures users can only access their own resources
+ * Enhanced with cross-team role support
  */
 export const requireOwnerAccess = (userIdParam: string = 'userId') => {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -374,11 +725,6 @@ export const requireOwnerAccess = (userIdParam: string = 'userId') => {
           message: 'Authentication required'
         }
       });
-    }
-
-    // Admins can access any user's resources
-    if (req.user.role === UserRole.ADMIN) {
-      return next();
     }
 
     const resourceUserId = req.params[userIdParam] || req.body[userIdParam] || req.query[userIdParam];
@@ -393,28 +739,62 @@ export const requireOwnerAccess = (userIdParam: string = 'userId') => {
       });
     }
 
-    if (req.user.id !== resourceUserId) {
-      logger.warn('Access denied - owner access required', {
+    try {
+      // Check if user has cross-team access or admin-level permissions
+      const hasCrossTeamAccess = await AuthorizationService.hasAnyRole(
+        req.user.id,
+        [
+          UserRole.SYSTEM_ADMIN,
+          UserRole.NATIONAL_SUPPORT_ADMIN,
+          UserRole.AUDITOR,
+          UserRole.REGIONAL_MANAGER
+        ]
+      );
+
+      // Allow access if user is the owner or has cross-team access
+      if (req.user.id !== resourceUserId && !hasCrossTeamAccess) {
+        logger.warn('Access denied - owner access required', {
+          userId: req.user.id,
+          userRoles: req.user.roles?.map(r => r.name) || [req.user.role],
+          requestedUserId: resourceUserId,
+          requestId: req.headers['x-request-id']
+        });
+
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'OWNER_ACCESS_REQUIRED',
+            message: 'Access denied to this resource'
+          }
+        });
+      }
+
+      logger.info('Owner access granted', {
+        userId: req.user.id,
+        userRoles: req.user.roles?.map(r => r.name) || [req.user.role],
+        requestedUserId: resourceUserId,
+        isOwner: req.user.id === resourceUserId,
+        crossTeamAccess: hasCrossTeamAccess && req.user.id !== resourceUserId,
+        requestId: req.headers['x-request-id']
+      });
+
+      next();
+    } catch (error) {
+      logger.error('Owner access check failed', {
+        error: error instanceof Error ? error.message : String(error),
         userId: req.user.id,
         requestedUserId: resourceUserId,
         requestId: req.headers['x-request-id']
       });
 
-      return res.status(403).json({
+      return res.status(500).json({
         success: false,
         error: {
-          code: 'OWNER_ACCESS_REQUIRED',
-          message: 'Access denied to this resource'
+          code: 'OWNER_ACCESS_CHECK_ERROR',
+          message: 'Failed to verify owner access'
         }
       });
     }
-
-    logger.info('Owner access granted', {
-      userId: req.user.id,
-      requestId: req.headers['x-request-id']
-    });
-
-    next();
   };
 };
 
