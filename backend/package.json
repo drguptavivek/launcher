@@ -5,7 +5,6 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch index.ts",
-    "dev:mock": "MOCK_API=true tsx watch index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "db:generate": "drizzle-kit generate",

@@ -57,15 +57,9 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/v1', async (req, res, next) => {
   try {
-    // If mock mode is enabled, use mock routes
-    if (env.MOCK_API) {
-      const { mockRouter } = await import('./routes/mock');
-      mockRouter(req, res, next);
-    } else {
-      // Use real API routes
-      const { apiRouter } = await import('./routes/api');
-      apiRouter(req, res, next);
-    }
+    // Use real API routes
+    const { apiRouter } = await import('./routes/api');
+    apiRouter(req, res, next);
   } catch (error) {
     next(error);
   }

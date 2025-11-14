@@ -30,19 +30,6 @@
 3. ✅ **Configuration**: Complete Zod validator with fail-fast on missing secrets, rate limiting, and logging parameters
 4. ✅ **Environment Setup**: `.env.example` coverage for all config keys with development defaults
 
-#### ✅ Interim Mock API (COMPLETED - LIVE)
-**Status**: 🚀 **LIVE AND TESTED**
-
-- ✅ **Express-based `/api/v1` mock server** fully implemented and tested
-- ✅ **Feature gating**: `MOCK_API=true` with dedicated `npm run dev:mock` command
-- ✅ **All priority endpoints** implemented per `backend/plan/basic-mock-api-plan.md`:
-  - `POST /api/v1/auth/login` - Returns mock session + tokens
-  - `GET /api/v1/auth/whoami` - Returns mock user + session info
-  - `GET /api/v1/policy/:deviceId` - Returns complete policy mock
-  - `POST /api/v1/telemetry` - Accepts telemetry batches with validation
-  - `POST /api/v1/supervisor/override/login` - Returns override tokens
-- ✅ **Contracts verified**: All endpoints return exact JSON structure specified in plan
-- ✅ **Error handling**: Proper error envelope format with request IDs
 
 ### ✅ Phase 1 — Data & Crypto Primitives (COMPLETED)
 **Status**: ✅ **COMPLETED** | **Database**: SQLite (dev) + PostgreSQL (prod) ready

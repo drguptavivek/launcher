@@ -42,9 +42,6 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   LOG_FORMAT: z.enum(['json', 'pretty']).default('json'),
 
-  // Mock API
-  MOCK_API: z.string().transform(val => val === 'true').pipe(z.boolean()).default(false),
-
   // Security
   MAX_CLOCK_SKEW_SEC: z.string().transform(Number).pipe(z.number()).default(180),
   MAX_POLICY_AGE_SEC: z.string().transform(Number).pipe(z.number()).default(86400),

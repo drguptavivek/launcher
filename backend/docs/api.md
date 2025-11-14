@@ -10,24 +10,14 @@ The SurveyLauncher backend provides a comprehensive REST API for authentication,
 http://localhost:3000/api/v1
 ```
 
-## Development Modes
+## Development
 
-### Standard Mode
+### Start the Server
 ```bash
 npm run dev
 ```
-- Full PostgreSQL database implementation
-- Requires proper key configuration
-- All authentication and policy features enabled
 
-### Mock Mode (Recommended for Development)
-```bash
-npm run dev:mock
-```
-- Returns deterministic mock data
-- No database setup required
-- Perfect for frontend development
-- Endpoints return consistent mock responses as shown in examples below
+The server runs with full PostgreSQL database implementation and all authentication/policy features enabled. For development setup instructions, see the database setup section below.
 
 ## Authentication
 
@@ -943,11 +933,9 @@ Retrieve the policy configuration for a specific device.
 - `deviceId` (string) - The device identifier
 
 **Response (200 OK):**
-
-*In Mock Mode:*
 ```json
 {
-  "mockJws": true,
+  "jws": "eyJhbGciOiJFZERTQSJ9...",
   "payload": {
     "version": 3,
     "deviceId": "dev-mock-001",
@@ -993,14 +981,6 @@ Retrieve the policy configuration for a specific device.
       "expiresAt": "2025-11-13T10:00:00Z"
     }
   }
-}
-```
-
-*In Standard Mode:*
-```json
-{
-  "jws": "eyJhbGciOiJFZERTQSJ9...",
-  "payload": { /* same structure as above */ }
 }
 ```
 
