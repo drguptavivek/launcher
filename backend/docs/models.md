@@ -5,7 +5,12 @@ This document summarizes the PostgreSQL 18 schema that backs SurveyLauncher, lis
 > PostgreSQL 18 Notes: all UUID columns use `uuid` with `default gen_random_uuid()` semantics, timestamps use `timestamptz`, JSON payloads are stored in `jsonb`, and enums are created with `CREATE TYPE` equivalents – the Drizzle schema generates migrations compatible with PG18’s defaults.
 
 ## Enum Types
-- `user_role` (`TEXT` enum): values `TEAM_MEMBER`, `SUPERVISOR`, `ADMIN`. Used by `users.role` with default `TEAM_MEMBER`.
+
+### Role-Based Access Control (RBAC) Enums
+- `user_role` (`TEXT` enum): values `TEAM_MEMBER`, `FIELD_SUPERVISOR`, `REGIONAL_MANAGER`, `SYSTEM_ADMIN`, `SUPPORT_AGENT`, `AUDITOR`, `DEVICE_MANAGER`, `POLICY_ADMIN`, `NATIONAL_SUPPORT_ADMIN`. Used by `users.role` with default `TEAM_MEMBER`.
+- `permission_scope` (`TEXT` enum): values `ORGANIZATION`, `REGION`, `TEAM`, `USER`, `SYSTEM`. Used by `permissions.scope` with default `TEAM`.
+- `permission_action` (`TEXT` enum): values `CREATE`, `READ`, `UPDATE`, `DELETE`, `LIST`, `MANAGE`, `EXECUTE`, `AUDIT`. Used by `permissions.action`.
+- `resource_type` (`TEXT` enum): values `TEAMS`, `USERS`, `DEVICES`, `SUPERVISOR_PINS`, `TELEMETRY`, `POLICY`, `AUTH`, `SYSTEM_SETTINGS`, `AUDIT_LOGS`, `SUPPORT_TICKETS`, `ORGANIZATION`. Used by `permissions.resource`.
 
 ## teams
 | Column | Type | Constraints / Defaults | Notes |
@@ -119,6 +124,76 @@ This document summarizes the PostgreSQL 18 schema that backs SurveyLauncher, lis
 | `ip_address` | `varchar(45)` | nullable | |
 | `attempted_at` | `timestamptz` | `NOT NULL`, default `now()` | |
 **Cascade behavior**: Tied to user/device lifecycle deletions.
+
+## Enhanced RBAC System Tables
+
+### roles
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `name` | `varchar(50)` | `NOT NULL`, `UNIQUE` | Uppercase role name. Index `nameIdx`. |
+| `display_name` | `varchar(120)` | `NOT NULL` | Human-readable role name. |
+| `description` | `text` | nullable | Role description and purpose. |
+| `is_system_role` | `boolean` | `NOT NULL`, default `false` | Predefined system roles (immutable). |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | |
+| `hierarchy_level` | `integer` | `NOT NULL`, default `0` | For role inheritance (0=highest). |
+| `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
+**Cascade behavior**: Role deletion cascades to `role_permissions` and `user_role_assignments`. System roles are protected from modification/deletion.
+
+### permissions
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `name` | `varchar(100)` | `NOT NULL`, `UNIQUE` | Unique permission identifier. |
+| `resource` | `resource_type` enum | `NOT NULL` | Target resource type. |
+| `action` | `permission_action` enum | `NOT NULL` | Allowed action on resource. |
+| `scope` | `permission_scope` enum | `NOT NULL`, default `TEAM` | Permission scope level. |
+| `description` | `text` | nullable | Permission description. |
+| `conditions` | `jsonb` | nullable | Additional conditions (temporal, geo, etc.). |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | |
+| `created_at` | `timestamptz` | `NOT NULL`, default `now()` | |
+**Indexes**: `resourceActionIdx` on `(resource, action)`, `nameIdx` on `name`.
+**Cascade behavior**: Permission deletion cascades to `role_permissions`.
+
+### role_permissions
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `role_id` | `uuid` | `NOT NULL REFERENCES roles(id) ON DELETE CASCADE` | Index `roleIdIdx`. |
+| `permission_id` | `uuid` | `NOT NULL REFERENCES permissions(id) ON DELETE CASCADE` | Index `permissionIdIdx`. |
+| `granted_by` | `uuid` | `REFERENCES users(id)` | User who granted this permission. |
+| `granted_at` | `timestamptz` | `NOT NULL`, default `now()` | |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | |
+**Purpose**: Maps roles to their permissions, allowing fine-grained access control.
+**Cascade behavior**: Junction table - cascades from both roles and permissions.
+
+### user_role_assignments
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid` | `NOT NULL REFERENCES users(id) ON DELETE CASCADE` | Index `userIdIdx`. |
+| `role_id` | `uuid` | `NOT NULL REFERENCES roles(id) ON DELETE CASCADE` | Index `roleIdIdx`. |
+| `organization_id` | `uuid` | `NOT NULL` | Multi-tenant support. Index `organizationIdIdx`. |
+| `team_id` | `uuid` | `REFERENCES teams(id) ON DELETE CASCADE` | Team-scoped assignment. Index `teamIdIdx`. |
+| `region_id` | `varchar(32)` | nullable | Geographic/organizational region. |
+| `granted_by` | `uuid` | `REFERENCES users(id)` | User who assigned the role. |
+| `granted_at` | `timestamptz` | `NOT NULL`, default `now()` | |
+| `expires_at` | `timestamptz` | nullable | Temporary role assignments. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | |
+| `context` | `jsonb` | nullable | Additional assignment context. |
+**Purpose**: Supports multiple roles per user with scoping and expiration.
+**Cascade behavior**: User deletion removes all role assignments.
+
+### permission_cache
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `user_id` | `uuid` | `PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE` | Index `userIdIdx`. |
+| `effective_permissions` | `jsonb` | `NOT NULL` | Cached resolved permissions. |
+| `computed_at` | `timestamptz` | `NOT NULL`, default `now()` | When cache was computed. |
+| `expires_at` | `timestamptz` | `NOT NULL` | Cache expiration time. Index `expiresAtIdx`. |
+| `version` | `integer` | `NOT NULL`, default `1` | Cache invalidation version. |
+**Purpose**: Performance optimization for permission resolution (<100ms target).
+**Cascade behavior**: User deletion removes cache entry.
 
 ## General Constraints & Notes
 - Most `varchar` columns have explicit length limits (32, 64, 255) to keep storage predictable.
