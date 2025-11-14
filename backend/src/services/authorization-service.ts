@@ -927,7 +927,10 @@ export class AuthorizationService {
             roleId: permission.inheritedFrom || 'unknown',
             roleName: 'resolved',
             permissionId: permission.id
-          }]
+          }],
+          context: {
+            permissions: applicablePermissions
+          }
         };
       }
     }
