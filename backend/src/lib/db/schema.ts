@@ -7,7 +7,8 @@ import {
   timestamp,
   jsonb,
   integer,
-  pgEnum
+  pgEnum,
+  index
 } from 'drizzle-orm/pg-core';
 
 // Enums - Enhanced RBAC with 9 roles for enterprise-scale access control
@@ -61,7 +62,20 @@ export const resourceTypeEnum = pgEnum('resource_type', [
   'SYSTEM_SETTINGS',
   'AUDIT_LOGS',
   'SUPPORT_TICKETS',
-  'ORGANIZATION'
+  'ORGANIZATION',
+  'PROJECTS' // NEW: Project resource type
+]);
+
+// Project status enumeration
+export const projectStatusEnum = pgEnum('project_status', [
+  'ACTIVE',
+  'INACTIVE'
+]);
+
+// Project geographic scope enumeration
+export const projectGeographicScopeEnum = pgEnum('project_geographic_scope', [
+  'NATIONAL',
+  'REGIONAL'
 ]);
 
 // Teams table
@@ -291,6 +305,61 @@ export const permissionCache = pgTable('permission_cache', {
   expiresAtIdx: table.expiresAt,
 }));
 
+// Projects table - Core project management
+export const projects = pgTable('projects', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  title: varchar('title', { length: 255 }).notNull(),
+  abbreviation: varchar('abbreviation', { length: 50 }).notNull().unique(),
+  contactPersonDetails: text('contact_person_details'),
+  status: projectStatusEnum('status').notNull().default('ACTIVE'),
+  geographicScope: projectGeographicScopeEnum('geographic_scope').notNull().default('NATIONAL'),
+  regionId: uuid('region_id').references(() => teams.id, { onDelete: 'set null' }),
+  organizationId: uuid('organization_id').notNull().default('org-default'),
+  createdBy: uuid('created_by').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }) // Soft delete support
+}, (t) => ({
+  abbreviationIdx: index('idx_project_abbreviation').on(t.abbreviation),
+  statusIdx: index('idx_project_status').on(t.status),
+  organizationIdx: index('idx_project_organization').on(t.organizationId),
+  createdByIdx: index('idx_project_created_by').on(t.createdBy)
+}));
+
+// Individual user project assignments
+export const projectAssignments = pgTable('project_assignments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  assignedBy: uuid('assigned_by').notNull().references(() => users.id),
+  roleInProject: varchar('role_in_project', { length: 100 }), // e.g., 'Project Lead', 'Field Coordinator'
+  assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
+  isActive: boolean('is_active').notNull().default(true),
+  assignedUntil: timestamp('assigned_until', { withTimezone: true }) // Temporary assignments
+}, (t) => ({
+  projectUserIdx: index('idx_project_assignment_unique').on(t.projectId, t.userId),
+  projectIdx: index('idx_project_assignment_project').on(t.projectId),
+  userIdx: index('idx_project_assignment_user').on(t.userId),
+  activeIdx: index('idx_project_assignment_active').on(t.isActive)
+}));
+
+// Team-based project assignments (all team members get project access)
+export const projectTeamAssignments = pgTable('project_team_assignments', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  teamId: uuid('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+  assignedBy: uuid('assigned_by').notNull().references(() => users.id),
+  assignedRole: varchar('assigned_role', { length: 100 }), // e.g., 'Implementation Team', 'Support Team'
+  assignedAt: timestamp('assigned_at', { withTimezone: true }).notNull().defaultNow(),
+  isActive: boolean('is_active').notNull().default(true),
+  assignedUntil: timestamp('assigned_until', { withTimezone: true })
+}, (t) => ({
+  projectTeamIdx: index('idx_project_team_assignment_unique').on(t.projectId, t.teamId),
+  projectIdx: index('idx_project_team_assignment_project').on(t.projectId),
+  teamIdx: index('idx_project_team_assignment_team').on(t.teamId),
+  activeIdx: index('idx_project_team_assignment_active').on(t.isActive)
+}));
+
 // Export types
 export type Team = typeof teams.$inferSelect;
 export type NewTeam = typeof teams.$inferInsert;
@@ -337,3 +406,13 @@ export type NewUserRoleAssignment = typeof userRoleAssignments.$inferInsert;
 
 export type PermissionCache = typeof permissionCache.$inferSelect;
 export type NewPermissionCache = typeof permissionCache.$inferInsert;
+
+// Project Types
+export type Project = typeof projects.$inferSelect;
+export type NewProject = typeof projects.$inferInsert;
+
+export type ProjectAssignment = typeof projectAssignments.$inferSelect;
+export type NewProjectAssignment = typeof projectAssignments.$inferInsert;
+
+export type ProjectTeamAssignment = typeof projectTeamAssignments.$inferSelect;
+export type NewProjectTeamAssignment = typeof projectTeamAssignments.$inferInsert;

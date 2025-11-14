@@ -15,6 +15,13 @@
       "when": 1763102990602,
       "tag": "0001_aberrant_azazel",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1763118185306,
+      "tag": "0002_broad_phalanx",
+      "breakpoints": true
     }
   ]
 }
