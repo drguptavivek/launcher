@@ -291,7 +291,7 @@ flowchart TD
         SessionTable[sessions table Event correlation]
     end
 
-    subgraph "Analytics" [Data Consumption]
+    subgraph "Data Consumption" [Analytics Layer]
         RealTime[Real-time DashboardDevice statusGPS tracking]
         Analytics[Analytics EngineUsage patternsPerformance metrics]
         Reports[Reporting SystemHistorical dataCompliance reports]
@@ -457,6 +457,8 @@ flowchart TD
     style CL2 fill:#e8f5e8
     style CL3 fill:#e8f5e8
     style CL4 fill:#ffebee
+```
+
 ## Key Integration Points
 
 ### 🔐 Authentication Integration
