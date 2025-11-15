@@ -117,33 +117,10 @@ const validateQuery = (schema: z.ZodObject<any, any>) => {
  * List projects with filtering and pagination
  */
 router.get('/',
+  authenticateToken,
   validateQuery(listProjectsSchema),
+  requirePermission(Resource.PROJECTS, Action.READ),
   async (req: AuthenticatedRequest, res: Response) => {
-    // Custom permission check for web admin compatibility
-    if (!req.user || !req.authorization) {
-      return res.status(401).json({
-        ok: false,
-        error: {
-          code: 'UNAUTHENTICATED',
-          message: 'Authentication required'
-        }
-      });
-    }
-
-    // Check if user has LIST permission for PROJECTS
-    const hasListPermission = req.authorization.permissions.some(p =>
-      p.resource === 'PROJECTS' && p.action === 'LIST'
-    );
-
-    if (!hasListPermission) {
-      return res.status(403).json({
-        ok: false,
-        error: {
-          code: 'INSUFFICIENT_PERMISSIONS',
-          message: 'Insufficient permissions to list projects'
-        }
-      });
-    }
     try {
       const userId = req.user?.id;
       const options = req.query as any;

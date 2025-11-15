@@ -106,23 +106,9 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // Web Admin Who Am I
-router.get('/whoami', async (req: Request, res: Response) => {
+router.get('/whoami', authenticateWebAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const accessToken = req.headers['authorization']?.replace('Bearer ', '') || req.cookies?.access_token;
-
-    if (!accessToken) {
-      return res.status(401).json({
-        ok: false,
-        error: {
-          code: 'NO_TOKEN',
-          message: 'No access token provided'
-        }
-      });
-    }
-
-    // Verify JWT token and extract user ID
-    const decoded = JWTUtils.verifyAccessToken(accessToken);
-    if (!decoded.success) {
+    if (!req.user) {
       return res.status(401).json({
         ok: false,
         error: {
@@ -133,17 +119,21 @@ router.get('/whoami', async (req: Request, res: Response) => {
     }
 
     // Check if this is a web admin token
-    if (decoded.payload.type !== 'web_admin') {
-      return res.status(401).json({
-        ok: false,
-        error: {
-          code: 'INVALID_TOKEN_TYPE',
-          message: 'Invalid token type for web admin authentication'
-        }
-      });
+    const token = req.headers['authorization']?.replace('Bearer ', '') || req.cookies?.access_token;
+    if (token) {
+      const decoded = JWTUtils.verifyAccessToken(token);
+      if (!decoded.success || decoded.payload.type !== 'web_admin') {
+        return res.status(401).json({
+          ok: false,
+          error: {
+            code: 'INVALID_TOKEN_TYPE',
+            message: 'Invalid token type for web admin authentication'
+          }
+        });
+      }
     }
 
-    const result = await webAdminAuthService.whoami(decoded.payload.sub);
+    const result = await webAdminAuthService.whoami(req.user.id);
 
     if (!result.success) {
       return res.status(401).json({
@@ -174,7 +164,7 @@ router.get('/whoami', async (req: Request, res: Response) => {
 });
 
 // Web Admin Logout
-router.post('/logout', async (req: Request, res: Response) => {
+router.post('/logout', authenticateWebAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const accessToken = req.headers['authorization']?.replace('Bearer ', '') || req.cookies?.access_token;
 
@@ -232,7 +222,7 @@ router.post('/logout', async (req: Request, res: Response) => {
 });
 
 // Web Admin Refresh Token
-router.post('/refresh', async (req: Request, res: Response) => {
+router.post('/refresh', authenticateWebAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const refreshToken = req.headers['authorization']?.replace('Bearer ', '') || req.cookies?.refresh_token;
 

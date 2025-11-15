@@ -1,129 +1,179 @@
-# SurveyLauncher Backend – Data Models (PostgreSQL 18)
+# SurveyLauncher Backend – Data Models (PostgreSQL)
 
-This document summarizes the PostgreSQL 18 schema that backs SurveyLauncher, listing each table’s columns, PostgreSQL data types, constraints/defaults, indexes, and cascade behavior. It references the `src/lib/db/schema.ts` Drizzle schema for the definitive definitions used by the application.
-
-> PostgreSQL 18 Notes: all UUID columns use `uuid` with `default gen_random_uuid()` semantics, timestamps use `timestamptz`, JSON payloads are stored in `jsonb`, and enums are created with `CREATE TYPE` equivalents – the Drizzle schema generates migrations compatible with PG18’s defaults.
+This document summarizes the PostgreSQL schema that backs SurveyLauncher, listing each table's columns, PostgreSQL data types, constraints/defaults, indexes, and cascade behavior. It references the `src/lib/db/schema.ts` Drizzle schema for the definitive definitions used by the application.
 
 ## Enum Types
 
 ### Role-Based Access Control (RBAC) Enums
-- `user_role` (`TEXT` enum): values `TEAM_MEMBER`, `FIELD_SUPERVISOR`, `REGIONAL_MANAGER`, `SYSTEM_ADMIN`, `SUPPORT_AGENT`, `AUDITOR`, `DEVICE_MANAGER`, `POLICY_ADMIN`, `NATIONAL_SUPPORT_ADMIN`. Used by `users.role` with default `TEAM_MEMBER`.
+- `user_role` (`TEXT` enum): values `TEAM_MEMBER`, `FIELD_SUPERVISOR`, `REGIONAL_MANAGER`, `SYSTEM_ADMIN`, `SUPPORT_AGENT`, `AUDITOR`, `DEVICE_MANAGER`, `POLICY_ADMIN`, `NATIONAL_SUPPORT_ADMIN`. Used by `users.role` and `web_admin_users.role` with default `TEAM_MEMBER`.
 - `permission_scope` (`TEXT` enum): values `ORGANIZATION`, `REGION`, `TEAM`, `USER`, `SYSTEM`. Used by `permissions.scope` with default `TEAM`.
 - `permission_action` (`TEXT` enum): values `CREATE`, `READ`, `UPDATE`, `DELETE`, `LIST`, `MANAGE`, `EXECUTE`, `AUDIT`. Used by `permissions.action`.
-- `resource_type` (`TEXT` enum): values `TEAMS`, `USERS`, `DEVICES`, `SUPERVISOR_PINS`, `TELEMETRY`, `POLICY`, `AUTH`, `SYSTEM_SETTINGS`, `AUDIT_LOGS`, `SUPPORT_TICKETS`, `ORGANIZATION`. Used by `permissions.resource`.
+- `resource_type` (`TEXT` enum): values `TEAMS`, `USERS`, `DEVICES`, `SUPERVISOR_PINS`, `TELEMETRY`, `POLICY`, `AUTH`, `SYSTEM_SETTINGS`, `AUDIT_LOGS`, `SUPPORT_TICKETS`, `ORGANIZATION`, `PROJECTS`. Used by `permissions.resource`.
 
-## teams
+### Project Management Enums
+- `project_status` (`TEXT` enum): values `ACTIVE`, `INACTIVE`. Used by `projects.status` with default `ACTIVE`.
+- `project_geographic_scope` (`TEXT` enum): values `NATIONAL`, `REGIONAL`. Used by `projects.geographic_scope` with default `NATIONAL`.
+
+## Core Tables
+
+### organizations
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `name` | `varchar(255)` | `NOT NULL` | indexed by `name`. |
-| `timezone` | `varchar(50)` | `NOT NULL`, default `UTC` | |
-| `state_id` | `varchar(16)` | `NOT NULL` | |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
+| `name` | `varchar(200)` | `NOT NULL` | Organization name. Indexed by `nameIdx`. |
+| `display_name` | `varchar(250)` | `NOT NULL` | Human-readable display name. |
+| `description` | `text` | nullable | Detailed description. |
+| `code` | `varchar(50)` | `NOT NULL`, `UNIQUE` | Unique identifier. Indexed by `codeIdx`. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Active status. Indexed by `activeIdx`. |
+| `is_default` | `boolean` | `NOT NULL`, default `false` | Default organization for fallback. |
+| `settings` | `jsonb` | nullable | Organization-specific settings. |
+| `metadata` | `jsonb` | nullable | Additional metadata. |
 | `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-**Cascade behavior**: `teams.id` is the parent for all foreign keys below, each declared with `ON DELETE CASCADE` so removing a team deletes related devices, users, supervisor PINs, sessions, and telemetry/pin records.
 
-## devices
+**Cascade behavior**: Organization deletion cascades to `teams`, `users`, `projects`, and all related data.
+
+### teams
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `team_id` | `uuid` | `NOT NULL REFERENCES teams(id) ON DELETE CASCADE` | Index `teamIdIdx`. |
-| `name` | `varchar(255)` | `NOT NULL` | |
-| `android_id` | `varchar(64)` | nullable | Index `androidIdIdx`. |
-| `app_version` | `varchar(32)` | nullable | |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
-| `last_seen_at`, `last_gps_at` | `timestamptz` | nullable | |
+| `name` | `varchar(255)` | `NOT NULL` | Team name. Indexed by `nameIdx`. |
+| `timezone` | `varchar(50)` | `NOT NULL`, default `UTC` | Team timezone for scheduling. |
+| `state_id` | `varchar(16)` | `NOT NULL` | State/region identifier. |
+| `organization_id` | `uuid` | `NOT NULL REFERENCES organizations(id) ON DELETE CASCADE` | Multi-tenant support. Indexed by `organizationIdIdx`. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Active status. |
 | `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-**Cascade behavior**: Deletes cascade to `sessions`, `telemetry_events`, `policy_issues`, and `pin_attempts`.
 
-## users
+**Cascade behavior**: Team deletion cascades to `devices`, `users`, `supervisor_pins`, `sessions`, and all related data.
+
+### devices
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `code` | `varchar(32)` | `NOT NULL` | Index `userCodeIdx`. |
-| `team_id` | `uuid` | `NOT NULL REFERENCES teams(id) ON DELETE CASCADE` | Index `teamIdIdx`. |
-| `display_name` | `varchar(255)` | `NOT NULL` | |
-| `email` | `varchar(255)` | nullable | |
-| `role` | `user_role` enum | `NOT NULL`, default `TEAM_MEMBER` | |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
+| `team_id` | `uuid` | `NOT NULL REFERENCES teams(id) ON DELETE CASCADE` | Indexed by `teamIdIdx`. |
+| `name` | `varchar(255)` | `NOT NULL` | Device display name. |
+| `android_id` | `varchar(64)` | nullable | Unique Android device ID. Indexed by `androidIdIdx`. |
+| `app_version` | `varchar(32)` | nullable | Installed app version. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Device active status. |
+| `last_seen_at`, `last_gps_at` | `timestamptz` | nullable | Last activity timestamps. |
 | `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-**Cascade behavior**: Deleting a user cascades to `user_pins`, `sessions`, `pin_attempts`.
 
-## user_pins
+**Cascade behavior**: Device deletion cascades to `sessions`, `telemetry_events`, `policy_issues`, and `pin_attempts`.
+
+### users
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `code` | `varchar(32)` | `NOT NULL` | Login code. Indexed by `userCodeIdx`. |
+| `team_id` | `uuid` | `NOT NULL REFERENCES teams(id) ON DELETE CASCADE` | Indexed by `teamIdIdx`. |
+| `display_name` | `varchar(255)` | `NOT NULL` | User display name. |
+| `email` | `varchar(255)` | nullable | Optional email contact. |
+| `role` | `user_role` enum | `NOT NULL`, default `TEAM_MEMBER` | RBAC role assignment. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | User active status. |
+| `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
+
+**Cascade behavior**: User deletion cascades to `user_pins`, `user_role_assignments`, `sessions`, `pin_attempts`.
+
+### user_pins
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `user_id` | `uuid` | `PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE` | |
-| `pin_hash`, `salt` | `varchar(255)` | `NOT NULL` | Argon2id data. |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
-| `rotated_at`, `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
+| `pin_hash`, `salt` | `varchar(255)` | `NOT NULL` | Argon2id credentials. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | PIN active status. |
+| `rotated_at`, `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | Rotation timestamps. |
+
 **Cascade behavior**: Owned by `users`, no downstream children.
 
-## supervisor_pins
+### supervisor_pins
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `team_id` | `uuid` | `NOT NULL REFERENCES teams(id) ON DELETE CASCADE` | Index `teamIdIdx`. |
-| `name` | `varchar(255)` | `NOT NULL` | |
-| `pin_hash`, `salt` | `varchar(255)` | `NOT NULL` | |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
+| `team_id` | `uuid` | `NOT NULL REFERENCES teams(id) ON DELETE CASCADE` | Indexed by `teamIdIdx`. |
+| `name` | `varchar(255)` | `NOT NULL` | Supervisor PIN identifier. |
+| `pin_hash`, `salt` | `varchar(255)` | `NOT NULL` | Argon2id credentials. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | PIN active status. |
 | `rotated_at`, `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-**Cascade behavior**: Team delete removes supervisor PINs.
 
-## sessions
+**Cascade behavior**: Team deletion removes supervisor PINs.
+
+### web_admin_users
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `user_id` | `uuid` | `REFERENCES users(id) ON DELETE CASCADE` | Nullable to support system sessions? |
+| `email` | `varchar(255)` | `NOT NULL`, `UNIQUE` | Login email. Indexed by `emailIdx`. |
+| `password` | `varchar(255)` | `NOT NULL` | Argon2id password hash. |
+| `first_name`, `last_name` | `varchar(255)` | `NOT NULL` | User's name. |
+| `role` | `user_role` enum | `NOT NULL`, default `SYSTEM_ADMIN` | Admin role. Indexed by `roleIdx`. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Account status. |
+| `last_login_at` | `timestamptz` | nullable | Last successful login. |
+| `login_attempts` | `integer` | `NOT NULL`, default `0` | Failed login counter. |
+| `locked_at` | `timestamptz` | nullable | Account lockout timestamp. |
+| `password_changed_at` | `timestamptz` | `NOT NULL`, default `now()` | Password rotation tracking. |
+| `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
+
+**Cascade behavior**: Standalone admin accounts, no cascade dependencies.
+
+### sessions
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `user_id` | `uuid` | `REFERENCES users(id) ON DELETE CASCADE` | Nullable for system sessions. Indexed by `userIdIdx`. |
 | `team_id` | `uuid` | `NOT NULL REFERENCES teams(id) ON DELETE CASCADE` | |
-| `device_id` | `uuid` | `NOT NULL REFERENCES devices(id) ON DELETE CASCADE` | |
-| `started_at`, `expires_at` | `timestamptz` | `NOT NULL`, `expires_at` must be provided | |
-| `ended_at`, `override_until`, `last_activity_at` | `timestamptz` | `last_activity_at` default `now()` | |
-| `status` | `varchar(16)` | `NOT NULL`, default `'open'` | values: `open`, `expired`, `ended`. |
-| `token_jti` | `varchar(64)` | nullable | Indexed `tokenJtiIdx`. |
-**Cascade behavior**: Deleting the session cascades telemetry events and pin attempts through their FK definitions.
+| `device_id` | `uuid` | `NOT NULL REFERENCES devices(id) ON DELETE CASCADE` | Indexed by `deviceIdIdx`. |
+| `started_at`, `expires_at` | `timestamptz` | `NOT NULL` | Session lifecycle. |
+| `ended_at`, `override_until`, `last_activity_at` | `timestamptz` | `last_activity_at` default `now()` | Session state tracking. |
+| `status` | `varchar(16)` | `NOT NULL`, default `'open'` | Values: `open`, `expired`, `ended`. |
+| `token_jti` | `varchar(64)` | nullable | JWT identifier. Indexed by `tokenJtiIdx`. |
 
-## telemetry_events
+**Cascade behavior**: Session deletion cascades to `telemetry_events` and `pin_attempts`.
+
+### telemetry_events
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `device_id` | `uuid` | `NOT NULL REFERENCES devices(id) ON DELETE CASCADE` | Index `deviceIdIdx`. |
-| `session_id` | `uuid` | `REFERENCES sessions(id) ON DELETE CASCADE` | nullable (some events pre-session). |
-| `event_type` | `varchar(32)` | `NOT NULL` | e.g., `gps`, `heartbeat`. Index `eventTypeIdx`. |
-| `event_data` | `jsonb` | `NOT NULL` | Arbitrary telemetry payload. |
-| `timestamp`, `received_at` | `timestamptz` | `timestamp` required; `received_at` default `now()` | Indexed `timestampIdx`. |
-**Cascade behavior**: Follows cascade on referenced device/session to remove stale telemetry.
+| `device_id` | `uuid` | `NOT NULL REFERENCES devices(id) ON DELETE CASCADE` | Indexed by `deviceIdIdx`. |
+| `session_id` | `uuid` | `REFERENCES sessions(id) ON DELETE CASCADE` | nullable. Indexed by `sessionIdIdx`. |
+| `event_type` | `varchar(32)` | `NOT NULL` | GPS, heartbeat, etc. Indexed by `eventTypeIdx`. |
+| `event_data` | `jsonb` | `NOT NULL` | Event payload. |
+| `timestamp` | `timestamptz` | `NOT NULL` | Event time. Indexed by `timestampIdx`. |
+| `received_at` | `timestamptz` | `NOT NULL`, default `now()` | Ingestion time. |
 
-## policy_issues
+**Cascade behavior**: Follows cascade on referenced device/session.
+
+### policy_issues
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `device_id` | `uuid` | `NOT NULL REFERENCES devices(id) ON DELETE CASCADE` | Index `deviceIdIdx`. |
-| `version` | `varchar(16)` | `NOT NULL` | Policy version identifier. |
-| `issued_at`, `expires_at` | `timestamptz` | `NOT NULL`, default `issued_at` now | |
-| `jws_kid` | `varchar(64)` | `NOT NULL` | Signed key ID. |
-| `policy_data` | `jsonb` | `NOT NULL` | Contains signed policy payload. |
-| `ip_address` | `varchar(45)` | nullable | Stores source IP. |
+| `device_id` | `uuid` | `NOT NULL REFERENCES devices(id) ON DELETE CASCADE` | Indexed by `deviceIdIdx`. |
+| `version` | `varchar(16)` | `NOT NULL` | Policy version. |
+| `issued_at`, `expires_at` | `timestamptz` | `NOT NULL`, `expires_at` required | Policy validity window. |
+| `jws_kid` | `varchar(64)` | `NOT NULL` | Signature key ID. |
+| `policy_data` | `jsonb` | `NOT NULL` | Signed policy content. |
+| `ip_address` | `varchar(45)` | nullable | Request source IP. |
+| `expires_at` | `timestamptz` | `NOT NULL` | Indexed by `expiresAtIdx`. |
+
 **Cascade behavior**: Child of `devices`.
 
-## jwt_revocations
+### jwt_revocations
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `jti` | `varchar(64)` | `PRIMARY KEY` | JWT identifier. |
-| `revoked_at`, `expires_at` | `timestamptz` | `NOT NULL`, default `now()` | `expires_at` used to clean up revoked tokens. |
-| `reason`, `revoked_by` | `varchar(64/255)` | nullable | |
-| Indexes | `jtiIdx`, `expiresAtIdx` | | |
-**Cascade behavior**: None (standalone revocation log).
+| `revoked_at`, `expires_at` | `timestamptz` | `NOT NULL`, default `now()` | Revocation window. |
+| `reason`, `revoked_by` | `varchar(64/255)` | nullable | Revocation details. |
+| `jti_idx`, `expires_at_idx` | indexes | | Performance indexes. |
 
-## pin_attempts
+**Cascade behavior**: Standalone revocation log.
+
+### pin_attempts
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `user_id`, `device_id` | `uuid` | `NOT NULL REFERENCES users(id)/devices(id) ON DELETE CASCADE` | Indexed. |
-| `attempt_type` | `varchar(16)` | `NOT NULL` | `'user_pin'` or `'supervisor_pin'`. Index `attemptTypeIdx`. |
-| `success` | `boolean` | `NOT NULL` | |
-| `ip_address` | `varchar(45)` | nullable | |
-| `attempted_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-**Cascade behavior**: Tied to user/device lifecycle deletions.
+| `user_id`, `device_id` | `uuid` | `NOT NULL REFERENCES users(id)/devices(id) ON DELETE CASCADE` | Indexed by `userIdIdx`, `deviceIdIdx`. |
+| `attempt_type` | `varchar(16)` | `NOT NULL` | `user_pin` or `supervisor_pin`. Indexed by `attemptTypeIdx`. |
+| `success` | `boolean` | `NOT NULL` | Attempt result. |
+| `ip_address` | `varchar(45)` | nullable | Source IP. |
+| `attempted_at` | `timestamptz` | `NOT NULL`, default `now()` | Attempt timestamp. |
+
+**Cascade behavior**: Tied to user/device lifecycle.
 
 ## Enhanced RBAC System Tables
 
@@ -131,14 +181,15 @@ This document summarizes the PostgreSQL 18 schema that backs SurveyLauncher, lis
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `name` | `varchar(50)` | `NOT NULL`, `UNIQUE` | Uppercase role name. Index `nameIdx`. |
-| `display_name` | `varchar(120)` | `NOT NULL` | Human-readable role name. |
-| `description` | `text` | nullable | Role description and purpose. |
-| `is_system_role` | `boolean` | `NOT NULL`, default `false` | Predefined system roles (immutable). |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
-| `hierarchy_level` | `integer` | `NOT NULL`, default `0` | For role inheritance (0=highest). |
+| `name` | `varchar(50)` | `NOT NULL`, `UNIQUE` | Role name. Indexed by `nameIdx`. |
+| `display_name` | `varchar(120)` | `NOT NULL` | Human-readable name. |
+| `description` | `text` | nullable | Role purpose. |
+| `is_system_role` | `boolean` | `NOT NULL`, default `false` | Immutable predefined roles. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Role status. |
+| `hierarchy_level` | `integer` | `NOT NULL`, default `0` | Inheritance level (0=highest). |
 | `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-**Cascade behavior**: Role deletion cascades to `role_permissions` and `user_role_assignments`. System roles are protected from modification/deletion.
+
+**Cascade behavior**: Role deletion cascades to `role_permissions` and `user_role_assignments`.
 
 ### permissions
 | Column | Type | Constraints / Defaults | Notes |
@@ -146,58 +197,117 @@ This document summarizes the PostgreSQL 18 schema that backs SurveyLauncher, lis
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
 | `name` | `varchar(100)` | `NOT NULL`, `UNIQUE` | Unique permission identifier. |
 | `resource` | `resource_type` enum | `NOT NULL` | Target resource type. |
-| `action` | `permission_action` enum | `NOT NULL` | Allowed action on resource. |
-| `scope` | `permission_scope` enum | `NOT NULL`, default `TEAM` | Permission scope level. |
+| `action` | `permission_action` enum | `NOT NULL` | Allowed action. |
+| `scope` | `permission_scope` enum | `NOT NULL`, default `TEAM` | Permission scope. |
 | `description` | `text` | nullable | Permission description. |
-| `conditions` | `jsonb` | nullable | Additional conditions (temporal, geo, etc.). |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
+| `conditions` | `jsonb` | nullable | Additional conditions. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Permission status. |
 | `created_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-**Indexes**: `resourceActionIdx` on `(resource, action)`, `nameIdx` on `name`.
+| `resource_action_idx`, `name_idx` | indexes | | Performance indexes. |
+
 **Cascade behavior**: Permission deletion cascades to `role_permissions`.
 
 ### role_permissions
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `role_id` | `uuid` | `NOT NULL REFERENCES roles(id) ON DELETE CASCADE` | Index `roleIdIdx`. |
-| `permission_id` | `uuid` | `NOT NULL REFERENCES permissions(id) ON DELETE CASCADE` | Index `permissionIdIdx`. |
-| `granted_by` | `uuid` | `REFERENCES users(id)` | User who granted this permission. |
-| `granted_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
-**Purpose**: Maps roles to their permissions, allowing fine-grained access control.
+| `role_id` | `uuid` | `NOT NULL REFERENCES roles(id) ON DELETE CASCADE` | Indexed by `roleIdIdx`. |
+| `permission_id` | `uuid` | `NOT NULL REFERENCES permissions(id) ON DELETE CASCADE` | Indexed by `permissionIdIdx`. |
+| `granted_by` | `uuid` | `REFERENCES users(id)` | Granting user. |
+| `granted_at` | `timestamptz` | `NOT NULL`, default `now()` | Grant timestamp. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Mapping status. |
+
+**Purpose**: Maps roles to permissions for fine-grained access control.
 **Cascade behavior**: Junction table - cascades from both roles and permissions.
 
 ### user_role_assignments
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
 | `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
-| `user_id` | `uuid` | `NOT NULL REFERENCES users(id) ON DELETE CASCADE` | Index `userIdIdx`. |
-| `role_id` | `uuid` | `NOT NULL REFERENCES roles(id) ON DELETE CASCADE` | Index `roleIdIdx`. |
-| `organization_id` | `uuid` | `NOT NULL` | Multi-tenant support. Index `organizationIdIdx`. |
-| `team_id` | `uuid` | `REFERENCES teams(id) ON DELETE CASCADE` | Team-scoped assignment. Index `teamIdIdx`. |
-| `region_id` | `varchar(32)` | nullable | Geographic/organizational region. |
-| `granted_by` | `uuid` | `REFERENCES users(id)` | User who assigned the role. |
-| `granted_at` | `timestamptz` | `NOT NULL`, default `now()` | |
-| `expires_at` | `timestamptz` | nullable | Temporary role assignments. |
-| `is_active` | `boolean` | `NOT NULL`, default `true` | |
-| `context` | `jsonb` | nullable | Additional assignment context. |
+| `user_id` | `uuid` | `NOT NULL REFERENCES users(id) ON DELETE CASCADE` | Indexed by `userIdIdx`. |
+| `role_id` | `uuid` | `NOT NULL REFERENCES roles(id) ON DELETE CASCADE` | Indexed by `roleIdIdx`. |
+| `organization_id` | `uuid` | `NOT NULL REFERENCES organizations(id) ON DELETE CASCADE` | Multi-tenant support. Indexed by `organizationIdIdx`. |
+| `team_id` | `uuid` | `REFERENCES teams(id) ON DELETE CASCADE` | Team scoping. Indexed by `teamIdIdx`. |
+| `region_id` | `varchar(32)` | nullable | Geographic region. |
+| `granted_by` | `uuid` | `REFERENCES users(id)` | Assigning user. |
+| `granted_at` | `timestamptz` | `NOT NULL`, default `now()` | Assignment timestamp. |
+| `expires_at` | `timestamptz` | nullable | Temporary assignments. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Assignment status. |
+| `context` | `jsonb` | nullable | Additional context. |
+
 **Purpose**: Supports multiple roles per user with scoping and expiration.
 **Cascade behavior**: User deletion removes all role assignments.
 
 ### permission_cache
 | Column | Type | Constraints / Defaults | Notes |
 | --- | --- | --- | --- |
-| `user_id` | `uuid` | `PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE` | Index `userIdIdx`. |
+| `user_id` | `uuid` | `PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE` | Indexed by `userIdIdx`. |
 | `effective_permissions` | `jsonb` | `NOT NULL` | Cached resolved permissions. |
-| `computed_at` | `timestamptz` | `NOT NULL`, default `now()` | When cache was computed. |
-| `expires_at` | `timestamptz` | `NOT NULL` | Cache expiration time. Index `expiresAtIdx`. |
+| `computed_at` | `timestamptz` | `NOT NULL`, default `now()` | Cache computation time. |
+| `expires_at` | `timestamptz` | `NOT NULL` | Cache expiration. Indexed by `expiresAtIdx`. |
 | `version` | `integer` | `NOT NULL`, default `1` | Cache invalidation version. |
+
 **Purpose**: Performance optimization for permission resolution (<100ms target).
 **Cascade behavior**: User deletion removes cache entry.
 
+## Project Management Tables
+
+### projects
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `title` | `varchar(255)` | `NOT NULL` | Project title. |
+| `abbreviation` | `varchar(50)` | `NOT NULL`, `UNIQUE` | Short identifier. Indexed by `abbreviationIdx`. |
+| `contact_person_details` | `text` | nullable | Contact information. |
+| `status` | `project_status` enum | `NOT NULL`, default `ACTIVE` | Project status. Indexed by `statusIdx`. |
+| `geographic_scope` | `project_geographic_scope` enum | `NOT NULL`, default `NATIONAL` | Coverage area. |
+| `region_id` | `uuid` | `REFERENCES teams(id) ON DELETE SET NULL` | Regional association. |
+| `organization_id` | `uuid` | `NOT NULL REFERENCES organizations(id) ON DELETE CASCADE` | Multi-tenant support. Indexed by `organizationIdx`. |
+| `created_by` | `uuid` | `NOT NULL REFERENCES users(id)` | Project creator. Indexed by `createdByIdx`. |
+| `created_at`, `updated_at` | `timestamptz` | `NOT NULL`, default `now()` | |
+| `deleted_at` | `timestamptz` | nullable | Soft delete support. |
+
+**Cascade behavior**: Project deletion cascades to `project_assignments` and `project_team_assignments`.
+
+### project_assignments
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `project_id` | `uuid` | `NOT NULL REFERENCES projects(id) ON DELETE CASCADE` | Indexed by `projectIdx`. |
+| `user_id` | `uuid` | `NOT NULL REFERENCES users(id) ON DELETE CASCADE` | Indexed by `userIdx`. |
+| `assigned_by` | `uuid` | `NOT NULL REFERENCES users(id)` | Assignment author. |
+| `role_in_project` | `varchar(100)` | nullable | Project-specific role. |
+| `assigned_at` | `timestamptz` | `NOT NULL`, default `now()` | Assignment timestamp. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Assignment status. Indexed by `activeIdx`. |
+| `assigned_until` | `timestamptz` | nullable | Temporary assignments. |
+| `project_user_idx` | index | | Unique constraint on (project_id, user_id). |
+
+**Purpose**: Individual user project assignments with role definition.
+**Cascade behavior**: Junction table - cascades from both projects and users.
+
+### project_team_assignments
+| Column | Type | Constraints / Defaults | Notes |
+| --- | --- | --- | --- |
+| `id` | `uuid` | `PRIMARY KEY`, `DEFAULT gen_random_uuid()` | |
+| `project_id` | `uuid` | `NOT NULL REFERENCES projects(id) ON DELETE CASCADE` | Indexed by `projectIdx`. |
+| `team_id` | `uuid` | `NOT NULL REFERENCES teams(id) ON DELETE CASCADE` | Indexed by `teamIdx`. |
+| `assigned_by` | `uuid` | `NOT NULL REFERENCES users(id)` | Assignment author. |
+| `assigned_role` | `varchar(100)` | nullable | Team project role. |
+| `assigned_at` | `timestamptz` | `NOT NULL`, default `now()` | Assignment timestamp. |
+| `is_active` | `boolean` | `NOT NULL`, default `true` | Assignment status. Indexed by `activeIdx`. |
+| `assigned_until` | `timestamptz` | nullable | Temporary assignments. |
+| `project_team_idx` | index | | Unique constraint on (project_id, team_id). |
+
+**Purpose**: Team-based project assignments (all team members get project access).
+**Cascade behavior**: Junction table - cascades from both projects and teams.
+
 ## General Constraints & Notes
-- Most `varchar` columns have explicit length limits (32, 64, 255) to keep storage predictable.
-- UUID PKs are generated by the database via `gen_random_uuid()` helpers; ensure `pgcrypto` or equivalent extension is enabled in PostgreSQL 18.
-- `ON DELETE CASCADE` is pervasive to keep the schema consistent; removing a team cascades deeply through users, devices, sessions, telemetry, and policies.
-- No soft deletes are modeled; archival should use `is_active` flags where present (e.g., `devices.is_active`, `users.is_active`).
-- Indexes (e.g., `userCodeIdx`, `tokenJtiIdx`, telemetry indices) support the bulk query patterns described in `docs/workflows.md`.
+
+- **UUID Generation**: All UUID columns use `defaultRandom()` for application-side generation or database `gen_random_uuid()` where available.
+- **Timezone Handling**: All timestamps use `timestamptz` (with timezone) for consistent UTC-based timekeeping.
+- **Cascade Strategy**: Extensive use of `ON DELETE CASCADE` maintains data consistency when parent records are removed.
+- **Soft Deletes**: Key tables (`projects`) support soft deletion via `deleted_at` columns for audit trails.
+- **Performance Optimization**: Strategic indexes on foreign keys, unique constraints, and common query patterns support high-load scenarios.
+- **Multi-tenancy**: Organization-based data isolation through `organization_id` foreign keys with cascade enforcement.
+- **RBAC System**: Sophisticated role-based access control with hierarchical roles, granular permissions, and caching for performance (<100ms resolution target).
+- **Audit Trail**: Comprehensive tracking of user assignments, permission grants, and state changes with timestamps and actor attribution.

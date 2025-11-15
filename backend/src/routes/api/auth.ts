@@ -150,7 +150,7 @@ router.post('/logout', authenticateToken, async (req: AuthenticatedRequest, res)
 });
 
 // POST /api/v1/auth/refresh - Refresh access token
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const { refresh_token } = req.body;
 
