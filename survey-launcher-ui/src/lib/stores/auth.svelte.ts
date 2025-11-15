@@ -4,10 +4,19 @@
 import { getContext, setContext } from 'svelte';
 import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders, handleApiResponse } from '$lib/api';
 import { authUtils } from '$lib/utils/auth.utils';
-import type { LoginRequest, LoginResponse, WhoamiResponse } from '$lib/api';
 
 // Authentication state interface
-const AuthState = {
+interface AuthState {
+	isAuthenticated: boolean;
+	isLoading: boolean;
+	user: any;
+	session: any;
+	access_token: string | null;
+	refresh_token: string | null;
+	error: string | null;
+}
+
+const AuthState: AuthState = {
 	isAuthenticated: false,
 	isLoading: false,
 	user: null,
@@ -69,7 +78,7 @@ export const auth = {
 	},
 
 	// Login action
-	async login(credentials) {
+	async login(credentials: Record<string, any>) {
 		authState.isLoading = true;
 		authState.error = null;
 
@@ -87,7 +96,7 @@ export const auth = {
 			authState.error = null;
 
 			return true;
-		} catch (error) {
+		} catch (error: any) {
 			authState.isLoading = false;
 			authState.error = error.message || 'Login failed';
 			return false;

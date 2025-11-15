@@ -144,7 +144,7 @@ export const createUserSchema = (creatorRole: UserRole) => {
         v.string(),
         v.minLength(1, 'State ID is required')
       )
-    });
+    }) as any;
   } else if (creatorRole === 'REGIONAL_MANAGER') {
     schema = v.object({
       name: v.pipe(
@@ -166,7 +166,7 @@ export const createUserSchema = (creatorRole: UserRole) => {
         v.string(),
         v.minLength(1, 'State ID is required')
       )
-    });
+    }) as any;
   } else if (creatorRole === 'FIELD_SUPERVISOR') {
     schema = v.object({
       name: v.pipe(
@@ -184,7 +184,7 @@ export const createUserSchema = (creatorRole: UserRole) => {
       ),
       isActive: v.optional(v.boolean(), true),
       role: v.literal('TEAM_MEMBER')
-    });
+    }) as any;
   }
 
   return v.pipe(
@@ -214,15 +214,24 @@ export const createDeviceSchema = (userRole: UserRole) => {
   let schema = baseSchema;
 
   if (['SYSTEM_ADMIN', 'DEVICE_MANAGER'].includes(userRole)) {
-    schema = v.pipe(
-      schema,
-      v.extend({
-        configuration: v.optional(v.record(v.any())),
-        assignedUserId: v.optional(v.string()),
-        policyProfile: v.optional(v.string()),
-        maintenanceSchedule: v.optional(v.string())
-      })
-    );
+    schema = v.object({
+      deviceId: v.pipe(
+        v.string(),
+        v.minLength(1, 'Device ID required')
+      ),
+      deviceName: v.pipe(
+        v.string(),
+        v.minLength(1, 'Device name required')
+      ),
+      teamId: v.pipe(
+        v.string(),
+        v.minLength(1, 'Team assignment required')
+      ),
+      configuration: v.optional(v.record(v.string(), v.any())),
+      assignedUserId: v.optional(v.string()),
+      policyProfile: v.optional(v.string()),
+      maintenanceSchedule: v.optional(v.string())
+    }) as any;
   }
 
   return v.pipe(
@@ -259,15 +268,24 @@ export const createAssignmentSchema = (userRole: UserRole) => {
 
   // Only supervisors and admins can assign permissions
   if (['SYSTEM_ADMIN', 'FIELD_SUPERVISOR'].includes(userRole)) {
-    schema = v.pipe(
-      schema,
-      v.extend({
-        permissions: v.pipe(
-          v.array(v.string()),
-          v.minLength(1, 'Select at least one permission')
-        )
-      })
-    );
+    schema = v.object({
+      title: v.pipe(
+        v.string(),
+        v.minLength(1, 'Title is required')
+      ),
+      assignedUsers: v.pipe(
+        v.array(v.string()),
+        v.minLength(1, 'Select at least one user')
+      ),
+      assignedTeams: v.pipe(
+        v.array(v.string()),
+        v.minLength(1, 'Select at least one team')
+      ),
+      permissions: v.pipe(
+        v.array(v.string()),
+        v.minLength(1, 'Select at least one permission')
+      )
+    }) as any;
   }
 
   return v.pipe(
@@ -279,7 +297,7 @@ export const createAssignmentSchema = (userRole: UserRole) => {
 // Audit report schema
 export const createAuditReportSchema = (userRole: UserRole) => {
   const baseSchema = v.object({
-    reportType: v.enum(['COMPLIANCE', 'SECURITY', 'PERFORMANCE']),
+    reportType: v.picklist(['COMPLIANCE', 'SECURITY', 'PERFORMANCE']),
     scope: v.pipe(
       v.string(),
       v.minLength(1, 'Scope is required')
@@ -313,8 +331,8 @@ export const createPolicySchema = (userRole: UserRole) => {
       v.string(),
       v.minLength(1, 'Description is required')
     ),
-    policyType: v.enum(['ACCESS', 'SECURITY', 'WORK_HOURS', 'DEVICE']),
-    scope: v.enum(['GLOBAL', 'REGIONAL', 'TEAM']),
+    policyType: v.picklist(['ACCESS', 'SECURITY', 'WORK_HOURS', 'DEVICE']),
+    scope: v.picklist(['GLOBAL', 'REGIONAL', 'TEAM']),
     rules: v.pipe(
       v.array(v.object({
         name: v.string(),
@@ -329,7 +347,7 @@ export const createPolicySchema = (userRole: UserRole) => {
   if (userRole === 'POLICY_ADMIN') {
     return v.pipe(
       baseSchema,
-      v.check((data) => data.scope !== 'NATIONAL', 'Policy admins cannot create national policies')
+      v.check((data) => data.scope !== 'GLOBAL', 'Policy admins cannot create global policies')
     );
   }
 
@@ -347,10 +365,10 @@ export const createSupportTicketSchema = (userRole: UserRole) => {
       v.string(),
       v.minLength(1, 'Description is required')
     ),
-    priority: v.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
-    category: v.enum(['TECHNICAL', 'ACCOUNT', 'DEVICE', 'POLICY']),
+    priority: v.picklist(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+    category: v.picklist(['TECHNICAL', 'ACCOUNT', 'DEVICE', 'POLICY']),
     assignedTo: v.optional(v.string()),
-    status: v.optional(v.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']), 'OPEN')
+    status: v.optional(v.picklist(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']), 'OPEN')
   });
 
   // Only support agents can assign tickets

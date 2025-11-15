@@ -14,7 +14,7 @@ interface UserFilterOptions {
 }
 
 // API Functions - now using real backend
-export async function getUsers(options: UserFilterOptions = {}) {
+export async function getUsers(_options: UserFilterOptions = {}) {
 	try {
 		// Call the real backend API - remote functions don't take parameters
 		const response = await getUsersRemote();
@@ -25,7 +25,7 @@ export async function getUsers(options: UserFilterOptions = {}) {
 	}
 }
 
-export async function getUserById(id: string): Promise<User | null> {
+export async function getUserById(_id: string): Promise<User | null> {
 	try {
 		// Call the real backend API - remote functions don't take parameters
 		const user = await getUserByIdRemote();
@@ -46,17 +46,17 @@ export async function createProject(userData: Record<string, unknown>): Promise<
 	};
 }
 
-export async function updateUser(id: string, userData: Partial<User>): Promise<User | null> {
+export async function updateUser(_id: string, _userData: Partial<User>): Promise<User | null> {
 	// This would be implemented in the real users.remote.ts
 	throw new Error('updateUser not implemented - use users.remote API');
 }
 
-export async function deleteUser(id: string): Promise<boolean> {
+export async function deleteUser(_id: string): Promise<boolean> {
 	// This would be implemented in the real users.remote.ts
 	throw new Error('deleteUser not implemented - use users.remote API');
 }
 
-export async function updateUserStatus(id: string, isActive: boolean): Promise<User | null> {
+export async function updateUserStatus(_id: string, _isActive: boolean): Promise<User | null> {
 	// This would be implemented in the real users.remote.ts
 	throw new Error('updateUserStatus not implemented - use users.remote API');
 }
@@ -66,7 +66,7 @@ export async function getTeams() {
 	throw new Error('getTeams not implemented - use teams.remote API');
 }
 
-export async function searchUsers(query: string, limit = 10): Promise<User[]> {
+export async function searchUsers(_query: string, _limit = 10): Promise<User[]> {
 	// This would be implemented in the real users.remote.ts
 	throw new Error('searchUsers not implemented - use users.remote API');
 }

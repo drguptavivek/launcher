@@ -6,7 +6,7 @@
   import { Button } from '$lib/components/ui/button';
 
   // Dashboard state
-  let user = $state(null);
+  let user = $state<any>(null);
   let isLoading = $state(true);
   let error = $state('');
   let projects = $state<any[]>([]);
@@ -383,7 +383,18 @@
             {:else}
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {#each projects.slice(0, 6) as project}
-                  <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer" onclick={() => navigateToProject(project.id)}>
+                  <div
+                    class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    role="button"
+                    tabindex="0"
+                    onclick={() => navigateToProject(project.id)}
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigateToProject(project.id);
+                      }
+                    }}
+                  >
                     <div class="flex items-center justify-between mb-2">
                       <h4 class="text-sm font-medium text-gray-900 dark:text-white truncate">{project.title}</h4>
                       <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {project.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">

@@ -5,9 +5,7 @@ import { form, query, command } from '$app/server';
 import { getRequestEvent } from '$app/server';
 import {
 	API_BASE_URL,
-	API_ENDPOINTS,
-	getAuthHeaders,
-	handleApiResponse
+	getAuthHeaders
 } from '../client';
 
 // Helper function to get access token

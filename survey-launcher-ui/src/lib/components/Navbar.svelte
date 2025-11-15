@@ -43,7 +43,7 @@
           const userData = await response.json();
           roleStore.setUser(userData.user);
           roleStore.setSession(userData.session);
-          navigationItems = getNavigationForRole(userData.user.role);
+          navigationItems = [...getNavigationForRole(userData.user.role)];
           roleDisplayName = getRoleDisplayName(userData.user.role);
         }
       }

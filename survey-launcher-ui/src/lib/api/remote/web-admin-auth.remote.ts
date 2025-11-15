@@ -2,7 +2,6 @@
 // Web Admin authentication endpoints for the SurveyLauncher Admin interface
 
 import { form, query } from '$app/server';
-import { getRequestEvent } from '$app/server';
 import { API_BASE_URL } from '../client';
 
 // Types for Web Admin authentication

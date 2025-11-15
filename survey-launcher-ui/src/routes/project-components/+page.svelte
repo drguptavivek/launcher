@@ -141,7 +141,7 @@
 		</div>
 	{:else}
 		<div class="mb-8">
-			<Button on:click={handleCreateProject}>Create New Project</Button>
+			<Button onclick={handleCreateProject}>Create New Project</Button>
 		</div>
 	{/if}
 
@@ -193,8 +193,8 @@
 			<UserAssignmentComponent
 				assignments={mockUserAssignments}
 				projectId={selectedProject.id}
-				on:addUser={handleAddUser}
-				on:removeUser={handleRemoveUser}
+				onaddUser={handleAddUser}
+				onremoveUser={handleRemoveUser}
 			/>
 		</div>
 	{/if}

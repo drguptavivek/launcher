@@ -47,7 +47,7 @@ export class RoleFormFactory {
   /**
    * Get the appropriate schema based on form type, user role, and mode
    */
-  static getSchemaForRole(formType: string, userRole: UserRole, mode: string): v.GenericSchema {
+  static getSchemaForRole(formType: string, userRole: UserRole, _mode: string): v.GenericSchema {
     switch (formType) {
       case 'project':
         return roleBasedSchemas.project.create(userRole);
@@ -117,7 +117,7 @@ export class RoleFormFactory {
       }
     };
 
-    const allowedRoles = permissions[formType]?.[mode] || [];
+    const allowedRoles = (permissions as any)[formType]?.[mode] || [];
     if (!allowedRoles.includes(userRole)) {
       throw new Error(`Role ${userRole} does not have ${mode} permission for ${formType}`);
     }
@@ -254,7 +254,7 @@ export class RoleFormFactory {
       'support': ['create', 'edit', 'view', 'assign', 'resolve']
     };
 
-    const formActions = formSpecificActions[formType] || [];
+    const formActions = (formSpecificActions as any)[formType] || [];
 
     // Return intersection of role actions and form-specific actions
     return roleActions.filter(action => formActions.includes(action));
@@ -274,16 +274,16 @@ export class RoleFormFactory {
  */
 export function createRoleForm(formType: string, userRole: UserRole, mode: string = 'create') {
   return RoleFormFactory.createForm({
-    formType,
+    formType: formType as any,
     userRole,
-    mode,
+    mode: mode as any,
     options: {
       // Default options for all role-based forms
       resetForm: false,
-      onError: ({ result }) => {
+      onError: ({ result }: { result: any }) => {
         console.error('Form error:', result);
       },
-      onResult: ({ result }) => {
+      onResult: ({ result }: { result: any }) => {
         if (result.type === 'success') {
           console.log('Form submitted successfully:', result.data);
         }

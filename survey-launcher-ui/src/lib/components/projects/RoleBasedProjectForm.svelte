@@ -1,6 +1,5 @@
 <script lang="ts">
   import { superForm } from 'sveltekit-superforms';
-  import { valibotAdapter } from 'sveltekit-superforms/adapters';
   import { RoleFormFactory } from '$lib/forms/factory/role-form-factory';
   import { createRoleStore } from '$lib/stores/role.svelte.js';
   import type { UserRole } from '$lib/types/role.types';
@@ -26,7 +25,7 @@
     mode: project ? 'edit' : 'create',
     initialData,
     options: {
-      onResult: ({ result }) => {
+      onResult: ({ result }: { result: any }) => {
         if (result.type === 'success') {
           onSuccess(result.data);
         } else {
@@ -78,7 +77,7 @@
 
   // Helper for field errors
   function getFieldError(fieldName: string): string | null {
-    return errors[fieldName]?.[0] || null;
+    return (errors as any)[fieldName]?.[0] || null;
   }
 </script>
 
@@ -198,11 +197,12 @@
 
     {#if showTeamFields && isFieldVisibleForRole('teamIds')}
       <div class="space-y-2">
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Assign Teams *
-        </label>
-        <!-- Simple multi-select for demo (would use proper multi-select component in production) -->
-        <div class="space-y-2">
+        <fieldset class="space-y-2">
+          <legend class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Assign Teams *
+          </legend>
+          <!-- Simple multi-select for demo (would use proper multi-select component in production) -->
+          <div class="space-y-2">
           {#each teamOptions as team}
             <label class="flex items-center space-x-2">
               <input
@@ -218,15 +218,17 @@
         {#if getFieldError('teamIds')}
           <p class="text-sm text-red-600 dark:text-red-400">{getFieldError('teamIds')}</p>
         {/if}
+        </fieldset>
       </div>
     {/if}
 
     {#if showUserAssignment && isFieldVisibleForRole('assignedUsers')}
       <div class="space-y-2">
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Assign Users
-        </label>
-        <div class="space-y-2">
+        <fieldset class="space-y-2">
+          <legend class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Assign Users
+          </legend>
+          <div class="space-y-2">
           {#each userOptions as user}
             <label class="flex items-center space-x-2">
               <input
@@ -242,6 +244,7 @@
         {#if getFieldError('assignedUsers')}
           <p class="text-sm text-red-600 dark:text-red-400">{getFieldError('assignedUsers')}</p>
         {/if}
+        </fieldset>
       </div>
     {/if}
 

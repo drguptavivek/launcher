@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, beforeEach, afterEach, vi } from 'vitest';
 // TODO: Fix tests after implementing remote function testing strategy
 // Remote functions created with form() are not directly callable in tests
 // Need to implement proper testing approach for SvelteKit remote functions
@@ -15,7 +15,7 @@ describe.skip('Web Admin Auth Remote Functions', () => {
   // Remote functions created with form() are not directly callable in tests
   // Need to implement proper testing approach for SvelteKit remote functions
 
-  const mockApiBase = 'https://api.example.com';
+  const _mockApiBase = 'https://api.example.com';
 
   beforeEach(() => {
     mockFetch.mockClear();

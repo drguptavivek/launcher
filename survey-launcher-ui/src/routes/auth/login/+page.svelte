@@ -21,7 +21,16 @@ import { API_BASE_URL } from '$lib/api/client';
     isLoading = true;
 
     try {
-      const result = await webAdminLogin(formData);
+      const response = await fetch(`${API_BASE_URL}/api/web-admin/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData),
+        credentials: 'include'
+      });
+
+      const result = await response.json();
 
       if (result.ok) {
         success = '✅ Login successful! Redirecting...';

@@ -2,7 +2,7 @@
 // Type-safe remote functions for supervisor override functionality
 
 import { form } from '$app/server';
-import { API_BASE_URL, API_ENDPOINTS, getAuthHeaders, handleApiResponse } from '../client';
+import { API_BASE_URL, API_ENDPOINTS, handleApiResponse } from '../client';
 import * as v from 'valibot';
 import type {
 	SupervisorOverrideRequest,

@@ -1,5 +1,5 @@
 import type { UserRole } from '$lib/types/role.types';
-import { ROLE_PERMISSIONS, ROLE_NAVIGATION, ROLE_HIERARCHY, FORM_PERMISSIONS } from '$lib/types/role.types';
+import { ROLE_PERMISSIONS, ROLE_NAVIGATION, ROLE_HIERARCHY } from '$lib/types/role.types';
 
 /**
  * Role utility functions for SurveyLauncher 9-role RBAC system
@@ -10,7 +10,7 @@ import { ROLE_PERMISSIONS, ROLE_NAVIGATION, ROLE_HIERARCHY, FORM_PERMISSIONS } f
  */
 export function canPerformAction(userRole: UserRole, permission: string): boolean {
   if (!userRole) return false;
-  const userPermissions = ROLE_PERMISSIONS[userRole] || [];
+  const userPermissions = [...(ROLE_PERMISSIONS[userRole] as readonly string[])];
   return userPermissions.includes('*') || userPermissions.includes(permission);
 }
 
@@ -19,7 +19,7 @@ export function canPerformAction(userRole: UserRole, permission: string): boolea
  */
 export function canPerformAnyAction(userRole: UserRole, permissions: string[]): boolean {
   if (!userRole || !permissions.length) return false;
-  const userPermissions = ROLE_PERMISSIONS[userRole] || [];
+  const userPermissions = [...(ROLE_PERMISSIONS[userRole] as readonly string[])];
 
   // Wildcard access
   if (userPermissions.includes('*')) return true;
@@ -101,7 +101,7 @@ export function canAccessRoute(userRole: UserRole, route: string): boolean {
   if (!userRole) return false;
 
   // Define role-based route access
-  const routePermissions = {
+  const routePermissions: Record<string, string[]> = {
     '/dashboard': ['*'], // All roles can access dashboard
     '/users': ['SYSTEM_ADMIN', 'REGIONAL_MANAGER', 'FIELD_SUPERVISOR'],
     '/projects': ['SYSTEM_ADMIN', 'REGIONAL_MANAGER', 'FIELD_SUPERVISOR', 'TEAM_MEMBER', 'AUDITOR'],
@@ -195,7 +195,7 @@ export function isWebOnlyRole(userRole: UserRole): boolean {
  * Get available actions for a user role and form type
  */
 export function getAvailableActions(formType: string, userRole: UserRole): string[] {
-  const actionMap = {
+  const actionMap: Record<string, string[]> = {
     'SYSTEM_ADMIN': ['create', 'edit', 'delete', 'assign', 'approve'],
     'REGIONAL_MANAGER': ['create', 'edit', 'assign', 'view'],
     'FIELD_SUPERVISOR': ['view', 'edit_limited', 'assign_team'],
@@ -210,7 +210,7 @@ export function getAvailableActions(formType: string, userRole: UserRole): strin
   const roleActions = actionMap[userRole] || [];
 
   // Filter actions based on form type
-  const formSpecificActions = {
+  const formSpecificActions: Record<string, string[]> = {
     'project': ['create', 'edit', 'view', 'delete'],
     'user': ['create', 'edit', 'view', 'delete', 'assign'],
     'device': ['create', 'edit', 'view', 'configure', 'assign'],
@@ -230,7 +230,7 @@ export function getAvailableActions(formType: string, userRole: UserRole): strin
  * Validate role-based field visibility
  */
 export function getVisibleFields(userRole: UserRole, formType: string): string[] {
-  const fieldConfig = {
+  const fieldConfig: Record<string, Record<string, string[]>> = {
     'project': {
       'SYSTEM_ADMIN': ['title', 'description', 'status', 'geographicScope', 'teamIds', 'budget', 'priority'],
       'REGIONAL_MANAGER': ['title', 'description', 'status', 'geographicScope', 'teamIds'],

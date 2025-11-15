@@ -198,7 +198,7 @@ import { type User, type UsersFilterOptions } from '$lib/api/remote/users.utils'
 							</TableCell>
 							<TableCell>
 								<div class="text-sm">
-									{formatDate(user.lastLogin)}
+									{user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
 								</div>
 							</TableCell>
 							<TableCell>
@@ -224,7 +224,7 @@ import { type User, type UsersFilterOptions } from '$lib/api/remote/users.utils'
 						</TableRow>
 					{:else}
 						<TableRow>
-							<TableCell colSpan={7} class="text-center py-12">
+							<TableCell colspan={7} class="text-center py-12">
 								<div class="text-muted-foreground">
 									{searchQuery || roleFilter !== 'all' || statusFilter !== 'all'
 										? 'No users found matching your filters.'

@@ -1,7 +1,7 @@
 // Simple project remote functions for SvelteKit
 // Using proper SvelteKit remote function patterns
 
-import { form, query, command } from '$app/server';
+import { form, query } from '$app/server';
 import { getRequestEvent } from '$app/server';
 import * as v from 'valibot';
 import {
