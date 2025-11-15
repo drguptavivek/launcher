@@ -190,8 +190,8 @@ async function generateUsers(teams: any[], usersPerTeam: number) {
       const isActive = Math.random() < 0.85; // 85% active
       const roleWeights = [
         { role: 'TEAM_MEMBER', weight: 0.7 },
-        { role: 'SUPERVISOR', weight: 0.25 },
-        { role: 'ADMIN', weight: 0.05 }
+        { role: 'FIELD_SUPERVISOR', weight: 0.25 },
+        { role: 'SYSTEM_ADMIN', weight: 0.05 }
       ];
       const role = faker.helpers.weightedArrayElement(roleWeights.map(r => ({ array: [r.role], weight: r.weight })));
 
