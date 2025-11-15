@@ -2,12 +2,17 @@
 
 ## Overview
 
-The SurveyLauncher backend provides a comprehensive REST API for authentication, team management, user management, device management, supervisor PIN management, policy management, and telemetry. The API follows a consistent JSON format with proper error handling and response structures.
+The SurveyLauncher backend provides a comprehensive REST API with two distinct interfaces:
+1. **Mobile App API** (`/api/v1/*`) - For Android device authentication and field operations
+2. **Web Admin API** (`/api/web-admin/*`) - For administrative and management functions
 
-## Base URL
+The API follows a consistent JSON format with proper error handling and response structures, implementing enterprise-grade role-based access control (RBAC) with nine specialized roles.
+
+## Base URLs
 
 ```
-http://localhost:3000/api/v1
+Mobile App API: http://localhost:3000/api/v1
+Web Admin API:  http://localhost:3000/api/web-admin
 ```
 
 ## Development
@@ -29,22 +34,42 @@ Authorization: Bearer <access_token>
 
 ## Role-Based Access Control
 
-The API implements enterprise-grade role-based access control (RBAC) with nine specialized roles organized into three categories:
+The API implements enterprise-grade role-based access control (RBAC) with nine specialized roles organized into two access categories:
 
-### Field Operations Roles
-- **TEAM_MEMBER**: Frontline survey operators with access to own team resources
-- **FIELD_SUPERVISOR**: On-site supervisors managing field operations and team devices
-- **REGIONAL_MANAGER**: Multi-team regional oversight with cross-team access within region
+### 🟢 App + Web Roles (Hybrid Access)
+Users with these roles can access **both** the Android app and Web Admin interface.
 
-### Technical Operations Roles
-- **SYSTEM_ADMIN**: Full system configuration and administrative access
-- **SUPPORT_AGENT**: User support and troubleshooting capabilities
-- **AUDITOR**: Read-only audit access and compliance monitoring
+| Role | Description | Primary Use Cases |
+|------|-------------|-------------------|
+| `TEAM_MEMBER` | Field users | Daily Android app usage, basic web reporting |
+| `FIELD_SUPERVISOR` | Frontline supervisors | Android app management, web dashboard oversight |
+| `REGIONAL_MANAGER` | Regional leadership | Multi-location oversight via web, app usage for field visits |
 
-### Specialized Roles
-- **DEVICE_MANAGER**: Android device lifecycle management
-- **POLICY_ADMIN**: Policy creation and management
-- **NATIONAL_SUPPORT_ADMIN**: Cross-team operational access (no system settings)
+### 🔵 Web Admin Only Roles (Web-Only Access)
+Users with these roles can **only** access the Web Admin interface, never the Android app.
+
+| Role | Description | Primary Use Cases |
+|------|-------------|-------------------|
+| `SYSTEM_ADMIN` | Full system administrator | Complete system configuration, user management |
+| `SUPPORT_AGENT` | Customer support | Help desk, user assistance, troubleshooting |
+| `AUDITOR` | Compliance auditor | Audit logs, compliance reporting, monitoring |
+| `DEVICE_MANAGER` | Device management | Device inventory, remote configuration, kiosk management |
+| `POLICY_ADMIN` | Policy administrator | Policy creation, distribution, compliance management |
+| `NATIONAL_SUPPORT_ADMIN` | National-level support | Cross-regional oversight, national reporting |
+
+### Role-Based Access Enforcement
+
+#### Android App Authentication
+- **Authentication Method**: Device ID + User Code + PIN
+- **Allowed Roles**: `TEAM_MEMBER`, `FIELD_SUPERVISOR`, `REGIONAL_MANAGER` only
+- **Token Type**: Device-scoped JWT with app permissions
+- **Access Scope**: Mobile app features only
+
+#### Web Admin Authentication
+- **Authentication Method**: Email + Password
+- **Allowed Roles**: All roles except `TEAM_MEMBER` (field workers use app)
+- **Token Type**: Web-scoped JWT with admin permissions
+- **Access Scope**: Web admin dashboard and management features
 
 ### Role Management Endpoints
 
@@ -73,7 +98,9 @@ Get a user's effective permissions including inherited permissions. Requires aut
 
 ## Response Format
 
-### Success Response
+### Mobile App API Response Format
+
+**Success Response:**
 ```json
 {
   "success": true,
@@ -81,7 +108,7 @@ Get a user's effective permissions including inherited permissions. Requires aut
 }
 ```
 
-### Error Response
+**Error Response:**
 ```json
 {
   "success": false,
@@ -92,6 +119,36 @@ Get a user's effective permissions including inherited permissions. Requires aut
   }
 }
 ```
+
+### Web Admin API Response Format
+
+**Success Response:**
+```json
+{
+  "ok": true,
+  // ... response data
+}
+```
+
+**Error Response:**
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error description"
+  }
+}
+```
+
+### Cookie Support (Web Admin API)
+
+Web Admin API uses HTTP-only cookies for token management:
+- `access_token` - JWT access token (20 minutes expiry)
+- `refresh_token` - JWT refresh token (12 hours expiry)
+- `auth_type` - Authentication type identifier
+
+Tokens can also be provided via Authorization header as fallback.
 
 ## Endpoints
 
@@ -212,6 +269,161 @@ Force end the current session.
   "message": "Session ended successfully"
 }
 ```
+
+## Web Admin Authentication Endpoints
+
+Web Admin API uses email/password authentication instead of device-based authentication.
+
+#### POST /api/web-admin/auth/login
+
+Authenticate a web admin user with email and password.
+
+**Request Body:**
+```json
+{
+  "email": "string",
+  "password": "string"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "SYSTEM_ADMIN|SUPPORT_AGENT|AUDITOR|DEVICE_MANAGER|POLICY_ADMIN|NATIONAL_SUPPORT_ADMIN|FIELD_SUPERVISOR|REGIONAL_MANAGER",
+    "fullName": "string"
+  },
+  "message": "Login successful"
+}
+```
+
+**Error Responses:**
+- `400 BAD_REQUEST` - Missing email or password
+- `401 UNAUTHORIZED` - Invalid credentials, account locked, or account inactive
+- `423 LOCKED` - Account temporarily locked due to failed attempts
+
+**Role Validation:**
+- `TEAM_MEMBER` role is rejected with `WEB_ACCESS_DENIED` error
+- Only 8 valid web admin roles are allowed
+
+#### GET /api/web-admin/auth/whoami
+
+Get current web admin user information.
+
+**Authentication:** Required (Bearer token or cookie)
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "SYSTEM_ADMIN",
+    "fullName": "string",
+    "lastLoginAt": "2025-01-01T00:00:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- `401 UNAUTHORIZED` - Invalid or missing token
+- `403 FORBIDDEN` - User inactive or TEAM_MEMBER role
+
+#### POST /api/web-admin/auth/logout
+
+End web admin session and clear cookies.
+
+**Authentication:** Required (Bearer token or cookie)
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "message": "Logout successful"
+}
+```
+
+**Security Features:**
+- Clears HTTP-only access_token cookie
+- Clears HTTP-only refresh_token cookie
+- Clears auth_type cookie
+- Supports token revocation
+
+#### POST /api/web-admin/auth/refresh
+
+Refresh web admin access token using refresh token.
+
+**Authentication:** Required (Bearer token or cookie)
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "accessToken": "string",
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "SYSTEM_ADMIN",
+    "fullName": "string"
+  }
+}
+```
+
+**Error Responses:**
+- `401 UNAUTHORIZED` - Invalid or expired refresh token
+- `403 FORBIDDEN` - User not found or inactive
+
+#### POST /api/web-admin/auth/create-admin
+
+Create a new web admin user (for initial setup).
+
+**Authentication:** Required (System Admin role recommended)
+
+**Request Body:**
+```json
+{
+  "email": "string",
+  "password": "string",
+  "firstName": "string",
+  "lastName": "string",
+  "role": "SYSTEM_ADMIN"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "ok": true,
+  "user": {
+    "id": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "role": "SYSTEM_ADMIN",
+    "isActive": true,
+    "createdAt": "2025-01-01T00:00:00Z"
+  },
+  "message": "Admin user created successfully"
+}
+```
+
+**Error Responses:**
+- `400 BAD_REQUEST` - Missing required fields, weak password, or invalid role
+- `409 CONFLICT` - Email already exists
+
+**Role Validation:**
+- Only accepts 8 valid web admin roles (excludes TEAM_MEMBER)
+- Password must be at least 8 characters long
 
 ### Team Management Endpoints
 
@@ -1133,7 +1345,7 @@ Check authentication system.
 
 ## Error Codes
 
-### Authentication Errors
+### Mobile App Authentication Errors
 - `UNAUTHORIZED` - Invalid or missing authentication
 - `LOGIN_FAILED` - Invalid credentials
 - `REFRESH_FAILED` - Refresh token invalid/expired
@@ -1142,6 +1354,19 @@ Check authentication system.
 - `INSUFFICIENT_PERMISSIONS` - User lacks required role or permissions
 - `TEAM_ACCESS_DENIED` - User cannot access resources from this team
 - `OWNER_ACCESS_REQUIRED` - User can only access their own resources
+
+### Web Admin Authentication Errors
+- `WEB_ACCESS_DENIED` - TEAM_MEMBER role cannot access web admin interface
+- `ACCOUNT_LOCKED` - Account temporarily locked due to failed login attempts
+- `ACCOUNT_INACTIVE` - Account is deactivated
+- `INVALID_TOKEN_TYPE` - Token type mismatch for intended operation
+- `NO_TOKEN` - Missing authentication token
+- `NO_REFRESH_TOKEN` - Missing refresh token
+- `INVALID_REFRESH_TOKEN` - Invalid or expired refresh token
+
+### Role Validation Errors (Both APIs)
+- `INVALID_ROLE` - Invalid role specified for operation
+- `VALIDATION_ERROR` - General validation error for input data
 
 ### Validation Errors
 - `MISSING_FIELDS` - Required request fields missing
@@ -1197,14 +1422,28 @@ Check authentication system.
 - `createdAt` (TIMESTAMP) - Creation timestamp
 - `updatedAt` (TIMESTAMP) - Last update timestamp
 
-#### Users
+#### Users (Mobile App Users)
 - `id` (UUID, Primary Key)
 - `code` (VARCHAR(32)) - User login code
 - `teamId` (UUID, Foreign Key to teams.id)
 - `displayName` (VARCHAR(255)) - Display name
 - `email` (VARCHAR(255)) - Optional email
-- `role` (ENUM: TEAM_MEMBER, SUPERVISOR, ADMIN) - User role
+- `role` (ENUM: TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER, SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN) - User role
 - `isActive` (BOOLEAN) - User active status
+- `createdAt` (TIMESTAMP) - Creation timestamp
+- `updatedAt` (TIMESTAMP) - Last update timestamp
+
+#### Web Admin Users (Web Interface Users)
+- `id` (UUID, Primary Key)
+- `email` (VARCHAR(255)) - Email (required for login)
+- `password` (VARCHAR(255)) - Hashed password (Argon2id with salt)
+- `firstName` (VARCHAR(255)) - First name
+- `lastName` (VARCHAR(255)) - Last name
+- `role` (ENUM: SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN, FIELD_SUPERVISOR, REGIONAL_MANAGER) - Web admin role (excludes TEAM_MEMBER)
+- `isActive` (BOOLEAN) - Account active status
+- `loginAttempts` (INTEGER) - Failed login attempts counter
+- `lockedAt` (TIMESTAMP) - Account lockout timestamp
+- `lastLoginAt` (TIMESTAMP) - Last successful login
 - `createdAt` (TIMESTAMP) - Creation timestamp
 - `updatedAt` (TIMESTAMP) - Last update timestamp
 
@@ -1360,11 +1599,18 @@ npm run dev
 
 ### 2. Test the API
 
-**Test Login:**
+**Test Mobile App Login:**
 ```bash
 curl -X POST http://localhost:3000/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"deviceId":"test-device-001","userCode":"test001","pin":"123456"}'
+```
+
+**Test Web Admin Login:**
+```bash
+curl -X POST http://localhost:3000/api/web-admin/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"adminpassword123"}'
 ```
 
 **Test Teams:**
@@ -1420,7 +1666,7 @@ curl -X POST http://localhost:3000/api/v1/supervisor/pins \
 }
 ```
 
-**Whoami Response:**
+**Mobile App Whoami Response:**
 ```json
 {
   "success": true,
@@ -1442,18 +1688,39 @@ curl -X POST http://localhost:3000/api/v1/supervisor/pins \
 }
 ```
 
+**Web Admin Login Response:**
+```json
+{
+  "ok": true,
+  "user": {
+    "id": "admin-uuid",
+    "email": "admin@example.com",
+    "firstName": "John",
+    "lastName": "Admin",
+    "role": "SYSTEM_ADMIN",
+    "fullName": "John Admin"
+  },
+  "message": "Login successful"
+}
+```
+
 ### Additional Features
 
 The API supports:
-- **Comprehensive Role-Based Access Control** - Fine-grained permissions
+- **Dual Interface Architecture** - Separate Mobile App API and Web Admin API
+- **Comprehensive Role-Based Access Control** - 9 specialized roles with clear access boundaries
+- **Role Differentiation Enforcement** - TEAM_MEMBER blocked from web admin interface
 - **PostgreSQL with Connection Pooling** - Production-ready database
 - **Full CRUD Operations** - Complete user/device/team management
 - **Supervisor PIN Rotation** - Secure PIN management
+- **Web Admin Account Security** - Account lockout, login attempt tracking, password hashing
+- **Cookie-based Authentication** - HTTP-only cookies for web admin sessions
 - **Telemetry Batching** - Efficient data collection
 - **Rate Limiting** - Protection against abuse
-- **Comprehensive Error Handling** - Consistent error responses
+- **Comprehensive Error Handling** - Consistent error responses across both APIs
 - **Request Tracking** - Request IDs for debugging
 - **Health Checks** - System status monitoring
+- **Hybrid Role Support** - Field supervisors and regional managers can access both interfaces
 
 ## Production Considerations
 

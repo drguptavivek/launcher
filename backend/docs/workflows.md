@@ -7,7 +7,9 @@ This document describes all the core workflows and processes implemented in the 
 ## Table of Contents
 
 1. [Authentication Workflows](#authentication-workflows)
-   - [User Login](#user-login)
+   - [Mobile App User Login](#mobile-app-user-login)
+   - [Web Admin Authentication](#web-admin-authentication)
+   - [Role-Based Access Control](#role-based-access-control)
    - [Token Refresh](#token-refresh)
    - [User Logout](#user-logout)
    - [JWT Token Verification](#jwt-token-verification)
@@ -50,9 +52,9 @@ This document describes all the core workflows and processes implemented in the 
 
 ## Authentication Workflows
 
-### User Login
+### Mobile App User Login
 
-**Purpose**: Authenticate users with device credentials and establish active sessions.
+**Purpose**: Authenticate mobile app users with device credentials and establish active sessions.
 
 **Process Steps**:
 1. **Input Validation**: Validate required fields (deviceId, userCode, pin)
@@ -76,6 +78,80 @@ This document describes all the core workflows and processes implemented in the 
 - Rate limiting per device/IP
 - Token-based authentication
 - Comprehensive audit logging
+
+### Web Admin Authentication
+
+**Purpose**: Authenticate web admin users using email/password with role-based access control.
+
+**Process Steps**:
+1. **Input Validation**: Validate required fields (email, password)
+2. **User Lookup**: Find web admin user by email in web_admin_users table
+3. **Account Status Check**: Verify account is active and not locked
+4. **Password Verification**: Verify password using Argon2id hash comparison
+5. **Role Validation**: Ensure user role is not TEAM_MEMBER (blocked from web access)
+6. **Failed Attempt Tracking**: Increment login attempts and handle lockout after 5 failures
+7. **Session Creation**: Create web admin session with appropriate tokens
+8. **Cookie Management**: Set HTTP-only cookies for access_token, refresh_token, auth_type
+9. **Audit Logging**: Record successful/failed web admin login attempts
+10. **Response**: Return user information and authentication success
+
+**Key Components**:
+- `WebAdminAuthService.login()`
+- `webAdminUsers` database table
+- Cookie-based authentication
+- Account lockout mechanisms
+- Role validation logic
+
+**Security Features**:
+- Argon2id password hashing with per-user salts
+- Account lockout after 5 failed attempts
+- HTTP-only secure cookies
+- Role-based access enforcement (TEAM_MEMBER blocked)
+- Login attempt tracking and cooldown periods
+
+**Valid Web Admin Roles**:
+- SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN, FIELD_SUPERVISOR, REGIONAL_MANAGER
+
+### Role-Based Access Control
+
+**Purpose**: Enforce role-based access control across both mobile app and web admin interfaces.
+
+**Access Categories**:
+
+#### 🟢 Hybrid Access Roles (App + Web)
+- **TEAM_MEMBER**: Android app only access for field operations
+- **FIELD_SUPERVISOR**: Both interfaces for field management and oversight
+- **REGIONAL_MANAGER**: Both interfaces for regional management and field visits
+
+#### 🔵 Web-Only Access Roles
+- **SYSTEM_ADMIN**: Full web admin system configuration and management
+- **SUPPORT_AGENT**: Web admin help desk and user support functions
+- **AUDITOR**: Web admin compliance and audit access (read-only)
+- **DEVICE_MANAGER**: Web admin device inventory and configuration
+- **POLICY_ADMIN**: Web admin policy creation and distribution management
+- **NATIONAL_SUPPORT_ADMIN**: Web admin cross-regional oversight and reporting
+
+**Process Steps**:
+1. **Authentication Type Detection**: Identify mobile app vs web admin authentication
+2. **Role Extraction**: Extract user role from authentication token
+3. **Access Validation**: Validate role against interface access rules
+4. **Permission Evaluation**: Check resource-specific permissions for role
+5. **Boundary Enforcement**: Apply geographic and team-based boundaries
+6. **Access Decision**: Grant or deny access with detailed logging
+7. **Audit Trail**: Record all access control decisions
+
+**Key Components**:
+- `WebAdminAuthService` role validation
+- VALID_WEB_ADMIN_ROLES constant
+- Interface-specific access rules
+- Permission matrix enforcement
+- Comprehensive audit logging
+
+**Security Features**:
+- **TEAM_MEMBER Role Blocking**: Automatic rejection from web admin interface
+- **Least Privilege Principle**: Users get minimum required access
+- **Multi-Layer Validation**: Role + permission + boundary checking
+- **Real-time Enforcement**: Immediate access control updates
 
 ### Token Refresh
 
@@ -600,13 +676,19 @@ This document describes all the core workflows and processes implemented in the 
 **Key Relationships**:
 
 ### Core System Relationships
-- `teams` → `users` (one-to-many)
+- `teams` → `users` (one-to-many) - Mobile app users
 - `teams` → `devices` (one-to-many)
 - `users` → `sessions` (one-to-many)
 - `devices` → `sessions` (one-to-many)
 - `users` → `user_pins` (one-to-one)
 - `devices` → `telemetry_events` (one-to-many)
 - `devices` → `policy_issues` (one-to-many)
+
+### Web Admin System Relationships
+- `web_admin_users` → Sessions (via JWT tokens) - Web admin authentication
+- `web_admin_users` roles → VALID_WEB_ADMIN_ROLES - Role validation
+- `web_admin_users` loginAttempts → Account lockout - Security enforcement
+- `web_admin_users` lastLoginAt → Audit trail - Activity tracking
 
 ### Project Management Relationships
 - `projects` → `project_assignments` (one-to-many) - Direct user assignments
@@ -694,11 +776,18 @@ This document describes all the core workflows and processes implemented in the 
 
 ## API Endpoints Summary
 
-### Authentication Endpoints
-- `POST /api/v1/auth/login` - User authentication
+### Mobile App Authentication Endpoints
+- `POST /api/v1/auth/login` - Mobile app user authentication
 - `POST /api/v1/auth/refresh` - Token refresh
 - `POST /api/v1/auth/logout` - User logout
 - `GET /api/v1/auth/whoami` - Current user information
+
+### Web Admin Authentication Endpoints
+- `POST /api/web-admin/auth/login` - Web admin authentication with email/password
+- `GET /api/web-admin/auth/whoami` - Current web admin user information
+- `POST /api/web-admin/auth/logout` - Web admin logout with cookie clearing
+- `POST /api/web-admin/auth/refresh` - Web admin token refresh
+- `POST /api/web-admin/auth/create-admin` - Create new web admin user with role validation
 
 ### Project Management Endpoints
 - `POST /api/v1/projects` - Create new project with geographic scope
