@@ -459,6 +459,48 @@ export class AuthorizationService {
         };
       }
 
+      // Special handling for SYSTEM_ADMIN
+      const systemAdminRoles = userRoles.filter(assignment => {
+        const role = assignment.role as Role;
+        return role.name === 'SYSTEM_ADMIN';
+      });
+
+      if (systemAdminRoles.length > 0) {
+        // SYSTEM_ADMIN can access all resources across teams and organizations
+        // including system settings
+        return {
+          allowed: true,
+          reason: 'SYSTEM_ADMIN_CROSS_TEAM_ACCESS'
+        };
+      }
+
+      // Check for permission-based cross-team access
+      const userRoleIds = userRoles.map(assignment => assignment.roleId).filter(Boolean);
+      const crossTeamPermissions = await db
+        .select({
+          permission: permissions
+        })
+        .from(rolePermissions)
+        .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .where(and(
+          inArray(rolePermissions.roleId, userRoleIds),
+          eq(rolePermissions.isActive, true),
+          eq(permissions.isActive, true),
+          eq(permissions.resource, targetResource.type),
+          eq(permissions.action, action),
+          or(
+            eq(permissions.scope, 'ORGANIZATION'),
+            eq(permissions.scope, 'ALL')
+          )
+        ));
+
+      if (crossTeamPermissions.length > 0) {
+        return {
+          allowed: true,
+          reason: 'PERMISSION_GRANTED'
+        };
+      }
+
       // For non-cross-team roles, enforce boundaries
       if (!hasCrossTeamAccess) {
         // Check team boundary

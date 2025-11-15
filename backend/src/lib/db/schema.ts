@@ -84,11 +84,13 @@ export const teams = pgTable('teams', {
   name: varchar('name', { length: 255 }).notNull(),
   timezone: varchar('timezone', { length: 50 }).notNull().default('UTC'),
   stateId: varchar('state_id', { length: 16 }).notNull(),
+  organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   nameIdx: table.name,
+  organizationIdIdx: table.organizationId,
 }));
 
 // Devices table

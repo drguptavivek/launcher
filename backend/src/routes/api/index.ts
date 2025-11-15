@@ -21,8 +21,10 @@ router.use('/devices', deviceRoutes);
 router.use('/policy', policyRoutes);
 router.use('/telemetry', telemetryRoutes);
 router.use('/supervisor', supervisorRoutes);
+
 router.use('/projects', projectRoutes);
 router.use('/organizations', organizationRoutes);
+
 router.use('/web-admin/auth', webAdminAuthRoutes);
 
 // Log API route requests
