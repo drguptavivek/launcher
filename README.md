@@ -195,53 +195,53 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph "Mobile App Authentication" [Mobile App Interface - Field Operations]
-        MobileLogin[Android LoginDevice ID + User Code + PIN]
-        MobileAuth[Mobile App Auth Service/api/v1/auth/login]
-        MobileRoles[Allowed Roles:<br/>• TEAM_MEMBER<br/>• FIELD_SUPERVISOR<br/>• REGIONAL_MANAGER]
-        MobileSession[Mobile SessionJWT Tokens + Device Binding]
+    subgraph "Mobile App Authentication" ["Mobile App Interface - Field Operations"]
+        MobileLogin["Android Login<br/>Device ID + User Code + PIN"]
+        MobileAuth["Mobile App Auth Service<br/>/api/v1/auth/login"]
+        MobileRoles["Allowed Roles:<br/>• TEAM_MEMBER<br/>• FIELD_SUPERVISOR<br/>• REGIONAL_MANAGER"]
+        MobileSession["Mobile Session<br/>JWT Tokens + Device Binding"]
     end
 
-    subgraph "Web Admin Authentication" [Web Admin Interface - Management Operations]
-        WebLogin[Web LoginEmail + Password]
-        WebAuth[Web Admin Auth Service/api/web-admin/auth/login]
-        WebRoles[Valid Roles:<br/>• FIELD_SUPERVISOR<br/>• REGIONAL_MANAGER<br/>• SYSTEM_ADMIN<br/>• SUPPORT_AGENT<br/>• AUDITOR<br/>• DEVICE_MANAGER<br/>• POLICY_ADMIN<br/>• NATIONAL_SUPPORT_ADMIN]
-        WebSession[Web SessionHTTP-Only Cookies + Role Validation]
+    subgraph "Web Admin Authentication" ["Web Admin Interface - Management Operations"]
+        WebLogin["Web Login<br/>Email + Password"]
+        WebAuth["Web Admin Auth Service<br/>/api/web-admin/auth/login"]
+        WebRoles["Valid Roles:<br/>• FIELD_SUPERVISOR<br/>• REGIONAL_MANAGER<br/>• SYSTEM_ADMIN<br/>• SUPPORT_AGENT<br/>• AUDITOR<br/>• DEVICE_MANAGER<br/>• POLICY_ADMIN<br/>• NATIONAL_SUPPORT_ADMIN"]
+        WebSession["Web Session<br/>HTTP-Only Cookies + Role Validation"]
     end
 
-    subgraph "Backend Security Layer" [Authentication & Authorization]
-        RoleValidation[Role-Based Access Control<br/>9-Role System Validation]
-        InterfaceSeparation[Interface Access Enforcement<br/>Mobile vs Web Admin Routes]
-        HybridSupport[Hybrid Role Support<br/>FIELD_SUPERVISOR + REGIONAL_MANAGER]
-        TeamBlocking[TEAM_MEMBER Blocking<br/>Web Access Denied]
+    subgraph "Backend Security Layer" ["Authentication & Authorization"]
+        RoleValidation["Role-Based Access Control<br/>9-Role System Validation"]
+        InterfaceSeparation["Interface Access Enforcement<br/>Mobile vs Web Admin Routes"]
+        HybridSupport["Hybrid Role Support<br/>FIELD_SUPERVISOR + REGIONAL_MANAGER"]
+        TeamBlocking["TEAM_MEMBER Blocking<br/>Web Access Denied"]
     end
 
-    subgraph "Database Layer" [Session & User Management]
-        UsersTable[users TableMobile App Users<br/>• 9 Roles<br/>• Team Assignments<br/>• Device Binding]
-        WebUsersTable[web_admin_users TableWeb Interface Users<br/>• 8 Roles (excl. TEAM_MEMBER)<br/>• Email Authentication<br/>• Account Lockout]
-        SessionTable[sessions TableUnified Session Tracking<br/>• Interface Type<br/>• Role Context<br/>• Access Scoping]
+    subgraph "Database Layer" ["Session & User Management"]
+        UsersTable["users Table<br/>Mobile App Users<br/>• 9 Roles<br/>• Team Assignments<br/>• Device Binding"]
+        WebUsersTable["web_admin_users Table<br/>Web Interface Users<br/>• 8 Roles (excl. TEAM_MEMBER)<br/>• Email Authentication<br/>• Account Lockout"]
+        SessionTable["sessions Table<br/>Unified Session Tracking<br/>• Interface Type<br/>• Role Context<br/>• Access Scoping"]
     end
 
     %% Mobile Authentication Flow
-    MobileLogin --> |Device + User + PIN| MobileAuth
-    MobileAuth --> |Role Check| RoleValidation
-    RoleValidation --> |Validate Hybrid Role| MobileRoles
-    MobileRoles --> |Create Session| MobileSession
-    MobileSession --> |Store| UsersTable
-    MobileSession --> |Update| SessionTable
+    MobileLogin --> |"Device + User + PIN"| MobileAuth
+    MobileAuth --> |"Role Check"| RoleValidation
+    RoleValidation --> |"Validate Hybrid Role"| MobileRoles
+    MobileRoles --> |"Create Session"| MobileSession
+    MobileSession --> |"Store"| UsersTable
+    MobileSession --> |"Update"| SessionTable
 
     %% Web Authentication Flow
-    WebLogin --> |Email + Password| WebAuth
-    WebAuth --> |Role Check| RoleValidation
-    RoleValidation --> |Block TEAM_MEMBER| TeamBlocking
-    RoleValidation --> |Validate Web Role| WebRoles
-    WebRoles --> |Support Hybrid Roles| HybridSupport
-    HybridSupport --> |Create Session| WebSession
-    WebSession --> |Store| WebUsersTable
-    WebSession --> |Update| SessionTable
+    WebLogin --> |"Email + Password"| WebAuth
+    WebAuth --> |"Role Check"| RoleValidation
+    RoleValidation --> |"Block TEAM_MEMBER"| TeamBlocking
+    RoleValidation --> |"Validate Web Role"| WebRoles
+    WebRoles --> |"Support Hybrid Roles"| HybridSupport
+    HybridSupport --> |"Create Session"| WebSession
+    WebSession --> |"Store"| WebUsersTable
+    WebSession --> |"Update"| SessionTable
 
     %% Security Enforcement
-    RoleValidation --> |Interface Separation| InterfaceSeparation
+    RoleValidation --> |"Interface Separation"| InterfaceSeparation
 
     %% Styling
     style MobileLogin fill:#e3f2fd
@@ -258,27 +258,26 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph "Policy Configuration" [Policy Management]
-        AdminPolicy[Admin: Configure Policy• Time Windows• GPS Settings• Grace Periods]
-        PolicyAPI[GET /api/v1/policy/:deviceIdPolicy Generation]
+    subgraph "Policy Configuration" ["Policy Management"]
+        AdminPolicy["Admin: Configure Policy<br/>Time Windows<br/>GPS Settings<br/>Grace Periods"]
+        PolicyAPI["GET /api/v1/policy/:deviceId<br/>Policy Generation"]
     end
 
-    subgraph "Policy Service" [Policy Processing]
-        PolicyGen[Generate Policy JSON• Device-specific rules• Team configurations• Time constraints]
-        JWS_Sign[JWS SigningEd25519 Private KeyCryptographic Signature]
-        PolicyValidation[Policy Validation• Time anchor check• Clock skew ±180s• Expiry validation]
+    subgraph "Policy Service" ["Policy Processing"]
+        PolicyGen["Generate Policy JSON<br/>Device-specific rules<br/>Team configurations<br/>Time constraints"]
+        JWS_Sign["JWS Signing<br/>Ed25519 Private Key<br/>Cryptographic Signature"]
+        PolicyValidation["Policy Validation<br/>Time anchor check<br/>Clock skew ±180s<br/>Expiry validation"]
     end
 
-    subgraph "Device Integration" [Android Policy Integration]
-        PolicyFetch[Device: Fetch PolicyHTTPS + Device JWT]
-        PolicyVerify[Verify JWS SignatureEd25519 Public Key]
-        PolicyEnforce[Enforce Policy• Time window checks• GPS requirements• Supervisor overrides]
+    subgraph "Device Integration" ["Android Policy Integration"]
+        PolicyFetch["Device: Fetch Policy<br/>HTTPS + Device JWT"]
+        PolicyVerify["Verify JWS Signature<br/>Ed25519 Public Key"]
+        PolicyEnforce["Enforce Policy<br/>Time window checks<br/>GPS requirements<br/>Supervisor overrides"]
     end
 
-    subgraph "Database" [Policy Storage]
-        PolicyTable["(policyIssues table deviceId, versionjwsKid, issuedAt, expiresAt"]
-        DeviceTable["(devices table Policy tracking"
-        ]
+    subgraph "Database" ["Policy Storage"]
+        PolicyTable["policyIssues table<br/>deviceId, version<br/>jwsKid, issuedAt, expiresAt"]
+        DeviceTable["devices table<br/>Policy tracking"]
     end
 
     %% Policy Flow
@@ -286,18 +285,18 @@ flowchart TD
     PolicyAPI --> PolicyGen
     PolicyGen --> JWS_Sign
     JWS_Sign --> PolicyValidation
-    PolicyValidation --> |Store issue| PolicyTable
-    PolicyValidation --> |Update device| DeviceTable
+    PolicyValidation --> |"Store issue"| PolicyTable
+    PolicyValidation --> |"Update device"| DeviceTable
 
     %% Device Flow
     PolicyFetch --> PolicyAPI
-    PolicyAPI --> |Return signed policy| PolicyFetch
+    PolicyAPI --> |"Return signed policy"| PolicyFetch
     PolicyFetch --> PolicyVerify
     PolicyVerify --> PolicyEnforce
 
     %% External Services
-    TimeService[NTP Time Service] --> PolicyValidation
-    CertAuth[Certificate Authority] --> JWS_Sign
+    TimeService["NTP Time Service"] --> PolicyValidation
+    CertAuth["Certificate Authority"] --> JWS_Sign
 
     style AdminPolicy fill:#e8f5e8
     style PolicyAPI fill:#f3e5f5
