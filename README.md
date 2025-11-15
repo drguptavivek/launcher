@@ -34,12 +34,14 @@ Complete Backend Functionality Overview
 - Audit logging: Complete override tracking
 - Team-specific: Supervisor access per team
 
-🗄️ Database Schema (Complete)
+🗄️ Database Schema (Complete - PostgreSQL)
 
-- 9 tables: Teams, Devices, Users, User PINs, Supervisor PINs, Sessions, Telemetry Events, Policy Issues, JWT Revocations
-- Relations: Proper foreign key relationships
-- Indexes: Optimized for performance queries
-- Migrations: Drizzle ORM with version control
+- **Dual User Tables**: `users` (Mobile App) + `web_admin_users` (Web Admin Interface)
+- **9-Role System**: TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER, SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN
+- **Complete Relations**: Teams, Devices, User PINs, Supervisor PINs, Sessions, Telemetry Events, Policy Issues, JWT Revocations
+- **Role-Based Access Control**: Interface separation, geographic scoping, cross-team access rules
+- **Performance Optimized**: Comprehensive indexes for role validation and authentication queries
+- **Version Control**: Drizzle ORM migrations with full history
 
 🛡️ Security Features (Enterprise Grade)
 
@@ -58,22 +60,39 @@ Complete Backend Functionality Overview
 - Health endpoints: Service status monitoring
 - Type safety: Full TypeScript implementation
 
-API Endpoints (8/8 Complete)
+API Endpoints (Dual Interface Architecture)
 
-1. POST /api/v1/auth/login - Device user authentication
-2. GET /api/v1/auth/whoami - Current session info
+### Mobile App APIs (/api/v1/) - Device + User + PIN Authentication
+1. POST /api/v1/auth/login - Multi-factor device authentication
+2. GET /api/v1/auth/whoami - Current session & user info
 3. POST /api/v1/auth/logout - Session termination
-4. POST /api/v1/auth/refresh - Token refresh
+4. POST /api/v1/auth/refresh - JWT token refresh
 5. POST /api/v1/auth/session/end - Force session end
-6. GET /api/v1/policy/:deviceId - JWS-signed policy
-7. POST /api/v1/supervisor/override/login - Supervisor override
+6. GET /api/v1/policy/:deviceId - JWS-signed policy distribution
+7. POST /api/v1/supervisor/override/login - Supervisor PIN override
 8. POST /api/v1/telemetry - Batch telemetry ingestion
+
+### Web Admin APIs (/api/web-admin/) - Email + Password Authentication
+1. POST /api/web-admin/auth/login - Web admin authentication
+2. GET /api/web-admin/auth/whoami - Current admin session info
+3. POST /api/web-admin/auth/logout - Admin session termination
+4. POST /api/web-admin/users/create - Create new admin users
+5. GET /api/web-admin/users/list - List admin users with roles
+6. PUT /api/web-admin/users/:id/update - Update admin user details
+7. DELETE /api/web-admin/users/:id/delete - Delete admin users
+8. POST /api/web-admin/auth/reset-password - Password reset functionality
 
 Sample Credentials (for testing)
 
+### Mobile App Authentication
 - Device: dev-mock-001
 - User: Code u001, PIN 123456
 - Supervisor: PIN 789012
+
+### Web Admin Authentication
+- Admin Email: admin@example.com
+- Admin Password: adminPassword123
+- Roles: SYSTEM_ADMIN, FIELD_SUPERVISOR, REGIONAL_MANAGER, etc.
 
 
 ### System Architecture & Workflow
@@ -82,35 +101,48 @@ Sample Credentials (for testing)
 
 ```mermaid
 flowchart TB
-    subgraph "Mobile Layer" [Mobile Layer]
-        A1[Android Launcher App• Device Authentication• Policy Enforcement• GPS Telemetry• Time Window Control]
+    subgraph "Mobile Layer" [Mobile Layer - Field Operations]
+        A1[Android Launcher App• Device + User + PIN Auth• Role-Based Access Control• GPS Telemetry• Policy Enforcement]
+        A2[Mobile App Users• TEAM_MEMBERS• FIELD_SUPERVISORS• REGIONAL_MANAGERS]
     end
 
-    subgraph "API Layer" [API Layer]
-        B1[Backend ServiceExpress.js + TypeScript• 8 REST Endpoints• JWT Authentication• JWS Policy Signing• Rate Limiting]
+    subgraph "Web Admin Layer" [Web Admin Layer - Management Operations]
+        C1[Admin DashboardSvelteKit 5 + TailwindCSS• Email + Password Auth• Role Enforcement• User/Device Management]
+        C2[Web Admin Users• FIELD_SUPERVISORS• REGIONAL_MANAGERS• SYSTEM_ADMINS• SUPPORT_AGENTS• AUDITORS• DEVICE_MANAGERS• POLICY_ADMINS• NATIONAL_SUPPORT_ADMINS]
     end
 
-    subgraph "Web Layer" [Web Layer]
-        C1[Admin FrontendSvelteKit 5 + TailwindCSS• User Management• Device Monitoring• Telemetry Analytics• Policy Configuration]
+    subgraph "API Layer" [API Layer - Dual Interface Support]
+        B1[Backend ServiceSvelteKit API• Mobile App APIs (/api/v1/)• Web Admin APIs (/api/web-admin/)• 9-Role RBAC• JWT Authentication• JWS Policy Signing]
+        B2[Authentication Services• Mobile App Auth Service• Web Admin Auth Service• Role Validation• Session Management]
     end
 
-    subgraph "Data Layer" [Data Layer]
-        D1[SQLite DatabaseDrizzle ORM• 9 Relational Tables• Session Management• Telemetry Storage• Audit Logging]
+    subgraph "Data Layer" [Data Layer - PostgreSQL]
+        D1[PostgreSQL DatabaseDrizzle ORM• Users Table (Mobile)• Web Admin Users Table (Web)• 9-Role System• Session Management• Audit Logging]
+        D2[Access Control• Role-Based Permissions• Interface Separation• Geographic Scoping• Cross-Team Access Rules]
     end
 
     %% Interconnections
-    A1 <-->|HTTPS + JWT| B1
-    C1 <-->|HTTPS + JWT| B1
+    A1 <-->|HTTPS + JWT<br/>Device + User + PIN| B1
+    C1 <-->|HTTPS + HTTP-Only Cookies<br/>Email + Password| B1
     B1 <-->|ORM Queries| D1
+    A2 -.-> A1
+    C2 -.-> C1
+    B2 -.-> B1
+    D2 -.-> D1
 
     %% External Services
     E1[External Services• NTP Time Sync• GPS Satellites• Certificate Authority] --> A1
     E1 --> B1
 
+    %% Styling
     style A1 fill:#e3f2fd
-    style B1 fill:#f3e5f5
+    style A2 fill:#bbdefb
     style C1 fill:#e8f5e8
+    style C2 fill:#c8e6c9
+    style B1 fill:#f3e5f5
+    style B2 fill:#e1bee7
     style D1 fill:#fff8e1
+    style D2 fill:#ffecb3
     style E1 fill:#fbe9e7
 ```
 
@@ -159,53 +191,67 @@ flowchart TD
     style DB_Supervisor fill:#fff8e1
 ```
 
-### 2. Device Authentication & Login Flow
+### 2. Dual-Interface Authentication Flow
 
 ```mermaid
 flowchart TD
-    subgraph "Android App" [Android Launcher App]
-        Login[LoginActivityDevice ID + User Code + PIN]
+    subgraph "Mobile App Authentication" [Mobile App Interface - Field Operations]
+        MobileLogin[Android LoginDevice ID + User Code + PIN]
+        MobileAuth[Mobile App Auth Service/api/v1/auth/login]
+        MobileRoles[Allowed Roles:<br/>• TEAM_MEMBER<br/>• FIELD_SUPERVISOR<br/>• REGIONAL_MANAGER]
+        MobileSession[Mobile SessionJWT Tokens + Device Binding]
     end
 
-    subgraph "Backend API" [Authentication Service]
-        Auth1[POST /api/v1/auth/loginMulti-factor validation]
-        Auth2[Device-Team Binding Check]
-        Auth3[PIN VerificationScrypt Hash + Salt]
-        Auth4[JWT Token GenerationAccess + Refresh + Override]
-        Auth5[Session CreationDatabase Record]
-        Auth6[Rate Limiting5 attempts/15min]
+    subgraph "Web Admin Authentication" [Web Admin Interface - Management Operations]
+        WebLogin[Web LoginEmail + Password]
+        WebAuth[Web Admin Auth Service/api/web-admin/auth/login]
+        WebRoles[Valid Roles:<br/>• FIELD_SUPERVISOR<br/>• REGIONAL_MANAGER<br/>• SYSTEM_ADMIN<br/>• SUPPORT_AGENT<br/>• AUDITOR<br/>• DEVICE_MANAGER<br/>• POLICY_ADMIN<br/>• NATIONAL_SUPPORT_ADMIN]
+        WebSession[Web SessionHTTP-Only Cookies + Role Validation]
     end
 
-    subgraph "Database" [Session Management]
-        Session[sessions table userId, deviceIdstartedAt, expiresAtoverrideUntil, tokenJti]
-        Device[devices table lastSeenAt update]
-        Revocation[jwtRevocation table Token tracking]
+    subgraph "Backend Security Layer" [Authentication & Authorization]
+        RoleValidation[Role-Based Access Control<br/>9-Role System Validation]
+        InterfaceSeparation[Interface Access Enforcement<br/>Mobile vs Web Admin Routes]
+        HybridSupport[Hybrid Role Support<br/>FIELD_SUPERVISOR + REGIONAL_MANAGER]
+        TeamBlocking[TEAM_MEMBER Blocking<br/>Web Access Denied]
     end
 
-    %% Authentication Flow
-    Login --> |HTTPS POST| Auth1
-    Auth1 --> Auth2
-    Auth2 --> |Check team membership| Auth3
-    Auth3 --> |Validate PIN hash| Auth4
-    Auth4 --> Auth5
-    Auth5 --> |Create session| Session
-    Auth5 --> |Update activity| Device
-    Auth1 --> |Check attempt count| Auth6
+    subgraph "Database Layer" [Session & User Management]
+        UsersTable[users TableMobile App Users<br/>• 9 Roles<br/>• Team Assignments<br/>• Device Binding]
+        WebUsersTable[web_admin_users TableWeb Interface Users<br/>• 8 Roles (excl. TEAM_MEMBER)<br/>• Email Authentication<br/>• Account Lockout]
+        SessionTable[sessions TableUnified Session Tracking<br/>• Interface Type<br/>• Role Context<br/>• Access Scoping]
+    end
 
-    %% Response Flow
-    Auth4 --> |Return JWT tokens| Login
-    Session --> Auth5
-    Device --> Auth5
+    %% Mobile Authentication Flow
+    MobileLogin --> |Device + User + PIN| MobileAuth
+    MobileAuth --> |Role Check| RoleValidation
+    RoleValidation --> |Validate Hybrid Role| MobileRoles
+    MobileRoles --> |Create Session| MobileSession
+    MobileSession --> |Store| UsersTable
+    MobileSession --> |Update| SessionTable
 
-    %% Security Features
-    Auth1 --> |Request ID| RequestID[UUID Tracking]
-    Auth1 --> |Audit Log| AuditLog[Security Logging]
+    %% Web Authentication Flow
+    WebLogin --> |Email + Password| WebAuth
+    WebAuth --> |Role Check| RoleValidation
+    RoleValidation --> |Block TEAM_MEMBER| TeamBlocking
+    RoleValidation --> |Validate Web Role| WebRoles
+    WebRoles --> |Support Hybrid Roles| HybridSupport
+    HybridSupport --> |Create Session| WebSession
+    WebSession --> |Store| WebUsersTable
+    WebSession --> |Update| SessionTable
 
-    style Login fill:#e3f2fd
-    style Auth1 fill:#f3e5f5
-    style Session fill:#fff8e1
-    style Device fill:#fff8e1
-    style Revocation fill:#fff8e1
+    %% Security Enforcement
+    RoleValidation --> |Interface Separation| InterfaceSeparation
+
+    %% Styling
+    style MobileLogin fill:#e3f2fd
+    style WebLogin fill:#e8f5e8
+    style RoleValidation fill:#f3e5f5
+    style TeamBlocking fill:#ffebee
+    style HybridSupport fill:#fff8e1
+    style UsersTable fill:#e3f2fd
+    style WebUsersTable fill:#e8f5e8
+    style SessionTable fill:#f3e5f5
 ```
 
 ### 3. Policy Creation & Distribution Flow
@@ -461,11 +507,12 @@ flowchart TD
 
 ## Key Integration Points
 
-### 🔐 Authentication Integration
-- **Multi-factor**: Device ID + User Code + PIN verification
-- **Token-based**: JWT with access/refresh/override tokens
-- **Session Management**: Automatic timeout and refresh
-- **Security**: Rate limiting, lockout, audit logging
+### 🔐 Dual-Interface Authentication Integration
+- **Mobile App Authentication**: Device ID + User Code + PIN verification
+- **Web Admin Authentication**: Email + Password with HTTP-only cookies
+- **Role-Based Access Control**: 9-role system with interface separation
+- **Hybrid Role Support**: FIELD_SUPERVISOR and REGIONAL_MANAGER access both interfaces
+- **Security Features**: Rate limiting, account lockout, audit logging, TEAM_MEMBER web blocking
 
 ### 📋 Policy Distribution
 - **JWS Signing**: Ed25519 cryptographic signatures
@@ -487,19 +534,58 @@ flowchart TD
 
 This architecture provides a complete, enterprise-ready solution for mobile device management with secure authentication, policy enforcement, and comprehensive telemetry collection.
 
-## Detailed Workflow Documentation
+## 📖 **User Documentation & Support**
 
+### **🎯 Quick Start for Users**
+
+**New to SurveyLauncher? Start here:**
+- [**Getting Started Guide**](./docs/user-guide/getting-started.md) - Set up your account and log in for the first time
+- [**Understanding Your Role**](./docs/understanding-your-role.md) - Learn what you can do based on your role
+
+**Role-Specific Guides:**
+- [**📱 Field Workers**](./docs/user-guide/field-worker-guide.md) - Using the mobile app for daily tasks
+- [**👨‍💼 Field Supervisors**](./docs/user-guide/supervisor-guide.md) - Managing your team and operations
+- [**🏢 Regional Managers**](./docs/user-guide/manager-guide.md) - Overseeing multiple teams and projects
+
+**Help & Support:**
+- [**🔧 Troubleshooting**](./docs/user-guide/troubleshooting.md) - Solutions to common problems
+- [**❓ Frequently Asked Questions**](./docs/user-guide/faq.md) - Quick answers to popular questions
+- [**🔒 Security Best Practices**](./docs/user-guide/security-best-practices.md) - Keeping your account secure
+
+**💡 Pro Tip:** Bookmark the [**User Guide Hub**](./docs/user-guide/README.md) for easy access to all user documentation!
+
+## 📚 Complete Documentation ecosystem
+
+### 🔗 **Workflow Documentation**
 For comprehensive implementation details, see the individual workflow files in the [`workflows/`](./workflows/) directory:
 
-### 🔗 **Complete Workflow Documentation**
+- [**Authentication Workflow**](./workflows/authentication-workflow.md) - Dual-interface authentication overview (Mobile App + Web Admin)
+- [**Role-Based Access Control**](./workflows/role-based-access-control.md) - Complete 9-role RBAC system with permissions matrix
+- [**Mobile App Authentication**](./workflows/mobile-app-authentication.md) - Device-based authentication with PIN verification
+- [**Web Admin Authentication**](./workflows/web-admin-authentication.md) - Email/password authentication with role enforcement
 - [**User & Device Registration**](./workflows/user-device-registration.md) - Admin setup, team creation, user registration, device binding
-- [**Device Authentication**](./workflows/device-authentication.md) - Multi-factor login, JWT tokens, session management
 - [**Policy Distribution**](./workflows/policy-distribution.md) - JWS signing, time windows, device enforcement
 - [**Telemetry Collection**](./workflows/telemetry-collection.md) - GPS tracking, heartbeat, batch processing
 - [**Supervisor Override**](./workflows/supervisor-override.md) - Emergency access, PIN verification, audit logging
 - [**Data Flow Architecture**](./workflows/data-flow-architecture.md) - Vertical data flow, system optimization, feedback loops
 
-Each workflow file includes:
+### 👥 **User-Friendly Documentation**
+- [**📖 User Guide Hub**](./docs/user-guide/README.md) - **Complete user guide for all SurveyLauncher users**
+- [**🚀 Getting Started**](./docs/user-guide/getting-started.md) - First-time setup and login instructions
+- [**🎯 Understanding Your Role**](./docs/understanding-your-role.md) - Simple guide explaining roles, permissions, and access patterns
+- [**📱 Field Worker Guide**](./docs/user-guide/field-worker-guide.md) - Mobile app usage for field workers
+- [**👨‍💼 Supervisor Guide**](./docs/user-guide/supervisor-guide.md) - Team management and oversight for supervisors
+- [**🏢 Manager Guide**](./docs/user-guide/manager-guide.md) - Regional operations and multi-team management
+- [**🔧 Troubleshooting Guide**](./docs/user-guide/troubleshooting.md) - Common problems and solutions for all users
+- [**❓ Frequently Asked Questions**](./docs/user-guide/faq.md) - Quick answers to common questions
+- [**🔒 Security Best Practices**](./docs/user-guide/security-best-practices.md) - User-friendly security and privacy guide
+
+### 🛠️ **Technical Documentation**
+- [**API Documentation**](./backend/docs/api.md) - Complete REST API specification with authentication flows
+- [**Testing Status**](./backend/docs/testing-status.md) - Current test coverage and quality metrics
+- [**Role-Based Access Control**](./backend/docs/role-differentiation.md) - Implementation details and security considerations
+
+Each documentation file includes:
 - **Complete Mermaid diagrams** with dark/light mode compatible colors
 - **Step-by-step implementation** with detailed explanations
 - **Code examples** in Kotlin, TypeScript, and SQL
