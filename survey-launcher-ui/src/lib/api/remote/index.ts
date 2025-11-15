@@ -42,11 +42,22 @@ export {
 	removeTeamFromProject,
 	getUserProjects,
 	getTeamProjects,
-	getRoles,
+	getRoles
+} from './projects.remote';
+
+// Project Management utilities
+export {
 	validateProjectTitle,
 	validateProjectAbbreviation,
-	validateGeographicScope
-} from './projects.remote';
+	validateGeographicScope,
+	validateProject,
+	getProjectStatusColor,
+	getGeographicScopeLabel,
+	getAssignmentScopeColor,
+	getAssignmentScopeLabel,
+	formatDate,
+	isAssignmentActive
+} from './projects.utils';
 
 
 // Users utilities and types

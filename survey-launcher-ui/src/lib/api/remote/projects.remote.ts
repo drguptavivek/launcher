@@ -424,38 +424,4 @@ export const getRoles = query(async (options: any = {}) => {
 });
 
 // Utility functions for form validation
-export const validateProjectTitle = (title: string): string[] => {
-	const errors: string[] = [];
-	if (!title) {
-		errors.push('Project title is required');
-	} else if (title.length < 3) {
-		errors.push('Project title must be at least 3 characters long');
-	} else if (title.length > 255) {
-		errors.push('Project title must be 255 characters or less');
-	}
-	return errors;
-};
-
-export const validateProjectAbbreviation = (abbreviation: string): string[] => {
-	const errors: string[] = [];
-	if (!abbreviation) {
-		errors.push('Project abbreviation is required');
-	} else if (abbreviation.length < 2) {
-		errors.push('Project abbreviation must be at least 2 characters long');
-	} else if (abbreviation.length > 50) {
-		errors.push('Project abbreviation must be 50 characters or less');
-	} else if (!/^[A-Z0-9-_]+$/.test(abbreviation.toUpperCase())) {
-		errors.push('Project abbreviation can only contain letters, numbers, hyphens, and underscores');
-	}
-	return errors;
-};
-
-export const validateGeographicScope = (scope: string): string[] => {
-	const errors: string[] = [];
-	if (!scope) {
-		errors.push('Geographic scope is required');
-	} else if (!['NATIONAL', 'REGIONAL'].includes(scope)) {
-		errors.push('Geographic scope must be either NATIONAL or REGIONAL');
-	}
-	return errors;
-};
+// Utility functions are now in projects.utils.ts to avoid SvelteKit remote function export restrictions

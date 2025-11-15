@@ -1,5 +1,5 @@
 <!-- Login page for SurveyLauncher Admin -->
-<script>
+<script lang="ts">
   import { API_BASE_URL } from '$lib/api';
   import { authUtils } from '$lib/utils/auth.utils';
 
@@ -14,7 +14,8 @@
   let error = $state('');
   let success = $state('');
 
-  async function handleLogin() {
+  async function handleLogin(event: Event) {
+		event.preventDefault();
     // Clear previous messages
     error = '';
     success = '';
@@ -45,7 +46,7 @@
       } else {
         error = `❌ ${data.message || 'Login failed'}`;
       }
-    } catch (err) {
+    } catch (err: any) {
       error = `❌ Network error: ${err.message}`;
     } finally {
       isLoading = false;
@@ -93,7 +94,7 @@
     </div>
 
     <!-- Login Form -->
-    <form class="mt-8 space-y-6" on:submit|preventDefault={handleLogin}>
+    <form class="mt-8 space-y-6" onsubmit={handleLogin}>
       <div class="space-y-4">
         <!-- Device ID -->
         <div>
