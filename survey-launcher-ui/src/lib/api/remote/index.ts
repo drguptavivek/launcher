@@ -45,39 +45,57 @@ export {
 	getRoles
 } from './projects.remote';
 
-// Project Management utilities
+// User Management remote functions
 export {
-	validateProjectTitle,
-	validateProjectAbbreviation,
-	validateGeographicScope,
-	validateProject,
-	getProjectStatusColor,
-	getGeographicScopeLabel,
-	getAssignmentScopeColor,
-	getAssignmentScopeLabel,
-	formatDate,
-	isAssignmentActive
-} from './projects.utils';
-
-
-// Users utilities and types
-export {
+	getUsers,
+	getUserById,
+	createUser,
+	updateUser,
+	deleteUser,
+	updateUserStatus,
+	getTotalUsersCount,
+	getActiveUsersCount,
 	type User,
 	type CreateUserRequest,
 	type UpdateUserRequest,
 	type UsersFilterOptions,
-	type UsersResponse,
-	createUserSchema,
-	updateUserSchema,
-	validateUserCode,
-	validateUserEmail,
-	validateUserPin,
-	USER_ROLES,
-	USER_ROLE_LABELS,
-	hasPermission,
-	canManageUsers,
-	canOverrideSupervisor
-} from './users.utils';
+	type UsersResponse
+} from './users.remote';
+
+// Device Management remote functions
+export {
+	getDevices,
+	getDeviceById,
+	createDevice,
+	updateDevice,
+	deleteDevice,
+	getActiveDevicesCount,
+	getTotalDevicesCount,
+	type Device,
+	type CreateDeviceRequest,
+	type UpdateDeviceRequest,
+	type DevicesFilterOptions,
+	type DevicesResponse
+} from './devices.remote';
+
+// Web Admin Authentication remote functions
+export {
+	webAdminLogin,
+	getWebAdminWhoAmI,
+	webAdminLogout,
+	refreshWebAdminToken,
+	createWebAdminUser,
+	type WebAdminLoginRequest,
+	type WebAdminLoginResponse,
+	type WebAdminUser,
+	type WebAdminWhoAmIResponse,
+	type CreateWebAdminUserRequest,
+	type CreateWebAdminUserResponse
+} from './web-admin-auth.remote';
+
+// Note: Utility functions should be imported directly from their respective .utils.ts files
+// and should not be exported from this index.ts as SvelteKit remote functions
+// can only be exported from .remote.ts files
 
 // Types
 export type {

@@ -1,300 +1,253 @@
 // SurveyLauncher Users API Remote Functions
 // User management endpoints for the SurveyLauncher Admin interface
 
+import { form, query, command } from '$app/server';
+import { getRequestEvent } from '$app/server';
 import {
-	type User,
-	type CreateUserRequest,
-	type UpdateUserRequest,
-	type UsersFilterOptions,
-	type UsersResponse,
-	createUserSchema,
-	updateUserSchema
-} from './users.utils';
+	API_BASE_URL,
+	API_ENDPOINTS,
+	getAuthHeaders,
+	handleApiResponse
+} from '../client';
 
-// Mock database for demonstration
-// In a real implementation, this would connect to your backend database
-let mockUsers: User[] = [
-	{
-		id: 'user-001',
-		name: 'John Doe',
-		email: 'john.doe@surveylauncher.com',
-		userCode: 'u001',
-		role: 'admin',
-		teamName: 'Alpha Team',
-		teamId: 'team-001',
-		deviceId: 'dev-mock-001',
-		isActive: true,
-		lastLogin: new Date('2024-01-15T10:30:00Z'),
-		createdAt: new Date('2024-01-01T00:00:00Z'),
-		updatedAt: new Date('2024-01-15T10:30:00Z')
-	},
-	{
-		id: 'user-002',
-		name: 'Jane Smith',
-		email: 'jane.smith@surveylauncher.com',
-		userCode: 'u002',
-		role: 'supervisor',
-		teamName: 'Beta Team',
-		teamId: 'team-002',
-		deviceId: 'dev-mock-002',
-		isActive: true,
-		lastLogin: new Date('2024-01-14T15:45:00Z'),
-		createdAt: new Date('2024-01-02T00:00:00Z'),
-		updatedAt: new Date('2024-01-14T15:45:00Z')
-	},
-	{
-		id: 'user-003',
-		name: 'Robert Johnson',
-		email: 'robert.johnson@surveylauncher.com',
-		userCode: 'u003',
-		role: 'user',
-		teamName: 'Alpha Team',
-		teamId: 'team-001',
-		deviceId: 'dev-mock-003',
-		isActive: false,
-		lastLogin: new Date('2024-01-10T09:15:00Z'),
-		createdAt: new Date('2024-01-03T00:00:00Z'),
-		updatedAt: new Date('2024-01-10T09:15:00Z')
-	},
-	{
-		id: 'user-004',
-		name: 'Sarah Williams',
-		email: 'sarah.williams@surveylauncher.com',
-		userCode: 'u004',
-		role: 'user',
-		teamName: 'Gamma Team',
-		teamId: 'team-003',
-		deviceId: 'dev-mock-004',
-		isActive: true,
-		lastLogin: new Date('2024-01-13T14:20:00Z'),
-		createdAt: new Date('2024-01-04T00:00:00Z'),
-		updatedAt: new Date('2024-01-13T14:20:00Z')
-	},
-	{
-		id: 'user-005',
-		name: 'Michael Brown',
-		email: 'michael.brown@surveylauncher.com',
-		userCode: 'u005',
-		role: 'readonly',
-		teamName: 'Beta Team',
-		teamId: 'team-002',
-		deviceId: 'dev-mock-005',
-		isActive: true,
-		lastLogin: new Date('2024-01-12T11:10:00Z'),
-		createdAt: new Date('2024-01-05T00:00:00Z'),
-		updatedAt: new Date('2024-01-12T11:10:00Z')
+// Helper function to get access token
+function getAccessToken(): string {
+	const event = getRequestEvent();
+	if (!event) {
+		throw new Error('No access token found. Please login first.');
 	}
-];
 
-// Mock teams data
-const mockTeams = [
-	{ id: 'team-001', name: 'Alpha Team' },
-	{ id: 'team-002', name: 'Beta Team' },
-	{ id: 'team-003', name: 'Gamma Team' }
-];
+	const cookies = event.cookies;
+	if (!cookies?.access_token) {
+		throw new Error('No access token found. Please login first.');
+	}
 
-// API Functions
-export async function getUsers(options: UsersFilterOptions = {}): Promise<UsersResponse> {
-	// Simulate API delay
-	await new Promise(resolve => setTimeout(resolve, 300));
+	return cookies.access_token;
+}
 
-	const {
-		search = '',
-		role = 'all',
-		status = 'all',
-		teamId = '',
-		page = 1,
-		limit = 50
-	} = options;
+// Types for user management
+export interface User {
+	id: string;
+	team_id: string;
+	code: string;
+	display_name: string;
+	email: string | null;
+	role: 'TEAM_MEMBER' | 'FIELD_SUPERVISOR' | 'REGIONAL_MANAGER' | 'SYSTEM_ADMIN' | 'SUPPORT_AGENT' | 'AUDITOR' | 'DEVICE_MANAGER' | 'POLICY_ADMIN' | 'NATIONAL_SUPPORT_ADMIN';
+	is_active: boolean;
+	created_at: string;
+	updated_at: string;
+}
 
-	// Filter users
-	let filteredUsers = mockUsers.filter(user => {
-		// Search filter
-		if (search) {
-			const searchLower = search.toLowerCase();
-			const matchesSearch =
-				user.name.toLowerCase().includes(searchLower) ||
-				user.email.toLowerCase().includes(searchLower) ||
-				user.userCode.toLowerCase().includes(searchLower);
-			if (!matchesSearch) return false;
+export interface CreateUserRequest {
+	teamId: string;
+	code: string;
+	displayName: string;
+	email?: string;
+	role?: User['role'];
+	pin: string;
+}
+
+export interface UpdateUserRequest {
+	displayName?: string;
+	email?: string;
+	role?: User['role'];
+	isActive?: boolean;
+	pin?: string;
+}
+
+export interface UsersFilterOptions {
+	search?: string;
+	teamId?: string;
+	role?: string;
+	isActive?: boolean;
+	page?: number;
+	limit?: number;
+}
+
+export interface UsersResponse {
+	users: User[];
+	total: number;
+	page: number;
+	limit: number;
+	totalPages: number;
+}
+
+/**
+ * List users with pagination and filtering
+ * GET /api/v1/users
+ */
+export const getUsers = query(async (options: UsersFilterOptions = {}) => {
+	try {
+		const accessToken = getAccessToken();
+
+		// Build query string
+		const params = new URLSearchParams();
+		if (options.search) params.append('search', options.search);
+		if (options.teamId) params.append('team_id', options.teamId);
+		if (options.role) params.append('role', options.role);
+		if (options.isActive !== undefined) params.append('is_active', options.isActive.toString());
+		if (options.page) params.append('page', options.page.toString());
+		if (options.limit) params.append('limit', Math.min(options.limit, 100).toString());
+
+		const queryString = params.toString();
+		const url = `${API_BASE_URL}/api/v1/users${queryString ? '?' + queryString : ''}`;
+
+		const response = await fetch(url, {
+			method: 'GET',
+			headers: getAuthHeaders(accessToken)
+		});
+
+		const data = await response.json();
+
+		if (!data.ok) {
+			throw new Error(data.error?.message || 'Failed to fetch users');
 		}
 
-		// Role filter
-		if (role !== 'all' && user.role !== role) return false;
+		return {
+			users: data.users || [],
+			total: data.pagination?.total || 0,
+			page: data.pagination?.page || options.page || 1,
+			limit: data.pagination?.limit || options.limit || 50,
+			totalPages: data.pagination?.pages || 0
+		};
+	} catch (error: any) {
+		console.error('Get users error:', error);
+		throw error;
+	}
+});
 
-		// Status filter
-		if (status !== 'all') {
-			const isActive = status === 'active';
-			if (user.isActive !== isActive) return false;
+/**
+ * Get user by ID
+ * GET /api/v1/users/:id
+ */
+export const getUserById = query(async (id: string) => {
+	try {
+		const accessToken = getAccessToken();
+		const url = `${API_BASE_URL}/api/v1/users/${id}`;
+
+		const response = await fetch(url, {
+			method: 'GET',
+			headers: getAuthHeaders(accessToken)
+		});
+
+		const data = await response.json();
+
+		if (!data.ok) {
+			if (data.error?.code === 'USER_NOT_FOUND') {
+				return null;
+			}
+			throw new Error(data.error?.message || 'Failed to fetch user');
 		}
 
-		// Team filter
-		if (teamId && user.teamId !== teamId) return false;
-
-		return true;
-	});
-
-	// Pagination
-	const total = filteredUsers.length;
-	const totalPages = Math.ceil(total / limit);
-	const startIndex = (page - 1) * limit;
-	const endIndex = startIndex + limit;
-	const users = filteredUsers.slice(startIndex, endIndex);
-
-	return {
-		users,
-		total,
-		page,
-		limit,
-		totalPages
-	};
-}
-
-export async function getUserById(id: string): Promise<User | null> {
-	// Simulate API delay
-	await new Promise(resolve => setTimeout(resolve, 200));
-
-	const user = mockUsers.find(u => u.id === id);
-	return user || null;
-}
-
-export async function createUser(userData: CreateUserRequest): Promise<User> {
-	// Simulate API delay
-	await new Promise(resolve => setTimeout(resolve, 500));
-
-	// Validate input
-	const validatedData = createUserSchema.parse(userData);
-
-	// Check if user code already exists
-	const existingUser = mockUsers.find(u => u.userCode === validatedData.userCode);
-	if (existingUser) {
-		throw new Error('User code already exists');
+		return data.user;
+	} catch (error: any) {
+		console.error('Get user error:', error);
+		throw error;
 	}
+});
 
-	// Check if email already exists
-	const existingEmail = mockUsers.find(u => u.email === validatedData.email);
-	if (existingEmail) {
-		throw new Error('Email already exists');
-	}
+/**
+ * Create new user
+ * POST /api/v1/users
+ */
+export const createUser = form(async (formData: CreateUserRequest) => {
+	try {
+		const accessToken = getAccessToken();
+		const url = `${API_BASE_URL}/api/v1/users`;
 
-	// Get team name
-	const team = mockTeams.find(t => t.id === validatedData.teamId);
-	if (!team) {
-		throw new Error('Team not found');
-	}
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: getAuthHeaders(accessToken),
+			body: JSON.stringify(formData)
+		});
 
-	// Create new user
-	const newUser: User = {
-		id: `user-${Date.now()}`,
-		name: validatedData.name,
-		email: validatedData.email,
-		userCode: validatedData.userCode,
-		role: validatedData.role,
-		teamName: team.name,
-		teamId: validatedData.teamId,
-		deviceId: validatedData.deviceId,
-		isActive: validatedData.isActive ?? true,
-		lastLogin: null,
-		createdAt: new Date(),
-		updatedAt: new Date()
-	};
+		const data = await response.json();
 
-	// Add to mock database
-	mockUsers.push(newUser);
-
-	return newUser;
-}
-
-export async function updateUser(id: string, userData: UpdateUserRequest): Promise<User> {
-	// Simulate API delay
-	await new Promise(resolve => setTimeout(resolve, 400));
-
-	// Validate input
-	const validatedData = updateUserSchema.parse(userData);
-
-	// Find user
-	const userIndex = mockUsers.findIndex(u => u.id === id);
-	if (userIndex === -1) {
-		throw new Error('User not found');
-	}
-
-	// Check for duplicate user code if changed
-	if (validatedData.userCode && validatedData.userCode !== mockUsers[userIndex].userCode) {
-		const existingUser = mockUsers.find(u => u.userCode === validatedData.userCode && u.id !== id);
-		if (existingUser) {
-			throw new Error('User code already exists');
+		if (!data.ok) {
+			throw new Error(data.error?.message || 'Failed to create user');
 		}
-	}
 
-	// Check for duplicate email if changed
-	if (validatedData.email && validatedData.email !== mockUsers[userIndex].email) {
-		const existingEmail = mockUsers.find(u => u.email === validatedData.email && u.id !== id);
-		if (existingEmail) {
-			throw new Error('Email already exists');
+		return data.user;
+	} catch (error: any) {
+		console.error('Create user error:', error);
+		throw error;
+	}
+});
+
+/**
+ * Update user
+ * PUT /api/v1/users/:id
+ */
+export const updateUser = command(async ({ id, updateData }: { id: string; updateData: UpdateUserRequest }) => {
+	try {
+		const accessToken = getAccessToken();
+		const url = `${API_BASE_URL}/api/v1/users/${id}`;
+
+		const response = await fetch(url, {
+			method: 'PUT',
+			headers: getAuthHeaders(accessToken),
+			body: JSON.stringify(updateData)
+		});
+
+		const data = await response.json();
+
+		if (!data.ok) {
+			throw new Error(data.error?.message || 'Failed to update user');
 		}
-	}
 
-	// Get team name if team changed
-	let teamName = mockUsers[userIndex].teamName;
-	if (validatedData.teamId && validatedData.teamId !== mockUsers[userIndex].teamId) {
-		const team = mockTeams.find(t => t.id === validatedData.teamId);
-		if (!team) {
-			throw new Error('Team not found');
+		return data.user;
+	} catch (error: any) {
+		console.error('Update user error:', error);
+		throw error;
+	}
+});
+
+/**
+ * Delete user (soft delete)
+ * DELETE /api/v1/users/:id
+ */
+export const deleteUser = command(async (id: string) => {
+	try {
+		const accessToken = getAccessToken();
+		const url = `${API_BASE_URL}/api/v1/users/${id}`;
+
+		const response = await fetch(url, {
+			method: 'DELETE',
+			headers: getAuthHeaders(accessToken)
+		});
+
+		const data = await response.json();
+
+		if (!data.ok) {
+			throw new Error(data.error?.message || 'Failed to delete user');
 		}
-		teamName = team.name;
+
+		return data;
+	} catch (error: any) {
+		console.error('Delete user error:', error);
+		throw error;
 	}
+});
 
-	// Update user
-	const updatedUser: User = {
-		...mockUsers[userIndex],
-		...validatedData,
-		teamName: teamName,
-		updatedAt: new Date()
-	};
+/**
+ * Update user status
+ */
+export const updateUserStatus = command(async ({ id, isActive }: { id: string; isActive: boolean }) => {
+	return await updateUser({ id, updateData: { isActive } });
+});
 
-	mockUsers[userIndex] = updatedUser;
+/**
+ * Get total users count
+ */
+export const getTotalUsersCount = query(async () => {
+	const response = await getUsers({ limit: 1 });
+	return response.total;
+});
 
-	return updatedUser;
-}
-
-export async function deleteUser(id: string): Promise<void> {
-	// Simulate API delay
-	await new Promise(resolve => setTimeout(resolve, 300));
-
-	// Find user
-	const userIndex = mockUsers.findIndex(u => u.id === id);
-	if (userIndex === -1) {
-		throw new Error('User not found');
-	}
-
-	// Remove user from mock database
-	mockUsers.splice(userIndex, 1);
-}
-
-export async function updateUserStatus(id: string, isActive: boolean): Promise<User> {
-	// Simulate API delay
-	await new Promise(resolve => setTimeout(resolve, 200));
-
-	return await updateUser(id, { isActive });
-}
-
-export async function getTeams(): Promise<Array<{ id: string; name: string }>> {
-	// Simulate API delay
-	await new Promise(resolve => setTimeout(resolve, 100));
-
-	return mockTeams;
-}
-
-export async function searchUsers(query: string, limit: number = 10): Promise<User[]> {
-	// Simulate API delay
-	await new Promise(resolve => setTimeout(resolve, 150));
-
-	const searchLower = query.toLowerCase();
-	return mockUsers
-		.filter(user =>
-			user.name.toLowerCase().includes(searchLower) ||
-			user.email.toLowerCase().includes(searchLower) ||
-			user.userCode.toLowerCase().includes(searchLower)
-		)
-		.slice(0, limit);
-}
+/**
+ * Get active users count
+ */
+export const getActiveUsersCount = query(async () => {
+	const response = await getUsers({ limit: 1, isActive: true });
+	return response.total;
+});

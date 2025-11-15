@@ -1,5 +1,5 @@
 <!-- Navigation Bar Component -->
-<script>
+<script lang="ts">
   import { authUtils } from '$lib/utils/auth.utils';
 
   // Check if user is authenticated
@@ -18,7 +18,7 @@
           }
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Logout error:', err);
     } finally {
       authUtils.clearAuthTokens();
@@ -69,6 +69,9 @@
               </a>
               <a href="/users" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 Users
+              </a>
+              <a href="/projects" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                Projects
               </a>
               <a href="/devices" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 Devices
@@ -137,6 +140,9 @@
           </a>
           <a href="/users" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Users
+          </a>
+          <a href="/projects" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
+            Projects
           </a>
           <a href="/devices" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
             Devices

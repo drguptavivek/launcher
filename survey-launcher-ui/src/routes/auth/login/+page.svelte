@@ -1,13 +1,11 @@
 <!-- Login page for SurveyLauncher Admin -->
 <script lang="ts">
-  import { API_BASE_URL } from '$lib/api';
-  import { authUtils } from '$lib/utils/auth.utils';
+  import { webAdminLogin } from '$lib/api/remote';
 
-  // Form state
+  // Form state for Web Admin authentication
   let formData = $state({
-    deviceId: '',
-    userCode: '',
-    pin: ''
+    email: '',
+    password: ''
   });
 
   let isLoading = $state(false);
@@ -22,21 +20,9 @@
     isLoading = true;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
+      const result = await webAdminLogin(formData);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        // Store tokens
-        authUtils.setAuthTokens(data.access_token, data.refresh_token);
-
+      if (result.ok) {
         success = '✅ Login successful! Redirecting...';
 
         // Redirect to dashboard after successful login
@@ -44,7 +30,7 @@
           window.location.href = '/dashboard';
         }, 1500);
       } else {
-        error = `❌ ${data.message || 'Login failed'}`;
+        error = `❌ ${result.error?.message || 'Login failed'}`;
       }
     } catch (err: any) {
       error = `❌ Network error: ${err.message}`;
@@ -63,9 +49,8 @@
 
   function handleQuickLogin() {
     formData = {
-      deviceId: 'dev-mock-001',
-      userCode: 'u001',
-      pin: '123456'
+      email: 'admin@surveylauncher.com',
+      password: 'admin123456'
     };
     handleLogin();
   }
@@ -96,51 +81,35 @@
     <!-- Login Form -->
     <form class="mt-8 space-y-6" onsubmit={handleLogin}>
       <div class="space-y-4">
-        <!-- Device ID -->
+        <!-- Email -->
         <div>
-          <label for="deviceId" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            Device ID
+          <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Email Address
           </label>
           <input
-            id="deviceId"
-            name="deviceId"
-            type="text"
+            id="email"
+            name="email"
+            type="email"
             required
-            bind:value={formData.deviceId}
+            bind:value={formData.email}
             class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="Enter device ID"
+            placeholder="Enter your email address"
           />
         </div>
 
-        <!-- User Code -->
+        <!-- Password -->
         <div>
-          <label for="userCode" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            User Code
+          <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Password
           </label>
           <input
-            id="userCode"
-            name="userCode"
-            type="text"
-            required
-            bind:value={formData.userCode}
-            class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="Enter user code"
-          />
-        </div>
-
-        <!-- PIN -->
-        <div>
-          <label for="pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-            PIN
-          </label>
-          <input
-            id="pin"
-            name="pin"
+            id="password"
+            name="password"
             type="password"
             required
-            bind:value={formData.pin}
+            bind:value={formData.password}
             class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white bg-white dark:bg-gray-700 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="Enter PIN"
+            placeholder="Enter your password"
           />
         </div>
       </div>

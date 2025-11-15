@@ -1,12 +1,25 @@
 <!-- Dashboard page for SurveyLauncher Admin -->
-<script>
+<script lang="ts">
   import { API_BASE_URL } from '$lib/api';
   import { authUtils } from '$lib/utils/auth.utils';
+  import { getProjects, getTotalUsersCount, getActiveUsersCount, getTotalDevicesCount, getActiveDevicesCount } from '$lib/api/remote';
+  import { Button } from '$lib/components/ui/button';
 
   // Dashboard state
   let user = $state(null);
   let isLoading = $state(true);
   let error = $state('');
+  let projects = $state([]);
+  let projectsLoading = $state(true);
+  let projectsError = $state('');
+
+  // User and device statistics
+  let totalUsers = $state(0);
+  let activeUsers = $state(0);
+  let totalDevices = $state(0);
+  let activeDevices = $state(0);
+  let statsLoading = $state(true);
+  let statsError = $state('');
 
   // Check authentication on page load
   async function checkAuth() {
@@ -60,16 +73,86 @@
     }
   }
 
-  // Load data on component mount
-  checkAuth();
+  // Load projects data
+  async function loadProjects() {
+    projectsLoading = true;
+    projectsError = '';
+    try {
+      const response = await getProjects();
+      projects = response.projects || [];
+    } catch (err: any) {
+      projectsError = err.message || 'Failed to load projects';
+      console.error('Load projects error:', err);
+    } finally {
+      projectsLoading = false;
+    }
+  }
 
-  // Mock data for dashboard
-  const stats = {
-    totalUsers: 156,
-    activeDevices: 42,
-    totalSurveys: 1234,
-    activeSessions: 23
-  };
+  // Load statistics data
+  async function loadStatistics() {
+    statsLoading = true;
+    statsError = '';
+    try {
+      // Load all statistics in parallel
+      const [totalUsersCount, activeUsersCount, totalDevicesCount, activeDevicesCount] = await Promise.all([
+        getTotalUsersCount(),
+        getActiveUsersCount(),
+        getTotalDevicesCount(),
+        getActiveDevicesCount()
+      ]);
+
+      totalUsers = totalUsersCount;
+      activeUsers = activeUsersCount;
+      totalDevices = totalDevicesCount;
+      activeDevices = activeDevicesCount;
+    } catch (err: any) {
+      statsError = err.message || 'Failed to load statistics';
+      console.error('Load statistics error:', err);
+    } finally {
+      statsLoading = false;
+    }
+  }
+
+  // Navigate to project
+  function navigateToProject(projectId: string) {
+    window.location.href = `/projects/${projectId}`;
+  }
+
+  // Load data on component mount
+  $effect(() => {
+    checkAuth();
+    loadProjects();
+    loadStatistics();
+  });
+
+  // Calculate real project statistics
+  let projectStats = $derived(() => {
+    if (!projects.length) {
+      return {
+        totalProjects: 0,
+        activeProjects: 0,
+        inactiveProjects: 0,
+        nationalProjects: 0,
+        regionalProjects: 0
+      };
+    }
+
+    return {
+      totalProjects: projects.length,
+      activeProjects: projects.filter(p => p.status === 'ACTIVE').length,
+      inactiveProjects: projects.filter(p => p.status === 'INACTIVE').length,
+      nationalProjects: projects.filter(p => p.geographicScope === 'NATIONAL').length,
+      regionalProjects: projects.filter(p => p.geographicScope === 'REGIONAL').length
+    };
+  });
+
+  // Real statistics from backend APIs
+  let stats = $derived(() => ({
+    totalUsers: statsLoading ? '...' : totalUsers,
+    activeDevices: statsLoading ? '...' : activeDevices,
+    totalSurveys: '...', // TODO: Implement when survey API is available
+    activeSessions: '...'  // TODO: Implement when session API is available
+  }));
 
   const recentActivity = [
     { id: 1, type: 'login', user: 'user001', device: 'dev-mock-001', time: '2 mins ago' },
@@ -119,6 +202,47 @@
       <div class="px-4 py-6 sm:px-0">
         <!-- Stats Grid -->
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <!-- Total Projects -->
+          <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Projects</dt>
+                    <dd class="text-lg font-medium text-gray-900 dark:text-white">
+                      {projectsLoading ? '...' : projectStats.totalProjects}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Projects -->
+          <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <svg class="h-6 w-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Active Projects</dt>
+                    <dd class="text-lg font-medium text-gray-900 dark:text-white">
+                      {projectsLoading ? '...' : projectStats.activeProjects}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- Total Users -->
           <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg">
             <div class="p-5">
@@ -200,7 +324,14 @@
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg mb-8">
           <div class="px-4 py-5 sm:p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Quick Actions</h3>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <a href="/projects" class="inline-flex items-center px-4 py-3 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <svg class="h-5 w-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Manage Projects
+              </a>
+
               <a href="/users" class="inline-flex items-center px-4 py-3 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 <svg class="h-5 w-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
@@ -222,6 +353,52 @@
                 Test Implementation
               </a>
             </div>
+          </div>
+        </div>
+
+        <!-- Projects Overview -->
+        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg mb-8">
+          <div class="px-4 py-5 sm:p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Recent Projects</h3>
+              <a href="/projects" class="text-sm font-medium text-blue-600 hover:text-blue-500">View all</a>
+            </div>
+
+            {#if projectsLoading}
+              <div class="text-center py-6">
+                <div class="text-sm text-gray-500">Loading projects...</div>
+              </div>
+            {:else if projectsError}
+              <div class="text-center py-6">
+                <div class="text-sm text-red-500">Error loading projects: {projectsError}</div>
+                <Button variant="outline" size="sm" onclick={loadProjects} class="mt-2">Retry</Button>
+              </div>
+            {:else if projects.length === 0}
+              <div class="text-center py-6">
+                <div class="text-sm text-gray-500 mb-4">No projects found</div>
+                <a href="/projects/create">
+                  <Button size="sm">Create your first project</Button>
+                </a>
+              </div>
+            {:else}
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {#each projects.slice(0, 6) as project}
+                  <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer" onclick={() => navigateToProject(project.id)}>
+                    <div class="flex items-center justify-between mb-2">
+                      <h4 class="text-sm font-medium text-gray-900 dark:text-white truncate">{project.title}</h4>
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {project.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                        {project.status}
+                      </span>
+                    </div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 truncate mb-2">{project.abbreviation}</p>
+                    <div class="flex items-center justify-between text-xs text-gray-400">
+                      <span>{project.geographicScope}</span>
+                      <span>{new Date(project.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
           </div>
         </div>
 

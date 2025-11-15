@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { env } from './lib/config';
 import { logger } from './lib/logger';
 import { apiRouter } from './routes/api';
+import { webAdminApiRouter } from './routes/web-admin-api';
 
 // Create Express app
 const app = express();
@@ -35,6 +36,7 @@ app.use(morgan('combined'));
 
 // API Routes
 app.use('/api/v1', apiRouter);
+app.use('/api', webAdminApiRouter);
 
 // Error handling middleware
 app.use((err: Error, req, res, next) => {

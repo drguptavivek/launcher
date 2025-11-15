@@ -150,6 +150,26 @@ export const supervisorPins = pgTable('supervisor_pins', {
   teamIdIdx: table.teamId,
 }));
 
+// Web Admin users table - for web application administrators
+export const webAdminUsers = pgTable('web_admin_users', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  password: varchar('password', { length: 255 }).notNull(), // Argon2id hash
+  firstName: varchar('first_name', { length: 255 }).notNull(),
+  lastName: varchar('last_name', { length: 255 }).notNull(),
+  role: userRoleEnum('role').notNull().default('SYSTEM_ADMIN'),
+  isActive: boolean('is_active').notNull().default(true),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  loginAttempts: integer('login_attempts').notNull().default(0),
+  lockedAt: timestamp('locked_at', { withTimezone: true }),
+  passwordChangedAt: timestamp('password_changed_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  emailIdx: table.email,
+  roleIdx: table.role,
+}));
+
 // Sessions table
 export const sessions = pgTable('sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
