@@ -34,6 +34,70 @@ Complete Backend Functionality Overview
 - Audit logging: Complete override tracking
 - Team-specific: Supervisor access per team
 
+
+
+## 📖 **User Documentation & Support**
+
+### **🎯 Quick Start for Users**
+
+**New to SurveyLauncher? Start here:**
+- [**Getting Started Guide**](./docs/user-guide/getting-started.md) - Set up your account and log in for the first time
+- [**Understanding Your Role**](./docs/understanding-your-role.md) - Learn what you can do based on your role
+
+**Role-Specific Guides:**
+- [**📱 Field Workers**](./docs/user-guide/field-worker-guide.md) - Using the mobile app for daily tasks
+- [**👨‍💼 Field Supervisors**](./docs/user-guide/supervisor-guide.md) - Managing your team and operations
+- [**🏢 Regional Managers**](./docs/user-guide/manager-guide.md) - Overseeing multiple teams and projects
+
+**Help & Support:**
+- [**🔧 Troubleshooting**](./docs/user-guide/troubleshooting.md) - Solutions to common problems
+- [**❓ Frequently Asked Questions**](./docs/user-guide/faq.md) - Quick answers to popular questions
+- [**🔒 Security Best Practices**](./docs/user-guide/security-best-practices.md) - Keeping your account secure
+
+**💡 Pro Tip:** Bookmark the [**User Guide Hub**](./docs/user-guide/README.md) for easy access to all user documentation!
+
+## 📚 Complete Documentation ecosystem
+
+### 🔗 **Workflow Documentation**
+For comprehensive implementation details, see the individual workflow files in the [`workflows/`](./workflows/) directory:
+
+- [**Authentication Workflow**](./workflows/authentication-workflow.md) - Dual-interface authentication overview (Mobile App + Web Admin)
+- [**Role-Based Access Control**](./workflows/role-based-access-control.md) - Complete 9-role RBAC system with permissions matrix
+- [**Mobile App Authentication**](./workflows/mobile-app-authentication.md) - Device-based authentication with PIN verification
+- [**Web Admin Authentication**](./workflows/web-admin-authentication.md) - Email/password authentication with role enforcement
+- [**User & Device Registration**](./workflows/user-device-registration.md) - Admin setup, team creation, user registration, device binding
+- [**Policy Distribution**](./workflows/policy-distribution.md) - JWS signing, time windows, device enforcement
+- [**Telemetry Collection**](./workflows/telemetry-collection.md) - GPS tracking, heartbeat, batch processing
+- [**Supervisor Override**](./workflows/supervisor-override.md) - Emergency access, PIN verification, audit logging
+- [**Data Flow Architecture**](./workflows/data-flow-architecture.md) - Vertical data flow, system optimization, feedback loops
+
+### 👥 **User-Friendly Documentation**
+- [**📖 User Guide Hub**](./docs/user-guide/README.md) - **Complete user guide for all SurveyLauncher users**
+- [**🚀 Getting Started**](./docs/user-guide/getting-started.md) - First-time setup and login instructions
+- [**🎯 Understanding Your Role**](./docs/understanding-your-role.md) - Simple guide explaining roles, permissions, and access patterns
+- [**📱 Field Worker Guide**](./docs/user-guide/field-worker-guide.md) - Mobile app usage for field workers
+- [**👨‍💼 Supervisor Guide**](./docs/user-guide/supervisor-guide.md) - Team management and oversight for supervisors
+- [**🏢 Manager Guide**](./docs/user-guide/manager-guide.md) - Regional operations and multi-team management
+- [**🔧 Troubleshooting Guide**](./docs/user-guide/troubleshooting.md) - Common problems and solutions for all users
+- [**❓ Frequently Asked Questions**](./docs/user-guide/faq.md) - Quick answers to common questions
+- [**🔒 Security Best Practices**](./docs/user-guide/security-best-practices.md) - User-friendly security and privacy guide
+
+### 🛠️ **Technical Documentation**
+- [**API Documentation**](./backend/docs/api.md) - Complete REST API specification with authentication flows
+- [**Testing Status**](./backend/docs/testing-status.md) - Current test coverage and quality metrics
+- [**Role-Based Access Control**](./backend/docs/role-differentiation.md) - Implementation details and security considerations
+
+Each documentation file includes:
+- **Complete Mermaid diagrams** with dark/light mode compatible colors
+- **Step-by-step implementation** with detailed explanations
+- **Code examples** in Kotlin, TypeScript, and SQL
+- **API specifications** with request/response formats
+- **Error handling** scenarios and recovery procedures
+- **Security considerations** and compliance requirements
+- **Performance metrics** and monitoring guidelines
+
+## TECHINCAL
+
 🗄️ Database Schema (Complete - PostgreSQL)
 
 - **Dual User Tables**: `users` (Mobile App) + `web_admin_users` (Web Admin Interface)
@@ -310,36 +374,36 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph "Android Device" [Telemetry Generation]
-        GPS[GPS Service3-min intervals50m displacement]
-        Heartbeat[Heartbeat Service10-min intervalsBattery status]
-        AppUsage[App Usage TrackingScreen timeApplication events]
-        Events[System EventsNetwork, BatteryError conditions]
+    subgraph "Android Device" ["Telemetry Generation"]
+        GPS["GPS Service<br/>3-min intervals<br/>50m displacement"]
+        Heartbeat["Heartbeat Service<br/>10-min intervals<br/>Battery status"]
+        AppUsage["App Usage Tracking<br/>Screen time<br/>Application events"]
+        Events["System Events<br/>Network, Battery<br/>Error conditions"]
     end
 
-    subgraph "Batch Processing" [Telemetry Batching]
-        Collect[Collect EventsMax 50 events]
-        Validate[Validate Events• GPS coordinates• Battery ranges• Timestamp validation]
-        Batch[Create BatchJSON arrayDevice metadata]
+    subgraph "Batch Processing" ["Telemetry Batching"]
+        Collect["Collect Events<br/>Max 50 events"]
+        Validate["Validate Events<br/>GPS coordinates<br/>Battery ranges<br/>Timestamp validation"]
+        Batch["Create Batch<br/>JSON array<br/>Device metadata"]
     end
 
-    subgraph "Backend API" [Telemetry Service]
-        TelemetryAPI[POST /api/v1/telemetryBatch ingestion]
-        ProcessEvents[Event Processing• Type validation• Data integrity• Age verification]
-        StoreEvents[Database StorageEvent categorizationDevice tracking]
-        DeviceUpdate[Device Status UpdatelastSeenAt, lastGpsAt]
+    subgraph "Backend API" ["Telemetry Service"]
+        TelemetryAPI["POST /api/v1/telemetry<br/>Batch ingestion"]
+        ProcessEvents["Event Processing<br/>Type validation<br/>Data integrity<br/>Age verification"]
+        StoreEvents["Database Storage<br/>Event categorization<br/>Device tracking"]
+        DeviceUpdate["Device Status Update<br/>lastSeenAt, lastGpsAt"]
     end
 
-    subgraph "Database" [Telemetry Storage]
-        EventTable[telemetryEvents table deviceId, sessionIdtype, payloadJson, ts]
-        DeviceTable[devices table Activity tracking]
-        SessionTable[sessions table Event correlation]
+    subgraph "Database" ["Telemetry Storage"]
+        EventTable["telemetryEvents table<br/>deviceId, sessionId<br/>type, payloadJson, ts"]
+        DeviceTable["devices table<br/>Activity tracking"]
+        SessionTable["sessions table<br/>Event correlation"]
     end
 
-    subgraph "Data Consumption" [Analytics Layer]
-        RealTime[Real-time DashboardDevice statusGPS tracking]
-        Analytics[Analytics EngineUsage patternsPerformance metrics]
-        Reports[Reporting SystemHistorical dataCompliance reports]
+    subgraph "Data Consumption" ["Analytics Layer"]
+        RealTime["Real-time Dashboard<br/>Device status<br/>GPS tracking"]
+        Analytics["Analytics Engine<br/>Usage patterns<br/>Performance metrics"]
+        Reports["Reporting System<br/>Historical data<br/>Compliance reports"]
     end
 
     %% Telemetry Flow
@@ -350,7 +414,7 @@ flowchart TD
 
     Collect --> Validate
     Validate --> Batch
-    Batch --> |HTTPS POST| TelemetryAPI
+    Batch --> |"HTTPS POST"| TelemetryAPI
 
     TelemetryAPI --> ProcessEvents
     ProcessEvents --> StoreEvents
@@ -377,47 +441,47 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    subgraph "Override Request" [Supervisor Override]
-        BlockScreen[Blocker ActivityTime window exceededAccess denied]
-        OverrideDialog[Supervisor PIN DialogOverride requestReason entry]
+    subgraph "Override Request" ["Supervisor Override"]
+        BlockScreen["Blocker Activity<br/>Time window exceeded<br/>Access denied"]
+        OverrideDialog["Supervisor PIN Dialog<br/>Override request<br/>Reason entry"]
     end
 
-    subgraph "Backend API" [Override Service]
-        OverrideAPI[POST /api/v1/supervisor/override/loginSupervisor authentication]
-        PINVerify[Supervisor PIN VerificationHash validationTeam-specific PINs]
-        OverrideToken[Override Token Generation2-hour validityOverride scope]
-        SessionExtend[Session ExtensionoverrideUntil updateAudit logging]
+    subgraph "Backend API" ["Override Service"]
+        OverrideAPI["POST /api/v1/supervisor/override/login<br/>Supervisor authentication"]
+        PINVerify["Supervisor PIN Verification<br/>Hash validation<br/>Team-specific PINs"]
+        OverrideToken["Override Token Generation<br/>2-hour validity<br/>Override scope"]
+        SessionExtend["Session Extension<br/>overrideUntil update<br/>Audit logging"]
     end
 
-    subgraph "Database" [Override Storage]
-        SupPIN[supervisorPins table teamId, verifierHashrotatedAt, active]
-        SessionTable[sessions table overrideUntil updateExtension tracking]
-        AuditLog[Audit Records Override eventsSupervisor actions]
+    subgraph "Database" ["Override Storage"]
+        SupPIN["supervisorPins table<br/>teamId, verifierHash<br/>rotatedAt, active"]
+        SessionTable["sessions table<br/>overrideUntil update<br/>Extension tracking"]
+        AuditLog["Audit Records<br/>Override events<br/>Supervisor actions"]
     end
 
-    subgraph "Device Recovery" [Session Recovery]
-        SessionRecovery[Session RecoveryOverride token applicationTime window extension]
-        FullAccess[Full Access RestoredGPS tracking resumesNormal operations]
+    subgraph "Device Recovery" ["Session Recovery"]
+        SessionRecovery["Session Recovery<br/>Override token application<br/>Time window extension"]
+        FullAccess["Full Access Restored<br/>GPS tracking resumes<br/>Normal operations"]
     end
 
     %% Override Flow
     BlockScreen --> OverrideDialog
-    OverrideDialog --> |Supervisor PIN| OverrideAPI
+    OverrideDialog --> |"Supervisor PIN"| OverrideAPI
     OverrideAPI --> PINVerify
-    PINVerify --> |Validate hash| SupPIN
+    PINVerify --> |"Validate hash"| SupPIN
     PINVerify --> OverrideToken
     OverrideToken --> SessionExtend
-    SessionExtend --> |Update session| SessionTable
-    SessionExtend --> |Log override| AuditLog
+    SessionExtend --> |"Update session"| SessionTable
+    SessionExtend --> |"Log override"| AuditLog
 
     %% Recovery Flow
-    OverrideToken --> |Return token| OverrideDialog
+    OverrideToken --> |"Return token"| OverrideDialog
     OverrideDialog --> SessionRecovery
     SessionRecovery --> FullAccess
 
     %% Security Features
-    OverrideAPI --> RateLimit[Override Rate Limit10 attempts/15min]
-    OverrideAPI --> AuditTracking[Audit TrackingComplete override chain]
+    OverrideAPI --> RateLimit["Override Rate Limit<br/>10 attempts/15min"]
+    OverrideAPI --> AuditTracking["Audit Tracking<br/>Complete override chain"]
 
     style BlockScreen fill:#ffebee
     style OverrideDialog fill:#fff8e1
@@ -431,34 +495,34 @@ flowchart TD
 ```mermaid
 flowchart TD
     %% Data Sources Layer
-    subgraph "Data Sources" [Data Sources Layer]
-        DS1[Android DevicesGPS + HeartbeatApp Usage + Events]
-        DS2[Admin UsersUser ManagementDevice ConfigurationPolicy Creation]
-        DS3[External ServicesNTP Time SyncGPS SatellitesCertificate Authority]
+    subgraph "Data Sources" ["Data Sources Layer"]
+        DS1["Android Devices<br/>GPS + Heartbeat<br/>App Usage + Events"]
+        DS2["Admin Users<br/>User Management<br/>Device Configuration<br/>Policy Creation"]
+        DS3["External Services<br/>NTP Time Sync<br/>GPS Satellites<br/>Certificate Authority"]
     end
 
     %% Processing Layer
-    subgraph "Processing Layer" [Processing Layer]
-        PL1[Input ValidationZod SchemasType SafetySanitization]
-        PL2[Business LogicAuthenticationPolicy EnforcementTelemetry Processing]
-        PL3[Security LayerJWT ManagementJWS SigningRate Limiting]
-        PL4[Audit LayerRequest TrackingSecurity LoggingCompliance Records]
+    subgraph "Processing Layer" ["Processing Layer"]
+        PL1["Input Validation<br/>Zod Schemas<br/>Type Safety<br/>Sanitization"]
+        PL2["Business Logic<br/>Authentication<br/>Policy Enforcement<br/>Telemetry Processing"]
+        PL3["Security Layer<br/>JWT Management<br/>JWS Signing<br/>Rate Limiting"]
+        PL4["Audit Layer<br/>Request Tracking<br/>Security Logging<br/>Compliance Records"]
     end
 
     %% Storage Layer
-    subgraph "Storage Layer" [Storage Layer]
-        SL1[Session StorageActive SessionsToken ManagementOverride Tracking]
-        SL2[Telemetry StorageGPS EventsHeartbeat DataSystem Events]
-        SL3[Configuration StorageUser DataDevice RecordsPolicy Rules]
-        SL4[Security StoragePIN HashesRevocation ListAudit Trails]
+    subgraph "Storage Layer" ["Storage Layer"]
+        SL1["Session Storage<br/>Active Sessions<br/>Token Management<br/>Override Tracking"]
+        SL2["Telemetry Storage<br/>GPS Events<br/>Heartbeat Data<br/>System Events"]
+        SL3["Configuration Storage<br/>User Data<br/>Device Records<br/>Policy Rules"]
+        SL4["Security Storage<br/>PIN Hashes<br/>Revocation List<br/>Audit Trails"]
     end
 
     %% Consumption Layer
-    subgraph "Consumption Layer" [Consumption Layer]
-        CL1[Android AppsPolicy EnforcementSession ManagementTelemetry Upload]
-        CL2[Admin DashboardUser ManagementDevice MonitoringSystem Analytics]
-        CL3[Analytics EngineReal-time ProcessingHistorical ReportsCompliance Monitoring]
-        CL4[Monitoring SystemHealth ChecksSecurity AlertsPerformance Metrics]
+    subgraph "Consumption Layer" ["Consumption Layer"]
+        CL1["Android Apps<br/>Policy Enforcement<br/>Session Management<br/>Telemetry Upload"]
+        CL2["Admin Dashboard<br/>User Management<br/>Device Monitoring<br/>System Analytics"]
+        CL3["Analytics Engine<br/>Real-time Processing<br/>Historical Reports<br/>Compliance Monitoring"]
+        CL4["Monitoring System<br/>Health Checks<br/>Security Alerts<br/>Performance Metrics"]
     end
 
     %% Vertical Data Flow
@@ -481,10 +545,10 @@ flowchart TD
     SL4 --> CL4
 
     %% Feedback Loops
-    CL1 -.-> |Telemetry Data| DS1
-    CL2 -.-> |Configuration Changes| DS2
-    CL3 -.-> |Optimization Rules| PL2
-    CL4 -.-> |Security Policies| PL3
+    CL1 -.-> |"Telemetry Data"| DS1
+    CL2 -.-> |"Configuration Changes"| DS2
+    CL3 -.-> |"Optimization Rules"| PL2
+    CL4 -.-> |"Security Policies"| PL3
 
     %% Styling
     style DS1 fill:#e3f2fd
@@ -532,63 +596,3 @@ flowchart TD
 - **Policy Configuration**: Visual management of time windows and access rules
 
 This architecture provides a complete, enterprise-ready solution for mobile device management with secure authentication, policy enforcement, and comprehensive telemetry collection.
-
-## 📖 **User Documentation & Support**
-
-### **🎯 Quick Start for Users**
-
-**New to SurveyLauncher? Start here:**
-- [**Getting Started Guide**](./docs/user-guide/getting-started.md) - Set up your account and log in for the first time
-- [**Understanding Your Role**](./docs/understanding-your-role.md) - Learn what you can do based on your role
-
-**Role-Specific Guides:**
-- [**📱 Field Workers**](./docs/user-guide/field-worker-guide.md) - Using the mobile app for daily tasks
-- [**👨‍💼 Field Supervisors**](./docs/user-guide/supervisor-guide.md) - Managing your team and operations
-- [**🏢 Regional Managers**](./docs/user-guide/manager-guide.md) - Overseeing multiple teams and projects
-
-**Help & Support:**
-- [**🔧 Troubleshooting**](./docs/user-guide/troubleshooting.md) - Solutions to common problems
-- [**❓ Frequently Asked Questions**](./docs/user-guide/faq.md) - Quick answers to popular questions
-- [**🔒 Security Best Practices**](./docs/user-guide/security-best-practices.md) - Keeping your account secure
-
-**💡 Pro Tip:** Bookmark the [**User Guide Hub**](./docs/user-guide/README.md) for easy access to all user documentation!
-
-## 📚 Complete Documentation ecosystem
-
-### 🔗 **Workflow Documentation**
-For comprehensive implementation details, see the individual workflow files in the [`workflows/`](./workflows/) directory:
-
-- [**Authentication Workflow**](./workflows/authentication-workflow.md) - Dual-interface authentication overview (Mobile App + Web Admin)
-- [**Role-Based Access Control**](./workflows/role-based-access-control.md) - Complete 9-role RBAC system with permissions matrix
-- [**Mobile App Authentication**](./workflows/mobile-app-authentication.md) - Device-based authentication with PIN verification
-- [**Web Admin Authentication**](./workflows/web-admin-authentication.md) - Email/password authentication with role enforcement
-- [**User & Device Registration**](./workflows/user-device-registration.md) - Admin setup, team creation, user registration, device binding
-- [**Policy Distribution**](./workflows/policy-distribution.md) - JWS signing, time windows, device enforcement
-- [**Telemetry Collection**](./workflows/telemetry-collection.md) - GPS tracking, heartbeat, batch processing
-- [**Supervisor Override**](./workflows/supervisor-override.md) - Emergency access, PIN verification, audit logging
-- [**Data Flow Architecture**](./workflows/data-flow-architecture.md) - Vertical data flow, system optimization, feedback loops
-
-### 👥 **User-Friendly Documentation**
-- [**📖 User Guide Hub**](./docs/user-guide/README.md) - **Complete user guide for all SurveyLauncher users**
-- [**🚀 Getting Started**](./docs/user-guide/getting-started.md) - First-time setup and login instructions
-- [**🎯 Understanding Your Role**](./docs/understanding-your-role.md) - Simple guide explaining roles, permissions, and access patterns
-- [**📱 Field Worker Guide**](./docs/user-guide/field-worker-guide.md) - Mobile app usage for field workers
-- [**👨‍💼 Supervisor Guide**](./docs/user-guide/supervisor-guide.md) - Team management and oversight for supervisors
-- [**🏢 Manager Guide**](./docs/user-guide/manager-guide.md) - Regional operations and multi-team management
-- [**🔧 Troubleshooting Guide**](./docs/user-guide/troubleshooting.md) - Common problems and solutions for all users
-- [**❓ Frequently Asked Questions**](./docs/user-guide/faq.md) - Quick answers to common questions
-- [**🔒 Security Best Practices**](./docs/user-guide/security-best-practices.md) - User-friendly security and privacy guide
-
-### 🛠️ **Technical Documentation**
-- [**API Documentation**](./backend/docs/api.md) - Complete REST API specification with authentication flows
-- [**Testing Status**](./backend/docs/testing-status.md) - Current test coverage and quality metrics
-- [**Role-Based Access Control**](./backend/docs/role-differentiation.md) - Implementation details and security considerations
-
-Each documentation file includes:
-- **Complete Mermaid diagrams** with dark/light mode compatible colors
-- **Step-by-step implementation** with detailed explanations
-- **Code examples** in Kotlin, TypeScript, and SQL
-- **API specifications** with request/response formats
-- **Error handling** scenarios and recovery procedures
-- **Security considerations** and compliance requirements
-- **Performance metrics** and monitoring guidelines
