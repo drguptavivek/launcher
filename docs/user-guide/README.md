@@ -1,219 +1,129 @@
 # SurveyLauncher User Guide
 
-*Complete documentation for all users of the SurveyLauncher system*
+*Role-based access and project management system*
 
-Last updated: November 15, 2025
+## 🎯 Your Role, Your Access, Your Projects
 
-## 🎯 Welcome to SurveyLauncher!
+SurveyLauncher organizes work around **Roles**, **Admin Functions**, and **Projects**.
 
-SurveyLauncher is a mobile device management system that helps teams collect data in the field while keeping everything secure and organized. Whether you're a field worker using the mobile app or a manager using the web dashboard, this guide will help you get started and make the most of the system.
+### **🔑 The 9 Roles**
+1. **TEAM_MEMBER** - Mobile app only, assigned tasks
+2. **FIELD_SUPERVISOR** - Mobile + Web, manages team
+3. **REGIONAL_MANAGER** - Mobile + Web, oversees region
+4. **SYSTEM_ADMIN** - Web only, full system access
+5. **SUPPORT_AGENT** - Web only, user help
+6. **AUDITOR** - Web only, read-only access
+7. **DEVICE_MANAGER** - Web only, device management
+8. **POLICY_ADMIN** - Web only, rules and policies
+9. **NATIONAL_SUPPORT_ADMIN** - Web only, multi-region access
 
-## 📱 Who This Guide Is For
+### **📱 Two Interfaces**
+- **Mobile App**: Device ID + User Code + PIN → Field work
+- **Web Dashboard**: Email + Password → Admin tasks
 
-This guide covers all user types:
-
-- **Field Workers** - Using the Android mobile app for daily work
-- **Field Supervisors** - Managing teams and using both mobile and web interfaces
-- **Regional Managers** - Overseeing multiple teams and projects
-- **System Administrators** - Managing the entire system
-- **Support Agents** - Helping users with problems
-- **Auditors** - Reviewing system compliance and reports
-- **Device Managers** - Managing Android devices and inventory
-- **Policy Administrators** - Setting up work rules and schedules
-- **National Support Administrators** - Managing cross-regional operations
-
-## 🚀 Quick Start
-
-### New to SurveyLauncher?
-Start with our getting started guide:
-
-**[→ Getting Started Guide](./getting-started.md)**
-
-### Know Your Role?
-Jump directly to your role-specific guide:
-
-- **[→ Field Worker Guide](./field-worker-guide.md)** - Mobile app users
-- **[→ Supervisor Guide](./supervisor-guide.md)** - Team leaders
-- **[→ Manager Guide](./manager-guide.md)** - Regional oversight
-- **[→ Administrator Guide](./administrator-guide.md)** - System management
-
-### Need Help Now?
-- **[→ Troubleshooting Guide](./troubleshooting.md)** - Common problems and solutions
-- **[→ FAQ](./faq.md)** - Frequently asked questions
+### **📊 Project System**
+- **Projects** have geographic scope: LOCAL, REGIONAL, NATIONAL
+- **Users** assigned to projects based on role and team
+- **Boundaries** enforced automatically
 
 ---
 
-## 📚 Guide Contents
+## 📚 Role-Specific Guides
 
-### Core Documentation
-- **[Understanding Your Role](../understanding-your-role.md)** - What you can do based on your role
-- **[Getting Started](./getting-started.md)** - First-time setup and login
-- **[Daily Tasks](./daily-tasks.md)** - Common activities for all users
+### **Field Operations**
+- **[Field Worker Guide](./field-worker-guide.md)** - Mobile app daily tasks
+- **[Supervisor Guide](./supervisor-guide.md)** - Team management + mobile use
+- **[Manager Guide](./manager-guide.md)** - Regional oversight + mobile use
 
-### Role-Specific Guides
-- **[Field Worker Guide](./field-worker-guide.md)** - Using the mobile app
-- **[Supervisor Guide](./supervisor-guide.md)** - Managing your team
-- **[Manager Guide](./manager-guide.md)** - Regional oversight and reporting
-- **[Administrator Guide](./administrator-guide.md)** - System configuration and management
-- **[Support Guide](./support-guide.md)** - Help desk and troubleshooting
-- **[Auditor Guide](./auditor-guide.md)** - Compliance and review
+### **Admin Operations**
+- **[System Admin Guide](./system-admin-guide.md)** - Full system configuration
+- **[Support Agent Guide](./support-agent-guide.md)** - User help and troubleshooting
+- **[Auditor Guide](./auditor-guide.md)** - Compliance and reporting
+- **[Device Manager Guide](./device-manager-guide.md)** - Android device management
+- **[Policy Admin Guide](./policy-admin-guide.md)** - Rules and schedules
+- **[National Support Guide](./national-support-guide.md)** - Multi-region operations
 
-### Task-Specific Guides
-- **[Mobile App Guide](./mobile-app-guide.md)** - Android app features and navigation
-- **[Web Dashboard Guide](./web-dashboard-guide.md)** - Web interface overview
-- **[Project Management](./project-management.md)** - Creating and managing projects
-- **[Team Management](./team-management.md)** - Working with teams and assignments
-- **[Device Management](./device-management.md)** - Setting up and managing devices
+### **Getting Started**
+- **[Getting Started](./getting-started.md)** - First login and basic setup
+- **[Understanding Your Role](../understanding-your-role.md)** - Detailed role explanations
 
-### Security & Best Practices
-- **[Security Best Practices](./security-best-practices.md)** - Keeping your account safe
-- **[Working Hours & Schedules](./working-hours.md)** - Understanding time windows and access
-- **[Location Tracking](./location-tracking.md)** - GPS and location privacy
-- **[Emergency Access](./emergency-access.md)** - Supervisor overrides and emergency procedures
-
-### Help & Support
-- **[Troubleshooting](./troubleshooting.md)** - Common problems and solutions
-- **[FAQ](./faq.md)** - Frequently asked questions
-- **[Contact Support](./contact-support.md)** - How to get help
-- **[Glossary](./glossary.md)** - Terms and definitions
+### **Help & Support**
+- **[Troubleshooting](./troubleshooting.md)** - Common problems
+- **[FAQ](./faq.md)** - Quick answers
 
 ---
 
-## 🏗️ Understanding SurveyLauncher
+## 🎯 What Can You Do?
 
-### The Two Interfaces
+### **By Role**
 
-SurveyLauncher has two main parts that work together:
+| Role | Mobile | Web | Projects | Users | Devices | System |
+|------|--------|-----|----------|-------|---------|--------|
+| **TEAM_MEMBER** | ✅ | ❌ | Assigned only | ❌ | ❌ | ❌ |
+| **FIELD_SUPERVISOR** | ✅ | ✅ | Team projects | Team only | Team only | ❌ |
+| **REGIONAL_MANAGER** | ✅ | ✅ | Regional projects | Regional | Regional | ❌ |
+| **SYSTEM_ADMIN** | ❌ | ✅ | All projects | All users | All devices | ✅ |
+| **SUPPORT_AGENT** | ❌ | ✅ | View only | View only | View only | ❌ |
+| **AUDITOR** | ❌ | ✅ | View only | View only | View only | View only |
+| **DEVICE_MANAGER** | ❌ | ✅ | ❌ | ❌ | All devices | ❌ |
+| **POLICY_ADMIN** | ❌ | ✅ | ❌ | ❌ | ❌ | Policy only |
+| **NATIONAL_SUPPORT** | ❌ | ✅ | All projects | All users | All devices | ❌ |
 
-#### 1. Mobile App (For Field Work)
-- **Used on:** Android phones and tablets
-- **Who uses it:** Field workers, supervisors, regional managers
-- **What you do:** Daily login, GPS tracking, complete surveys, collect data
-- **How you log in:** Device ID + Your user code + PIN number
+### **By Project Scope**
 
-#### 2. Web Dashboard (For Management)
-- **Used on:** Computers and laptops
-- **Who uses it:** Most roles except field workers
-- **What you do:** Manage users, view reports, configure devices, create projects
-- **How you log in:** Email address + password
-
-### How Your Role Determines Access
-
-Your role determines what you can see and do:
-
-- **Field Workers** can only use the mobile app for their assigned work
-- **Supervisors** can use both the mobile app (for field work) and web dashboard (for team management)
-- **Managers** have broader access to regional data and reporting
-- **Administrators** can configure and manage the entire system
-
-### Projects and Teams
-
-- **Teams** are groups of users working in the same area or department
-- **Projects** are specific assignments or surveys that teams work on
-- **Assignments** determine which users can work on which projects
-- **Boundaries** keep information secure between teams and regions
+| Scope | Who Can Access | What It Covers |
+|-------|----------------|----------------|
+| **LOCAL** | Single team | One team's work only |
+| **REGIONAL** | Multiple teams same region | All teams in one region |
+| **NATIONAL** | Multiple regions | All teams across country |
 
 ---
 
-## 🎯 Key Features
+## 📱 How to Access
 
-### For Field Workers
-- **Daily Login** - Secure sign-in with your code and PIN
-- **GPS Tracking** - Automatic location tracking during work hours
-- **Offline Work** - Continue working even without internet
-- **Task Management** - See and complete your assigned work
-- **Battery Monitoring** - Track your device's battery status
+### **Mobile App Users**
+1. **Device Registration**: Must be registered to your team
+2. **User Account**: Created by your supervisor or admin
+3. **Login**: Device ID + Your User Code + PIN
+4. **Daily Work**: Complete assigned tasks in allowed time windows
 
-### For Supervisors and Managers
-- **Team Oversight** - See what your team members are working on
-- **Real-time Tracking** - Monitor team locations and status
-- **Report Generation** - Create reports on team performance
-- **Emergency Access** - Help team members with supervisor overrides
-- **Project Management** - Create and assign projects to teams
+### **Web Dashboard Users**
+1. **Account Creation**: Created by system admin
+2. **Login**: Email + Password
+3. **Role-Based Access**: See and do only what your role allows
+4. **Project Management**: Create/assign projects based on your scope
 
-### For Administrators
-- **User Management** - Create and manage user accounts
-- **Device Configuration** - Set up and manage Android devices
-- **Policy Creation** - Define work schedules and access rules
-- **System Monitoring** - Track system health and performance
-- **Security Management** - Maintain system security and compliance
+---
+
+## 🔑 Quick Access Links
+
+### **Know Your Role? Jump In:**
+- [**TEAM_MEMBER**](./field-worker-guide.md) → Mobile app tasks
+- [**FIELD_SUPERVISOR**](./supervisor-guide.md) → Team + mobile
+- [**REGIONAL_MANAGER**](./manager-guide.md) → Regional + mobile
+- [**SYSTEM_ADMIN**](./system-admin-guide.md) → Full system
+- [**SUPPORT_AGENT**](./support-agent-guide.md) → User help
+- [**AUDITOR**](./auditor-guide.md) → Compliance review
+- [**DEVICE_MANAGER**](./device-manager-guide.md) → Device setup
+- [**POLICY_ADMIN**](./policy-admin-guide.md) → Rules/policies
+- [**NATIONAL_SUPPORT**](./national-support-guide.md) → Multi-region
+
+### **Need Help?**
+- [**Troubleshooting**](./troubleshooting.md) → Common problems
+- [**FAQ**](./faq.md) → Quick answers
 
 ---
 
 ## 📞 Getting Help
 
-### First Steps for Getting Help
+### **Contact Hierarchy**
+1. **Your Supervisor** → Daily work questions
+2. **System Admin** → Account issues, access problems
+3. **Support Agent** → Technical problems, device issues
+4. **Regional Manager** → Policy questions, project issues
 
-1. **Check This Guide** - Look for your specific issue in the relevant section
-2. **Ask Your Supervisor** - Your immediate supervisor can help with most daily questions
-3. **Contact Support** - For technical issues, contact your organization's support team
-
-### Types of Support Available
-
-- **Daily Work Questions** → Your Field Supervisor
-- **Technical Problems** → Support Agent or Device Manager
-- **Account Issues** → System Administrator
-- **Policy Questions** → Your Regional Manager or Policy Administrator
-- **Emergency Issues** → Immediate supervisor + System Administrator
-
-### What to Have Ready When You Ask for Help
-
-- **Your role and team name**
-- **Your device ID (for mobile app issues)**
-- **What you were trying to do**
-- **Any error messages you received**
-- **When the problem started**
-
----
-
-## 🔒 Security and Privacy
-
-### Keeping Your Information Safe
-
-- **Never share your PIN or password** with anyone
-- **Log out** when you're finished using the system
-- **Report lost devices** immediately to your supervisor
-- **Keep your contact information** up to date
-
-### What Information Is Collected
-
-- **Work Activity** - Tasks you complete and time spent
-- **Location Data** - GPS coordinates during work hours only
-- **Device Status** - Battery level, network connection, app usage
-- **System Events** - Login times, error messages, support requests
-
-### Who Can See Your Information
-
-- **You** can see all your own information
-- **Your Supervisor** can see your work progress and location during work hours
-- **System Administrators** can see system information for maintenance only
-- **Other Team Members** can only see shared project information
-
----
-
-## ✅ Next Steps
-
-1. **Read Your Role-Specific Guide** - Find the guide for your role in the list above
-2. **Complete First-Time Setup** - Follow the getting started guide
-3. **Learn Daily Tasks** - Review the daily tasks guide for your role
-4. **Bookmark This Guide** - Save this page for future reference
-5. **Ask Questions** - Contact your supervisor if anything is unclear
-
----
-
-## 📄 Document Information
-
-**Document Version:** 1.0
-**Last Updated:** November 15, 2025
-**Next Review:** December 15, 2025
-**Maintained By:** SurveyLauncher Documentation Team
-
-**Related Documents:**
-- [Understanding Your Role](../understanding-your-role.md)
-- [Mobile User Guide](../MobileUserGuide.md)
-- [Team Manager Guide](../TeamManagerGuide.md)
-- [Security Compliance Guide](../SecurityComplianceGuide.md)
-
----
-
-*Need help with something specific? Use the search function at the top of this page or navigate to the relevant section from the table of contents above.*
+### **What to Report**
+- **Role Access Issues** → System Admin
+- **Project Assignment Problems** → Your Supervisor
+- **Device Problems** → Device Manager or Support Agent
+- **Login Issues** → Support Agent or System Admin
