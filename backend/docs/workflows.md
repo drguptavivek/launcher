@@ -1,6 +1,6 @@
 # SurveyLauncher Backend - Workflows Documentation
 
-Last updated: November 13, 2025
+Last updated: November 15, 2025
 
 This document describes all the core workflows and processes implemented in the SurveyLauncher backend system.
 
@@ -12,27 +12,36 @@ This document describes all the core workflows and processes implemented in the 
    - [User Logout](#user-logout)
    - [JWT Token Verification](#jwt-token-verification)
 
-2. [Policy Management Workflows](#policy-management-workflows)
+2. [Project Management Workflows](#project-management-workflows)
+   - [Project Creation](#project-creation)
+   - [Project Access Control](#project-access-control)
+   - [User Assignment to Projects](#user-assignment-to-projects)
+   - [Team Assignment to Projects](#team-assignment-to-projects)
+   - [Geographic Scope Enforcement](#geographic-scope-enforcement)
+   - [Project Boundary Management](#project-boundary-management)
+   - [Project Role-Based Access](#project-role-based-access)
+
+3. [Policy Management Workflows](#policy-management-workflows)
    - [Policy Issuance](#policy-issuance)
    - [Policy Validation](#policy-validation)
    - [Policy Signing](#policy-signing)
 
-3. [Telemetry Workflows](#telemetry-workflows)
+4. [Telemetry Workflows](#telemetry-workflows)
    - [Telemetry Ingestion](#telemetry-ingestion)
    - [Telemetry Validation](#telemetry-validation)
    - [Telemetry Storage](#telemetry-storage)
 
-4. [Session Management Workflows](#session-management-workflows)
+5. [Session Management Workflows](#session-management-workflows)
    - [Session Creation](#session-creation)
    - [Session Validation](#session-validation)
    - [Session Termination](#session-termination)
 
-5. [Security Workflows](#security-workflows)
+6. [Security Workflows](#security-workflows)
    - [PIN Verification](#pin-verification)
    - [Rate Limiting](#rate-limiting)
    - [Token Revocation](#token-revocation)
 
-6. [Database Workflows](#database-workflows)
+7. [Database Workflows](#database-workflows)
    - [Database Migrations](#database-migrations)
    - [Entity Relationships](#entity-relationships)
    - [Data Consistency](#data-consistency)
@@ -118,6 +127,206 @@ This document describes all the core workflows and processes implemented in the 
 - `AuthService.getUser()`
 - Authentication middleware
 - Database: `users`, `sessions`, `jwt_revocations` tables
+
+---
+
+## Project Management Workflows
+
+### Project Creation
+
+**Purpose**: Create new projects with proper scoping and boundary definitions.
+
+**Process Steps**:
+1. **Input Validation**: Validate project data (title, abbreviation, geographic scope)
+2. **Permission Check**: Verify user has PROJECTS.CREATE permission for their role and region
+3. **Geographic Scope Validation**:
+   - For NATIONAL scope: Allow SYSTEM_ADMIN and NATIONAL_SUPPORT_ADMIN
+   - For REGIONAL scope: Require REGIONAL_MANAGER or above with team/region validation
+4. **Abbreviation Uniqueness**: Ensure project abbreviation is unique across organization
+5. **Project Record Creation**: Insert project with metadata and creator tracking
+6. **Audit Logging**: Record project creation with user context and boundaries
+7. **Response**: Return created project with scoping information
+
+**Key Components**:
+- `ProjectService.createProject()`
+- `AuthorizationService.checkProjectsAccess()`
+- Database: `projects`, `users`, `teams` tables
+- Geographic scope enforcement based on user role and team assignment
+
+**Boundary Enforcement**:
+- **TEAM_MEMBER**: Can create only local projects within their team
+- **FIELD_SUPERVISOR**: Can create projects within their supervised teams
+- **REGIONAL_MANAGER**: Can create projects within their geographic region
+- **SYSTEM_ADMIN/NATIONAL_SUPPORT_ADMIN**: Can create projects at any scope
+
+### Project Access Control
+
+**Purpose**: Enforce project boundaries and access controls at multiple levels.
+
+**Access Control Layers**:
+1. **Role-Based Permissions**: Base permissions from RBAC matrix
+2. **Direct Assignment**: Explicit user-to-project assignments
+3. **Team-Based Access**: Team-to-project assignments with scope levels
+4. **Geographic Boundaries**: Regional restrictions based on project scope
+5. **Organization Scope**: Cross-team access for privileged roles
+
+**Process Steps**:
+1. **Authentication**: Verify user identity and active session
+2. **Permission Evaluation**: Check user's role permissions for PROJECTS resource
+3. **Direct Assignment Check**: Verify if user has direct project assignment
+4. **Team Assignment Check**: Check if user's team has project access
+5. **Geographic Validation**: Validate regional access based on project scope
+6. **Cross-Team Access**: Evaluate NATIONAL_SUPPORT_ADMIN and SYSTEM_ADMIN cross-team access
+7. **Access Decision**: Grant or deny access with detailed reason logging
+
+**Key Components**:
+- `ProjectPermissionService.checkProjectPermission()`
+- `AuthorizationService.checkProjectsAccess()`
+- Database: `project_assignments`, `project_team_assignments`, `users`, `teams`, `projects` tables
+
+### User Assignment to Projects
+
+**Purpose**: Assign users to projects with proper boundary validation and role scoping.
+
+**Process Steps**:
+1. **Project Validation**: Verify project exists and user has assignment permissions
+2. **User Validation**: Check user exists, is active, and belongs to valid team
+3. **Permission Check**: Validate assigner has PROJECTS.ASSIGN permission
+4. **Boundary Validation**:
+   - For REGIONAL projects: User must be in same region or have cross-region role
+   - For NATIONAL projects: Check cross-team access permissions
+   - For user's own projects: Allow self-assignment within role boundaries
+5. **Assignment Creation**: Create project assignment with role and scope metadata
+6. **Conflict Resolution**: Handle existing assignments and role conflicts
+7. **Audit Logging**: Record assignment details with boundary context
+8. **Notification**: Optional notifications to assigned users and team leads
+
+**Key Components**:
+- `ProjectService.assignUserToProject()`
+- `ProjectPermissionService.canAssignToProject()`
+- Database: `project_assignments`, `projects`, `users`, `teams` tables
+
+**Assignment Scopes**:
+- **READ**: View project details and participate in project activities
+- **EXECUTE**: Execute project tasks and manage project operations
+- **UPDATE**: Modify project properties and configurations
+- **DELETE**: Remove or archive projects (administrative)
+
+### Team Assignment to Projects
+
+**Purpose**: Assign entire teams to projects with role-based scope definitions.
+
+**Process Steps**:
+1. **Project Validation**: Verify project exists and assignment permissions
+2. **Team Validation**: Check team exists, is active, and within geographic boundaries
+3. **Geographic Compatibility**: Validate team location vs project geographic scope
+4. **Permission Check**: Confirm assigner has PROJECTS.ASSIGN permission
+5. **Scope Definition**: Define team's access scope within the project
+6. **Assignment Creation**: Create team-project assignment with role metadata
+7. **Member Impact**: Automatically extend access to all active team members
+8. **Audit Logging**: Record team assignment with boundary context
+9. **Conflict Management**: Handle overlapping assignments and role conflicts
+
+**Key Components**:
+- `ProjectService.assignTeamToProject()`
+- `ProjectPermissionService.validateTeamProjectAssignment()`
+- Database: `project_team_assignments`, `projects`, `teams`, `users` tables
+
+**Team Assignment Scopes**:
+- **READ**: Team members can view project information
+- **PARTICIPATE**: Team can actively participate in project activities
+- **MANAGE**: Team can manage project aspects within defined boundaries
+- **ADMIN**: Full administrative access within project scope
+
+### Geographic Scope Enforcement
+
+**Purpose**: Enforce geographic boundaries for projects and assignments.
+
+**Geographic Scopes**:
+1. **LOCAL**: Project scoped to specific team location
+2. **REGIONAL**: Project scoped to state/region level
+3. **NATIONAL**: Project scoped across entire organization
+
+**Enforcement Rules**:
+1. **Project Creation**: Users can only create projects within their geographic authority
+2. **User Assignment**: Assignments must respect geographic boundaries
+3. **Team Assignment**: Teams must be within project's geographic scope
+4. **Access Control**: Geographic boundaries enforced during access checks
+
+**Process Steps**:
+1. **Scope Detection**: Identify project geographic scope
+2. **User Geography**: Determine user's geographic authority based on role and team
+3. **Boundary Validation**: Check if user/team assignment respects geographic boundaries
+4. **Cross-Region Access**: Evaluate privileged roles for cross-region access
+5. **Access Decision**: Grant or deny based on geographic compatibility
+6. **Audit Logging**: Record geographic boundary decisions
+
+**Key Components**:
+- `ProjectPermissionService.validateGeographicScope()`
+- Geographic scope matrix based on user roles and team locations
+- Database: `projects`, `teams`, `users`, `regions` tables
+
+### Project Boundary Management
+
+**Purpose**: Maintain clear separation and isolation between projects.
+
+**Boundary Types**:
+1. **Data Boundaries**: Project-specific data isolation
+2. **User Boundaries**: User access limited to assigned projects
+3. **Team Boundaries**: Team access scoped to specific projects
+4. **Geographic Boundaries**: Regional limitations based on project scope
+5. **Temporal Boundaries**: Project lifecycle and duration management
+
+**Management Process**:
+1. **Boundary Definition**: Define project boundaries during creation
+2. **Access Enforcement**: Apply boundary rules during access checks
+3. **Change Management**: Handle boundary modifications with proper validation
+4. **Conflict Resolution**: Resolve overlapping or conflicting boundaries
+5. **Audit Trail**: Maintain comprehensive boundary change history
+
+**Key Components**:
+- `ProjectService.validateProjectBoundaries()`
+- `ProjectPermissionService.enforceBoundaries()`
+- Database: All project-related tables with foreign key constraints
+
+### Project Role-Based Access
+
+**Purpose**: Implement role-based access control specifically for project operations.
+
+**Project Permission Matrix**:
+
+| Role | Read | List | Create | Update | Delete | Assign | Execute | Audit |
+|------|------|------|--------|--------|--------|--------|---------|-------|
+| TEAM_MEMBER | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| FIELD_SUPERVISOR | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ |
+| REGIONAL_MANAGER | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SYSTEM_ADMIN | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SUPPORT_AGENT | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| AUDITOR | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| DEVICE_MANAGER | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| POLICY_ADMIN | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| NATIONAL_SUPPORT_ADMIN | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+**Permission Evaluation Process**:
+1. **Base Role Permission**: Check user's role permissions from matrix
+2. **Direct Assignment**: Evaluate specific user-to-project assignments
+3. **Team Membership**: Consider team-based project access
+4. **Geographic Constraints**: Apply regional limitations
+5. **Cross-Team Privileges**: Evaluate privileged cross-team access
+6. **Final Decision**: Combine all factors for access determination
+
+**Key Components**:
+- `ProjectPermissionService.evaluateProjectPermissions()`
+- `AuthorizationService.checkProjectsAccess()`
+- RBAC matrix with PROJECTS resource integration
+- Database: `project_assignments`, `project_team_assignments`, permissions cache
+
+**Security Features**:
+- **Principle of Least Privilege**: Users get minimum required access
+- **Boundary Enforcement**: Multiple layers of access control
+- **Audit Logging**: Complete access decision audit trail
+- **Permission Caching**: Optimized permission resolution with TTL
+- **Dynamic Updates**: Real-time permission updates on assignment changes
 
 ---
 
@@ -389,6 +598,8 @@ This document describes all the core workflows and processes implemented in the 
 5. **Validation Rules**: Implement data validation at database level
 
 **Key Relationships**:
+
+### Core System Relationships
 - `teams` → `users` (one-to-many)
 - `teams` → `devices` (one-to-many)
 - `users` → `sessions` (one-to-many)
@@ -396,6 +607,20 @@ This document describes all the core workflows and processes implemented in the 
 - `users` → `user_pins` (one-to-one)
 - `devices` → `telemetry_events` (one-to-many)
 - `devices` → `policy_issues` (one-to-many)
+
+### Project Management Relationships
+- `projects` → `project_assignments` (one-to-many) - Direct user assignments
+- `projects` → `project_team_assignments` (one-to-many) - Team assignments
+- `users` → `project_assignments` (one-to-many) - User's project assignments
+- `teams` → `project_team_assignments` (one-to-many) - Team's project assignments
+- `projects` → `users` (many-to-many) through `project_assignments`
+- `projects` → `teams` (many-to-many) through `project_team_assignments`
+
+### Project Boundary Relationships
+- `projects.created_by` → `users.id` (project creator tracking)
+- `projects.region_id` → `teams.id` (regional scope association)
+- `project_assignments.assigned_by` → `users.id` (assignment tracking)
+- `project_team_assignments.assigned_by` → `users.id` (team assignment tracking)
 
 ### Data Consistency
 
@@ -474,6 +699,25 @@ This document describes all the core workflows and processes implemented in the 
 - `POST /api/v1/auth/refresh` - Token refresh
 - `POST /api/v1/auth/logout` - User logout
 - `GET /api/v1/auth/whoami` - Current user information
+
+### Project Management Endpoints
+- `POST /api/v1/projects` - Create new project with geographic scope
+- `GET /api/v1/projects` - List projects with pagination and filtering
+- `GET /api/v1/projects/:id` - Get project details with access control
+- `PUT /api/v1/projects/:id` - Update project with permission validation
+- `DELETE /api/v1/projects/:id` - Soft delete project with audit trail
+
+### Project Assignment Endpoints
+- `POST /api/v1/projects/:id/users` - Assign user to project
+- `GET /api/v1/projects/:id/users` - Get project user assignments
+- `DELETE /api/v1/projects/:id/users/:userId` - Remove user from project
+- `POST /api/v1/projects/:id/teams` - Assign team to project
+- `GET /api/v1/projects/:id/teams` - Get project team assignments
+- `DELETE /api/v1/projects/:id/teams/:teamId` - Remove team from project
+
+### Cross-Reference Endpoints
+- `GET /api/v1/users/:userId/projects` - Get user's project assignments
+- `GET /api/v1/teams/:teamId/projects` - Get team's project assignments
 
 ### Policy Endpoints
 - `GET /api/v1/policy/:deviceId` - Device policy retrieval

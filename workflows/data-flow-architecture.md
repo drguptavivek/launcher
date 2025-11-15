@@ -12,14 +12,16 @@ flowchart TD
         DS1[Android Devices<br/>GPS + Heartbeat<br/>App Usage + Events]
         DS2[Admin Users<br/>User Management<br/>Device Configuration<br/>Policy Creation]
         DS3[External Services<br/>NTP Time Sync<br/>GPS Satellites<br/>Certificate Authority]
+        DS4[Project Management<br/>Project Creation<br/>User/Team Assignments<br/>Geographic Scoping]
     end
 
     %% Processing Layer
     subgraph "Processing Layer" [Processing Layer]
         PL1[Input Validation<br/>Zod Schemas<br/>Type Safety<br/>Sanitization]
         PL2[Business Logic<br/>Authentication<br/>Policy Enforcement<br/>Telemetry Processing]
-        PL3[Security Layer<br/>JWT Management<br/>JWS Signing<br/>Rate Limiting]
-        PL4[Audit Layer<br/>Request Tracking<br/>Security Logging<br/>Compliance Records]
+        PL2_5[Project Management<br/>Project Access Control<br/>Boundary Enforcement<br/>Assignment Management]
+        PL3[Security Layer<br/>JWT Management<br/>JWS Signing<br/>Rate Limiting<br/>Project RBAC]
+        PL4[Audit Layer<br/>Request Tracking<br/>Security Logging<br/>Compliance Records<br/>Project Audits]
     end
 
     %% Storage Layer
@@ -27,41 +29,49 @@ flowchart TD
         SL1[Session Storage<br/>Active Sessions<br/>Token Management<br/>Override Tracking]
         SL2[Telemetry Storage<br/>GPS Events<br/>Heartbeat Data<br/>System Events]
         SL3[Configuration Storage<br/>User Data<br/>Device Records<br/>Policy Rules]
-        SL4[Security Storage<br/>PIN Hashes<br/>Revocation List<br/>Audit Trails]
+        SL3_5[Project Storage<br/>Project Records<br/>User Assignments<br/>Team Assignments<br/>Project Boundaries]
+        SL4[Security Storage<br/>PIN Hashes<br/>Revocation List<br/>Audit Trails<br/>Project Permissions]
     end
 
     %% Consumption Layer
     subgraph "Consumption Layer" [Consumption Layer]
         CL1[Android Apps<br/>Policy Enforcement<br/>Session Management<br/>Telemetry Upload]
         CL2[Admin Dashboard<br/>User Management<br/>Device Monitoring<br/>System Analytics]
-        CL3[Analytics Engine<br/>Real-time Processing<br/>Historical Reports<br/>Compliance Monitoring]
-        CL4[Monitoring System<br/>Health Checks<br/>Security Alerts<br/>Performance Metrics]
+        CL2_5[Project Dashboard<br/>Project Management<br/>Assignment Control<br/>Boundary Monitoring]
+        CL3[Analytics Engine<br/>Real-time Processing<br/>Historical Reports<br/>Compliance Monitoring<br/>Project Analytics]
+        CL4[Monitoring System<br/>Health Checks<br/>Security Alerts<br/>Performance Metrics<br/>Project Boundary Violations]
     end
 
     %% Vertical Data Flow
     DS1 --> PL1
     DS2 --> PL1
     DS3 --> PL1
+    DS4 --> PL1
 
     PL1 --> PL2
-    PL2 --> PL3
+    PL2 --> PL2_5
+    PL2_5 --> PL3
     PL3 --> PL4
 
     PL4 --> SL1
     PL4 --> SL2
     PL4 --> SL3
+    PL4 --> SL3_5
     PL4 --> SL4
 
     SL1 --> CL1
     SL2 --> CL3
     SL3 --> CL2
+    SL3_5 --> CL2_5
     SL4 --> CL4
 
     %% Feedback Loops
     CL1 -.-> |Telemetry Data| DS1
     CL2 -.-> |Configuration Changes| DS2
+    CL2_5 -.-> |Project Changes| DS4
     CL3 -.-> |Optimization Rules| PL2
     CL4 -.-> |Security Policies| PL3
+    CL4 -.-> |Boundary Alerts| PL2_5
 
     %% Styling
     style DS1 fill:#e3f2fd

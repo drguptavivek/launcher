@@ -9,6 +9,7 @@ import { SupervisorPinService } from '../services/supervisor-pin-service';
 import { JWTService } from '../services/jwt-service';
 import { RoleService } from '../services/role-service';
 import { AuthorizationService } from '../services/authorization-service';
+import { ProjectService } from '../services/project-service';
 import { logger } from '../lib/logger';
 import { db } from '../lib/db';
 import { devices, sessions, telemetryEvents } from '../lib/db/schema';
@@ -2284,6 +2285,716 @@ async function getUserPermissions(req: Request, res: Response) {
   }
 }
 
+// ================= PROJECT MANAGEMENT ENDPOINTS =================
+
+// POST /api/v1/projects - Create a new project
+async function createProject(req: Request, res: Response) {
+  try {
+    const { title, abbreviation, contactPersonDetails, status = 'ACTIVE', geographicScope = 'NATIONAL', regionId, organizationId } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.userId;
+
+    const result = await ProjectService.createProject({
+      title,
+      abbreviation,
+      contactPersonDetails,
+      status,
+      geographicScope,
+      regionId,
+      organizationId,
+      createdBy: userId
+    });
+
+    if (result.success) {
+      return res.status(201).json({
+        ok: true,
+        project: result.project,
+      });
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'PROJECT_CREATE_FAILED',
+          message: result.error?.message || 'Failed to create project',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Create project endpoint error', { error, body: req.body });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while creating project',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// GET /api/v1/projects - List projects with pagination and filtering
+async function listProjects(req: Request, res: Response) {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const status = req.query.status as string;
+    const geographicScope = req.query.geographicScope as string;
+    const regionId = req.query.regionId as string;
+    const search = req.query.search as string;
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.userId;
+
+    const result = await ProjectService.listProjects({
+      page,
+      limit,
+      status,
+      geographicScope,
+      regionId,
+      search,
+      currentUserId: userId
+    });
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        projects: result.projects || [],
+        pagination: {
+          page,
+          limit,
+          total: result.total || 0,
+          pages: Math.ceil((result.total || 0) / limit),
+        },
+      });
+    } else {
+      return res.status(500).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'PROJECTS_LIST_FAILED',
+          message: result.error?.message || 'Failed to list projects',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('List projects endpoint error', { error, query: req.query });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while listing projects',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// GET /api/v1/projects/:id - Get project by ID
+async function getProject(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.userId;
+
+    if (!projectId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_PROJECT_ID',
+          message: 'Project ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.getProject(projectId, userId);
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        project: result.project,
+      });
+    } else if (result.error?.code === 'PROJECT_NOT_FOUND') {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: result.error.code,
+          message: result.error.message,
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    } else {
+      return res.status(403).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'PROJECT_ACCESS_DENIED',
+          message: result.error?.message || 'Access denied to project',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Get project endpoint error', { error, params: req.params });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while fetching project',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// PUT /api/v1/projects/:id - Update project
+async function updateProject(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const { title, abbreviation, contactPersonDetails, status, geographicScope, regionId, organizationId } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.userId;
+
+    if (!projectId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_PROJECT_ID',
+          message: 'Project ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.updateProject(projectId, {
+      title,
+      abbreviation,
+      contactPersonDetails,
+      status,
+      geographicScope,
+      regionId,
+      organizationId,
+      updatedBy: userId
+    });
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        project: result.project,
+      });
+    } else if (result.error?.code === 'PROJECT_NOT_FOUND') {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: result.error.code,
+          message: result.error.message,
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    } else {
+      return res.status(403).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'PROJECT_UPDATE_DENIED',
+          message: result.error?.message || 'Access denied to update project',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Update project endpoint error', { error, params: req.params, body: req.body });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while updating project',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// DELETE /api/v1/projects/:id - Soft delete project
+async function deleteProject(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const authReq = req as AuthenticatedRequest;
+    const userId = authReq.user.userId;
+
+    if (!projectId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_PROJECT_ID',
+          message: 'Project ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.deleteProject(projectId, userId);
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        message: 'Project deleted successfully',
+      });
+    } else if (result.error?.code === 'PROJECT_NOT_FOUND') {
+      return res.status(404).json({
+        ok: false,
+        error: {
+          code: result.error.code,
+          message: result.error.message,
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    } else {
+      return res.status(403).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'PROJECT_DELETE_DENIED',
+          message: result.error?.message || 'Access denied to delete project',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Delete project endpoint error', { error, params: req.params });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while deleting project',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// POST /api/v1/projects/:id/users - Assign user to project
+async function assignUserToProject(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const { userId, assignedBy, roleInProject } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const currentUserId = authReq.user.userId;
+
+    if (!projectId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_PROJECT_ID',
+          message: 'Project ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.assignUserToProject(
+      projectId,
+      userId,
+      assignedBy || currentUserId,
+      roleInProject
+    );
+
+    if (result.success) {
+      return res.status(201).json({
+        ok: true,
+        assignment: result.assignment,
+      });
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'USER_ASSIGN_FAILED',
+          message: result.error?.message || 'Failed to assign user to project',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Assign user to project endpoint error', { error, params: req.params, body: req.body });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while assigning user to project',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// DELETE /api/v1/projects/:id/users/:userId - Remove user from project
+async function removeUserFromProject(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const userIdToRemove = req.params.userId;
+
+    if (!projectId || !userIdToRemove) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_IDS',
+          message: 'Project ID and User ID are required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.removeUserFromProject(projectId, userIdToRemove);
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        message: 'User removed from project successfully',
+      });
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'USER_REMOVE_FAILED',
+          message: result.error?.message || 'Failed to remove user from project',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Remove user from project endpoint error', { error, params: req.params });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while removing user from project',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// GET /api/v1/projects/:id/users - Get project user assignments
+async function getProjectUsers(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+    if (!projectId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_PROJECT_ID',
+          message: 'Project ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.getProjectUsers(projectId, { page, limit });
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        users: result.users || [],
+        assignments: result.assignments || [],
+        pagination: {
+          page,
+          limit,
+          total: result.total || 0,
+          pages: Math.ceil((result.total || 0) / limit),
+        },
+      });
+    } else {
+      return res.status(500).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'PROJECT_USERS_FAILED',
+          message: result.error?.message || 'Failed to get project users',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Get project users endpoint error', { error, params: req.params, query: req.query });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while fetching project users',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// POST /api/v1/projects/:id/teams - Assign team to project
+async function assignTeamToProject(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const { teamId, assignedBy, scope = 'READ', teamRoleInProject } = req.body;
+    const authReq = req as AuthenticatedRequest;
+    const currentUserId = authReq.user.userId;
+
+    if (!projectId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_PROJECT_ID',
+          message: 'Project ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.assignTeamToProject(
+      projectId,
+      teamId,
+      assignedBy || currentUserId,
+      scope,
+      teamRoleInProject
+    );
+
+    if (result.success) {
+      return res.status(201).json({
+        ok: true,
+        assignment: result.assignment,
+      });
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'TEAM_ASSIGN_FAILED',
+          message: result.error?.message || 'Failed to assign team to project',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Assign team to project endpoint error', { error, params: req.params, body: req.body });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while assigning team to project',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// DELETE /api/v1/projects/:id/teams/:teamId - Remove team from project
+async function removeTeamFromProject(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const teamId = req.params.teamId;
+
+    if (!projectId || !teamId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_IDS',
+          message: 'Project ID and Team ID are required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.removeTeamFromProject(projectId, teamId);
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        message: 'Team removed from project successfully',
+      });
+    } else {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'TEAM_REMOVE_FAILED',
+          message: result.error?.message || 'Failed to remove team from project',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Remove team from project endpoint error', { error, params: req.params });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while removing team from project',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// GET /api/v1/projects/:id/teams - Get project team assignments
+async function getProjectTeams(req: Request, res: Response) {
+  try {
+    const projectId = req.params.id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+
+    if (!projectId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_PROJECT_ID',
+          message: 'Project ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.getProjectTeams(projectId, { page, limit });
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        teams: result.teams || [],
+        assignments: result.assignments || [],
+        pagination: {
+          page,
+          limit,
+          total: result.total || 0,
+          pages: Math.ceil((result.total || 0) / limit),
+        },
+      });
+    } else {
+      return res.status(500).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'PROJECT_TEAMS_FAILED',
+          message: result.error?.message || 'Failed to get project teams',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Get project teams endpoint error', { error, params: req.params, query: req.query });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while fetching project teams',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// GET /api/v1/users/:userId/projects - Get user's project assignments
+async function getUserProjects(req: Request, res: Response) {
+  try {
+    const userId = req.params.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const status = req.query.status as string;
+
+    if (!userId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_USER_ID',
+          message: 'User ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.getUserProjects(userId, { page, limit, status });
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        projects: result.projects || [],
+        assignments: result.assignments || [],
+        pagination: {
+          page,
+          limit,
+          total: result.total || 0,
+          pages: Math.ceil((result.total || 0) / limit),
+        },
+      });
+    } else {
+      return res.status(500).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'USER_PROJECTS_FAILED',
+          message: result.error?.message || 'Failed to get user projects',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Get user projects endpoint error', { error, params: req.params, query: req.query });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while fetching user projects',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
+// GET /api/v1/teams/:teamId/projects - Get team's project assignments
+async function getTeamProjects(req: Request, res: Response) {
+  try {
+    const teamId = req.params.teamId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+    const status = req.query.status as string;
+
+    if (!teamId) {
+      return res.status(400).json({
+        ok: false,
+        error: {
+          code: 'MISSING_TEAM_ID',
+          message: 'Team ID is required',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+
+    const result = await ProjectService.getTeamProjects(teamId, { page, limit, status });
+
+    if (result.success) {
+      return res.json({
+        ok: true,
+        projects: result.projects || [],
+        assignments: result.assignments || [],
+        pagination: {
+          page,
+          limit,
+          total: result.total || 0,
+          pages: Math.ceil((result.total || 0) / limit),
+        },
+      });
+    } else {
+      return res.status(500).json({
+        ok: false,
+        error: {
+          code: result.error?.code || 'TEAM_PROJECTS_FAILED',
+          message: result.error?.message || 'Failed to get team projects',
+          request_id: req.headers['x-request-id'],
+        },
+      });
+    }
+  } catch (error) {
+    logger.error('Get team projects endpoint error', { error, params: req.params, query: req.query });
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'An error occurred while fetching team projects',
+        request_id: req.headers['x-request-id'],
+      },
+    });
+  }
+}
+
 // Real API endpoint router
 export function apiRouter(req: Request, res: Response, next: NextFunction) {
   const { method, originalUrl } = req;
@@ -2384,6 +3095,63 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
 
   if (method === 'GET' && originalUrl.match(/^\/api\/v1\/users\/[^\/]+\/permissions$/)) {
     return withAuth(req, res, next, () => getUserPermissions(req, res));
+  }
+
+  // Project management routes
+  if (method === 'POST' && originalUrl === '/api/v1/projects') {
+    return withAuthAndPermission(Resource.PROJECTS, Action.CREATE)(req, res, next, () => createProject(req, res));
+  }
+
+  if (method === 'GET' && originalUrl === '/api/v1/projects') {
+    return withAuthAndPermission(Resource.PROJECTS, Action.LIST)(req, res, next, () => listProjects(req, res));
+  }
+
+  if (method === 'GET' && originalUrl.startsWith('/api/v1/projects/') && req.params.id &&
+      !originalUrl.includes('/users') && !originalUrl.includes('/teams')) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.READ)(req, res, next, () => getProject(req, res));
+  }
+
+  if (method === 'PUT' && originalUrl.startsWith('/api/v1/projects/') && req.params.id) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.UPDATE)(req, res, next, () => updateProject(req, res));
+  }
+
+  if (method === 'DELETE' && originalUrl.startsWith('/api/v1/projects/') && req.params.id) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.DELETE)(req, res, next, () => deleteProject(req, res));
+  }
+
+  // Project user assignment routes
+  if (method === 'POST' && originalUrl.match(/^\/api\/v1\/projects\/[^\/]+\/users$/)) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.ASSIGN)(req, res, next, () => assignUserToProject(req, res));
+  }
+
+  if (method === 'GET' && originalUrl.match(/^\/api\/v1\/projects\/[^\/]+\/users$/)) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.READ)(req, res, next, () => getProjectUsers(req, res));
+  }
+
+  if (method === 'DELETE' && originalUrl.match(/^\/api\/v1\/projects\/[^\/]+\/users\/[^\/]+$/)) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.ASSIGN)(req, res, next, () => removeUserFromProject(req, res));
+  }
+
+  // Project team assignment routes
+  if (method === 'POST' && originalUrl.match(/^\/api\/v1\/projects\/[^\/]+\/teams$/)) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.ASSIGN)(req, res, next, () => assignTeamToProject(req, res));
+  }
+
+  if (method === 'GET' && originalUrl.match(/^\/api\/v1\/projects\/[^\/]+\/teams$/)) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.READ)(req, res, next, () => getProjectTeams(req, res));
+  }
+
+  if (method === 'DELETE' && originalUrl.match(/^\/api\/v1\/projects\/[^\/]+\/teams\/[^\/]+$/)) {
+    return withAuthAndPermission(Resource.PROJECTS, Action.ASSIGN)(req, res, next, () => removeTeamFromProject(req, res));
+  }
+
+  // User projects and team projects routes
+  if (method === 'GET' && originalUrl.match(/^\/api\/v1\/users\/[^\/]+\/projects$/)) {
+    return withAuth(req, res, next, () => getUserProjects(req, res));
+  }
+
+  if (method === 'GET' && originalUrl.match(/^\/api\/v1\/teams\/[^\/]+\/projects$/)) {
+    return withAuth(req, res, next, () => getTeamProjects(req, res));
   }
 
   // Auth routes

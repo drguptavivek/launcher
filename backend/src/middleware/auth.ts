@@ -78,7 +78,8 @@ export enum Resource {
   SYSTEM_SETTINGS = 'SYSTEM_SETTINGS',
   AUDIT_LOGS = 'AUDIT_LOGS',
   SUPPORT_TICKETS = 'SUPPORT_TICKETS',
-  ORGANIZATION = 'ORGANIZATION'
+  ORGANIZATION = 'ORGANIZATION',
+  PROJECTS = 'PROJECTS'
 }
 
 export enum Action {
@@ -89,7 +90,8 @@ export enum Action {
   LIST = 'LIST',
   MANAGE = 'MANAGE',     // Full control including permissions
   EXECUTE = 'EXECUTE',    // Execute operations (e.g., overrides)
-  AUDIT = 'AUDIT'        // Read-only audit access
+  AUDIT = 'AUDIT',        // Read-only audit access
+  ASSIGN = 'ASSIGN'      // Assign users/teams to projects
 }
 
 // Role-based access control matrix - Updated for 9-role system with complete resource coverage
@@ -106,7 +108,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [], // No system settings access
     [Resource.AUDIT_LOGS]: [], // No audit access
     [Resource.SUPPORT_TICKETS]: [Action.READ, Action.LIST], // Can view own tickets
-    [Resource.ORGANIZATION]: [Action.READ] // Limited organization view
+    [Resource.ORGANIZATION]: [Action.READ], // Limited organization view
+    [Resource.PROJECTS]: [Action.READ, Action.LIST, Action.EXECUTE] // Can view and execute own assigned projects
   },
 
   [UserRole.FIELD_SUPERVISOR]: {
@@ -120,7 +123,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [], // No system settings access
     [Resource.AUDIT_LOGS]: [Action.READ], // Can view team audit logs
     [Resource.SUPPORT_TICKETS]: [Action.CREATE, Action.READ, Action.LIST, Action.UPDATE],
-    [Resource.ORGANIZATION]: [Action.READ]
+    [Resource.ORGANIZATION]: [Action.READ],
+    [Resource.PROJECTS]: [Action.READ, Action.LIST, Action.UPDATE, Action.ASSIGN] // Can manage team projects
   },
 
   [UserRole.REGIONAL_MANAGER]: {
@@ -134,7 +138,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [], // No system settings access
     [Resource.AUDIT_LOGS]: [Action.READ, Action.LIST], // Regional audit access
     [Resource.SUPPORT_TICKETS]: [Action.CREATE, Action.READ, Action.LIST, Action.UPDATE, Action.DELETE],
-    [Resource.ORGANIZATION]: [Action.READ, Action.UPDATE] // Can update regional org settings
+    [Resource.ORGANIZATION]: [Action.READ, Action.UPDATE], // Can update regional org settings
+    [Resource.PROJECTS]: [Action.READ, Action.LIST, Action.CREATE, Action.UPDATE, Action.DELETE, Action.ASSIGN] // Full regional project management
   },
 
   // Technical Operations Roles
@@ -149,7 +154,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [], // No system settings access
     [Resource.AUDIT_LOGS]: [Action.READ], // For investigation
     [Resource.SUPPORT_TICKETS]: [Action.MANAGE], // Full ticket management
-    [Resource.ORGANIZATION]: [Action.READ]
+    [Resource.ORGANIZATION]: [Action.READ],
+    [Resource.PROJECTS]: [Action.READ, Action.LIST] // Read-only access
   },
 
   [UserRole.SYSTEM_ADMIN]: {
@@ -163,7 +169,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [Action.MANAGE], // Full system settings access
     [Resource.AUDIT_LOGS]: [Action.MANAGE], // Full audit access
     [Resource.SUPPORT_TICKETS]: [Action.MANAGE],
-    [Resource.ORGANIZATION]: [Action.MANAGE] // Full org management
+    [Resource.ORGANIZATION]: [Action.MANAGE], // Full org management
+    [Resource.PROJECTS]: [Action.MANAGE] // Full system access
   },
 
   [UserRole.AUDITOR]: {
@@ -177,7 +184,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [Action.READ, Action.AUDIT], // Read-only system settings audit
     [Resource.AUDIT_LOGS]: [Action.MANAGE], // Full audit log access
     [Resource.SUPPORT_TICKETS]: [Action.READ, Action.AUDIT],
-    [Resource.ORGANIZATION]: [Action.READ, Action.AUDIT]
+    [Resource.ORGANIZATION]: [Action.READ, Action.AUDIT],
+    [Resource.PROJECTS]: [Action.READ, Action.LIST, Action.AUDIT] // Audit access only
   },
 
   // Specialized Roles
@@ -192,7 +200,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [], // Limited system access for device config only
     [Resource.AUDIT_LOGS]: [Action.READ], // Device-related audit logs
     [Resource.SUPPORT_TICKETS]: [Action.CREATE, Action.READ, Action.LIST, Action.UPDATE], // Device-related tickets
-    [Resource.ORGANIZATION]: [Action.READ]
+    [Resource.ORGANIZATION]: [Action.READ],
+    [Resource.PROJECTS]: [Action.READ, Action.LIST] // Read-only access (focuses on devices)
   },
 
   [UserRole.POLICY_ADMIN]: {
@@ -206,7 +215,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [], // Limited system access for policy config
     [Resource.AUDIT_LOGS]: [Action.READ], // Policy-related audit logs
     [Resource.SUPPORT_TICKETS]: [Action.CREATE, Action.READ, Action.LIST, Action.UPDATE], // Policy-related tickets
-    [Resource.ORGANIZATION]: [Action.READ]
+    [Resource.ORGANIZATION]: [Action.READ],
+    [Resource.PROJECTS]: [Action.READ, Action.LIST] // Read-only access (focuses on policy)
   },
 
   [UserRole.NATIONAL_SUPPORT_ADMIN]: {
@@ -220,7 +230,8 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.SYSTEM_SETTINGS]: [], // NO system settings access - important security boundary
     [Resource.AUDIT_LOGS]: [Action.READ, Action.LIST], // National audit access
     [Resource.SUPPORT_TICKETS]: [Action.MANAGE], // National ticket management
-    [Resource.ORGANIZATION]: [Action.READ, Action.UPDATE] // National org updates
+    [Resource.ORGANIZATION]: [Action.READ, Action.UPDATE], // National org updates
+    [Resource.PROJECTS]: [Action.MANAGE] // Full national access
   }
 };
 
