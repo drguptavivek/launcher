@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import { writable, derived } from 'svelte/store';
+import type { UserRole } from '$lib/types/role.types';
 import { ROLE_PERMISSIONS, ROLE_NAVIGATION, ROLE_HIERARCHY, FORM_PERMISSIONS } from '$lib/types/role.types';
 
 // Context key for role store
@@ -9,10 +9,10 @@ const ROLE_CONTEXT_KEY = Symbol('role');
  * Role state interface
  */
 export class RoleState {
-  userRole = $state(null);
-  permissions = $state([]);
+  userRole = $state<UserRole | null>(null);
+  permissions = $state<string[]>([]);
   isLoading = $state(false);
-  user = $state(null);
+  user = $state<any>(null);
   sessionId = $state(null);
 
   constructor(userRole = null, user = null, sessionId = null) {
@@ -27,7 +27,7 @@ export class RoleState {
    */
   updatePermissions() {
     if (this.userRole && ROLE_PERMISSIONS[this.userRole]) {
-      this.permissions = ROLE_PERMISSIONS[this.userRole];
+      this.permissions = [...ROLE_PERMISSIONS[this.userRole]];
     } else {
       this.permissions = [];
     }
@@ -36,7 +36,7 @@ export class RoleState {
   /**
    * Set user role and update permissions
    */
-  setRole(userRole) {
+  setRole(userRole: UserRole | null) {
     this.userRole = userRole;
     this.updatePermissions();
   }
@@ -44,7 +44,7 @@ export class RoleState {
   /**
    * Set user information
    */
-  setUser(user) {
+  setUser(user: any) {
     this.user = user;
     if (user?.role) {
       this.setRole(user.role);
@@ -54,14 +54,14 @@ export class RoleState {
   /**
    * Set session information
    */
-  setSession(sessionId) {
+  setSession(sessionId: any) {
     this.sessionId = sessionId;
   }
 
   /**
    * Check if user has specific permission
    */
-  hasPermission(permission) {
+  hasPermission(permission: string) {
     if (!this.userRole) return false;
     if (this.permissions.includes('*')) return true;
     return this.permissions.some(p => p === permission || p.endsWith('*') && permission.startsWith(p.slice(0, -1)));
@@ -70,7 +70,7 @@ export class RoleState {
   /**
    * Check if user has any of the provided permissions
    */
-  hasAnyPermission(permissions) {
+  hasAnyPermission(permissions: string | string[]) {
     if (!Array.isArray(permissions)) {
       return this.hasPermission(permissions);
     }
@@ -80,15 +80,15 @@ export class RoleState {
   /**
    * Check if user has all provided permissions
    */
-  hasAllPermissions(permissions) {
+  hasAllPermissions(permissions: string[]) {
     return permissions.every(permission => this.hasPermission(permission));
   }
 
   /**
    * Check if user can perform specific form action
    */
-  canPerformFormAction(formAction) {
-    const requiredRoles = FORM_PERMISSIONS[formAction];
+  canPerformFormAction(formAction: string) {
+    const requiredRoles = FORM_PERMISSIONS[formAction as keyof typeof FORM_PERMISSIONS];
     if (!requiredRoles) return false;
     return requiredRoles.includes(this.userRole);
   }
@@ -104,7 +104,7 @@ export class RoleState {
   /**
    * Check if user role has higher or equal hierarchy level
    */
-  hasMinimumRole(minRole) {
+  hasMinimumRole(minRole: UserRole) {
     if (!this.userRole || !minRole) return false;
     const userLevel = ROLE_HIERARCHY[this.userRole];
     const minLevel = ROLE_HIERARCHY[minRole];
@@ -114,11 +114,11 @@ export class RoleState {
   /**
    * Check if user can access route based on role
    */
-  canAccessRoute(route) {
+  canAccessRoute(route: string) {
     if (!this.userRole) return false;
 
     // Define role-based route access
-    const routePermissions = {
+    const routePermissions: Record<string, string[]> = {
       '/dashboard': ['*'], // All roles can access dashboard
       '/users': ['SYSTEM_ADMIN', 'REGIONAL_MANAGER', 'FIELD_SUPERVISOR'],
       '/projects': ['SYSTEM_ADMIN', 'REGIONAL_MANAGER', 'FIELD_SUPERVISOR', 'TEAM_MEMBER', 'AUDITOR'],
@@ -152,7 +152,7 @@ export class RoleState {
   /**
    * Set loading state
    */
-  setLoading(loading) {
+  setLoading(loading: boolean) {
     this.isLoading = loading;
   }
 

@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { getProjects, createProject, getRoles } from '$lib/api/remote';
+import { getProjects, createProject } from '$lib/api/remote';
 import type { CreateProjectRequest } from '$lib/api/remote';
 
 // Simple test to verify the API remote functions are working
@@ -39,8 +39,7 @@ export async function testProjectAPI() {
 		// Check if functions exist and have correct signatures
 		const functions = [
 			{ name: 'getProjects', fn: getProjects },
-			{ name: 'createProject', fn: createProject },
-			{ name: 'getRoles', fn: getRoles }
+			{ name: 'createProject', fn: createProject }
 		];
 
 		functions.forEach(({ name, fn }) => {
@@ -64,8 +63,7 @@ export async function testProjectAPI() {
 
 		// Check if we can construct the endpoint URLs
 		const endpoints = [
-			'/api/v1/projects',
-			'/api/v1/roles'
+			'/api/v1/projects'
 		];
 
 		endpoints.forEach(endpoint => {

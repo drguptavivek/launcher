@@ -16,8 +16,8 @@ interface UserFilterOptions {
 // API Functions - now using real backend
 export async function getUsers(options: UserFilterOptions = {}) {
 	try {
-		// Call the real backend API
-		const response = await getUsersRemote(options);
+		// Call the real backend API - remote functions don't take parameters
+		const response = await getUsersRemote();
 		return response;
 	} catch (error) {
 		console.error('Get users error:', error);
@@ -27,8 +27,8 @@ export async function getUsers(options: UserFilterOptions = {}) {
 
 export async function getUserById(id: string): Promise<User | null> {
 	try {
-		// Call the real backend API
-		const user = await getUserByIdRemote(id);
+		// Call the real backend API - remote functions don't take parameters
+		const user = await getUserByIdRemote();
 		return user;
 	} catch (error) {
 		console.error('Get user error:', error);

@@ -1,5 +1,5 @@
 import { superForm } from 'sveltekit-superforms';
-import { valibotAdapter } from 'sveltekit-superforms/adapters';
+import { valibot } from 'sveltekit-superforms/adapters';
 import * as v from 'valibot';
 import type { UserRole } from '$lib/types/role.types';
 import { roleBasedSchemas } from '$lib/forms/schemas/role-based-schemas';
@@ -32,12 +32,12 @@ export class RoleFormFactory {
 
     return superForm({
       formSchema: schema,
-      validators: valibotAdapter(schema),
+      validators: valibot(schema),
       initialValues: initialData,
-      onResult: ({ result }) => {
+      onResult: ({ result }: { result: any }) => {
         this.handleRoleBasedResult(result, userRole, formType);
       },
-      onError: ({ result }) => {
+      onError: ({ result }: { result: any }) => {
         this.handleRoleBasedError(result, userRole, formType);
       },
       ...options

@@ -11,8 +11,7 @@
     title: '',
     abbreviation: '',
     description: '',
-    geographicScope: 'NATIONAL',
-    status: 'ACTIVE'
+    geographicScope: 'NATIONAL'
   });
 
   let validationErrors = $state<Record<string, string[]>>({});
@@ -75,7 +74,7 @@
     submitError = null;
 
     try {
-      await createProject().submit(formData);
+      await createProject(formData);
 
       // Success - redirect to projects list
       window.location.href = '/projects';
@@ -96,8 +95,7 @@
       title: '',
       abbreviation: '',
       description: '',
-      geographicScope: 'NATIONAL',
-      status: 'ACTIVE'
+      geographicScope: 'NATIONAL'
     };
     validationErrors = {};
     submitError = null;
@@ -139,7 +137,10 @@
               type="text"
               class="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500"
               bind:value={formData.title}
-              oninput={(e) => handleInputChange('title', e.target.value)}
+              oninput={(e) => {
+                const target = e.target as HTMLInputElement;
+                handleInputChange('title', target.value);
+              }}
               placeholder="Enter project title"
               maxlength="200"
               required

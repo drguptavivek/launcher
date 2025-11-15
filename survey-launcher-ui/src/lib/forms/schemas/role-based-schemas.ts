@@ -1,7 +1,7 @@
 import * as v from 'valibot';
 import type { UserRole } from '$lib/types/role.types';
 
-// Role definitions for type safety
+// Role definitions for type safety - using the imported type
 export const USER_ROLES = [
   'TEAM_MEMBER',
   'FIELD_SUPERVISOR',
@@ -14,11 +14,10 @@ export const USER_ROLES = [
   'NATIONAL_SUPPORT_ADMIN'
 ] as const;
 
-export type UserRole = typeof USER_ROLES[number];
-
 // Project schema with full role-based validation
 export const createProjectSchema = (userRole: UserRole) => {
-  const baseSchema = v.object({
+  // Base fields for all roles
+  const baseFields = {
     title: v.pipe(
       v.string(),
       v.minLength(1, 'Title is required'),
@@ -29,43 +28,45 @@ export const createProjectSchema = (userRole: UserRole) => {
       v.minLength(2, 'Abbreviation must be at least 2 characters'),
       v.maxLength(10, 'Abbreviation must be 10 characters or less')
     ),
-    description: v.optional(v.string()),
-    status: v.enum(['ACTIVE', 'INACTIVE'])
-  });
+    description: v.optional(v.string())
+  };
 
-  // Role-specific field additions
-  let schema = baseSchema;
+  let schema: v.GenericSchema;
 
   if (['SYSTEM_ADMIN', 'REGIONAL_MANAGER'].includes(userRole)) {
-    schema = v.pipe(
-      schema,
-      v.extend({
-        geographicScope: v.enum(['LOCAL', 'REGIONAL', 'NATIONAL']),
-        teamIds: v.pipe(
-          v.array(v.string()),
-          v.minLength(1, 'Select at least one team')
-        ),
-        budget: v.optional(v.pipe(
-          v.number(),
-          v.minValue(0, 'Budget must be a positive number')
-        )),
-        priority: v.optional(v.enum(['LOW', 'MEDIUM', 'HIGH']))
-      })
-    );
-  }
-
-  if (userRole === 'FIELD_SUPERVISOR') {
-    schema = v.pipe(
-      schema,
-      v.extend({
-        geographicScope: v.literal('LOCAL'),
-        teamIds: v.pipe(
-          v.array(v.string()),
-          v.minLength(1, 'Select your team')
-        ),
-        assignedUsers: v.optional(v.array(v.string()))
-      })
-    );
+    // Admin/Manager schema with all fields
+    schema = v.object({
+      ...baseFields,
+      status: v.enum(['ACTIVE', 'INACTIVE'] as const),
+      geographicScope: v.enum(['LOCAL', 'REGIONAL', 'NATIONAL'] as const),
+      teamIds: v.pipe(
+        v.array(v.string()),
+        v.minLength(1, 'Select at least one team')
+      ),
+      budget: v.optional(v.pipe(
+        v.number(),
+        v.minValue(0, 'Budget must be a positive number')
+      )),
+      priority: v.optional(v.enum(['LOW', 'MEDIUM', 'HIGH'] as const))
+    });
+  } else if (userRole === 'FIELD_SUPERVISOR') {
+    // Field Supervisor schema with limited fields
+    schema = v.object({
+      ...baseFields,
+      status: v.enum(['ACTIVE', 'INACTIVE'] as const),
+      geographicScope: v.literal('LOCAL'),
+      teamIds: v.pipe(
+        v.array(v.string()),
+        v.minLength(1, 'Select your team')
+      ),
+      assignedUsers: v.optional(v.array(v.string()))
+    });
+  } else {
+    // Other roles with basic fields only
+    schema = v.object({
+      ...baseFields,
+      status: v.enum(['ACTIVE', 'INACTIVE'] as const)
+    });
   }
 
   // Role-based validation rules
@@ -73,24 +74,18 @@ export const createProjectSchema = (userRole: UserRole) => {
     schema,
     v.check(() => ['SYSTEM_ADMIN', 'REGIONAL_MANAGER'].includes(userRole),
       'Only administrators can create projects'),
-    v.check((data) => {
+    v.check((data: any) => {
       if (userRole === 'FIELD_SUPERVISOR' && data.status === 'INACTIVE') {
         return false;
       }
       return true;
     }, 'Field supervisors cannot create inactive projects'),
-    v.check((data) => {
+    v.check((data: any) => {
       if (userRole === 'FIELD_SUPERVISOR' && data.geographicScope === 'NATIONAL') {
         return false;
       }
       return true;
-    }, 'Field supervisors cannot create national projects'),
-    v.check((data) => {
-      if (userRole === 'NATIONAL_SUPPORT_ADMIN' && data.geographicScope === 'LOCAL') {
-        return false;
-      }
-      return true;
-    }, 'National support admins must create regional or national projects')
+    }, 'Field supervisors cannot create national projects')
   );
 };
 
