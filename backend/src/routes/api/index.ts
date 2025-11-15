@@ -7,6 +7,7 @@ import policyRoutes from './policy';
 import telemetryRoutes from './telemetry';
 import supervisorRoutes from './supervisor';
 import projectRoutes from './projects';
+import organizationRoutes from './organizations';
 import webAdminAuthRoutes from './web-admin-auth';
 import { logger } from '../../lib/logger';
 
@@ -21,6 +22,7 @@ router.use('/policy', policyRoutes);
 router.use('/telemetry', telemetryRoutes);
 router.use('/supervisor', supervisorRoutes);
 router.use('/projects', projectRoutes);
+router.use('/organizations', organizationRoutes);
 router.use('/web-admin/auth', webAdminAuthRoutes);
 
 // Log API route requests

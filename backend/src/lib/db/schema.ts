@@ -249,6 +249,25 @@ export const pinAttempts = pgTable('pin_attempts', {
 
 // ===== ENHANCED RBAC SYSTEM =====
 
+// Organizations table - multi-tenant support
+export const organizations = pgTable('organizations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 200 }).notNull(),
+  displayName: varchar('display_name', { length: 250 }).notNull(),
+  description: text('description'),
+  code: varchar('code', { length: 50 }).notNull().unique(), // Unique organization identifier
+  isActive: boolean('is_active').notNull().default(true),
+  isDefault: boolean('is_default').notNull().default(false), // Default organization for fallback
+  settings: jsonb('settings'), // Organization-specific settings
+  metadata: jsonb('metadata'), // Additional metadata
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  nameIdx: index('idx_organization_name').on(table.name),
+  codeIdx: index('idx_organization_code').on(table.code),
+  activeIdx: index('idx_organization_active').on(table.isActive),
+}));
+
 // Role definitions table - stores dynamic role configurations
 export const roles = pgTable('roles', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -298,7 +317,7 @@ export const userRoleAssignments = pgTable('user_role_assignments', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   roleId: uuid('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
-  organizationId: uuid('organization_id').notNull(), // For multi-tenant support
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }), // For multi-tenant support
   teamId: uuid('team_id').references(() => teams.id, { onDelete: 'cascade' }),
   regionId: varchar('region_id', { length: 32 }), // Geographic/organizational region
   grantedBy: uuid('granted_by').references(() => users.id),
@@ -334,7 +353,7 @@ export const projects = pgTable('projects', {
   status: projectStatusEnum('status').notNull().default('ACTIVE'),
   geographicScope: projectGeographicScopeEnum('geographic_scope').notNull().default('NATIONAL'),
   regionId: uuid('region_id').references(() => teams.id, { onDelete: 'set null' }),
-  organizationId: uuid('organization_id').notNull().default('org-default'),
+  organizationId: uuid('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
   createdBy: uuid('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -412,6 +431,9 @@ export type PinAttempt = typeof pinAttempts.$inferSelect;
 export type NewPinAttempt = typeof pinAttempts.$inferInsert;
 
 // RBAC System Types
+export type Organization = typeof organizations.$inferSelect;
+export type NewOrganization = typeof organizations.$inferInsert;
+
 export type Role = typeof roles.$inferSelect;
 export type NewRole = typeof roles.$inferInsert;
 

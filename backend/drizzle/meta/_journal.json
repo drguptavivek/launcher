@@ -29,6 +29,13 @@
       "when": 1763182345231,
       "tag": "0003_overrated_liz_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1763237738412,
+      "tag": "0004_loose_cable",
+      "breakpoints": true
     }
   ]
 }
