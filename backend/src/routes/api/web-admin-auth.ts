@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { WebAdminAuthService, VALID_WEB_ADMIN_ROLES } from '../../services/web-admin-auth-service';
 import { JWTUtils } from '../../lib/crypto';
 import { logger } from '../../lib/logger';
+import { authenticateWebAdmin, requireRole, UserRole } from '../../middleware/auth';
 
 const router = Router();
 const webAdminAuthService = new WebAdminAuthService();
@@ -299,8 +300,11 @@ router.post('/refresh', async (req: Request, res: Response) => {
   }
 });
 
-// Create Web Admin User (for initial setup)
-router.post('/create-admin', async (req: Request, res: Response) => {
+// Create Web Admin User (for initial setup) - PROTECTED ENDPOINT
+router.post('/create-admin',
+  authenticateWebAdmin,
+  requireRole([UserRole.SYSTEM_ADMIN]),
+  async (req: Request, res: Response) => {
   try {
     const { email, password, firstName, lastName, role } = req.body;
 

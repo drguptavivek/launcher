@@ -49,9 +49,8 @@ const options = {
   },
   apis: [
     './src/server.ts', // Health endpoint
-    './src/routes/api.ts', // Mobile API routes
-    './src/routes/web-admin-api.ts', // Web Admin API routes
-    './src/routes/api/web-admin/auth.ts', // Web Admin auth routes (Hono version)
+    './src/routes/api/index.ts', // API routes index
+    './src/routes/api/web-admin/auth.ts', // Web Admin auth routes
   ],
 };
 

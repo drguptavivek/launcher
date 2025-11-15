@@ -16,7 +16,7 @@ export interface JWTPayload {
   'x-device-id': string;
   'x-session-id': string;
   'x-team-id'?: string;
-  type: 'access' | 'refresh' | 'override';
+  type: 'access' | 'refresh' | 'override' | 'web-admin';
 }
 
 export interface CreateTokenOptions {
@@ -24,7 +24,7 @@ export interface CreateTokenOptions {
   deviceId: string;
   sessionId: string;
   teamId?: string;
-  type: 'access' | 'refresh' | 'override';
+  type: 'access' | 'refresh' | 'override' | 'web-admin';
 }
 
 export interface TokenResult {
@@ -62,6 +62,9 @@ export class JWTService {
       case 'override':
         result = await this.createOverrideToken(payload);
         break;
+      case 'web-admin':
+        result = await this.createWebAdminToken(payload);
+        break;
       default:
         throw new Error(`Invalid token type: ${String(type)}`);
     }
@@ -76,7 +79,7 @@ export class JWTService {
   /**
    * Verify and validate a JWT token
    */
-  static async verifyToken(token: string, expectedType: 'access' | 'refresh' | 'override'): Promise<{
+  static async verifyToken(token: string, expectedType: 'access' | 'refresh' | 'override' | 'web-admin'): Promise<{
     valid: boolean;
     payload?: JWTPayload;
     error?: string;
@@ -92,6 +95,9 @@ export class JWTService {
         break;
       case 'override':
         result = await this.verifyOverrideToken(token);
+        break;
+      case 'web-admin':
+        result = await this.verifyWebAdminToken(token);
         break;
       default:
         return { valid: false, error: 'Invalid token type' };
@@ -243,6 +249,74 @@ export class JWTService {
 
       if (decoded.type !== 'override') {
         return { valid: false, error: 'Invalid token type for override' };
+      }
+
+      return {
+        valid: true,
+        payload: decoded,
+        jti: decoded.jti,
+      };
+    } catch (error) {
+      return {
+        valid: false,
+        error: error.message,
+      };
+    }
+  }
+
+  /**
+   * Create a web admin token (separate from mobile tokens)
+   */
+  private static async createWebAdminToken(payload: { userId: string; deviceId: string; sessionId: string }): Promise<{ token: string; expiresAt: Date }> {
+    const now = Math.floor(Date.now() / 1000);
+    const jti = generateJTI();
+
+    // Web admin tokens are valid for 15 minutes
+    const ttlSeconds = 15 * 60; // 15 minutes
+    const expiresAt = new Date((now + ttlSeconds) * 1000);
+
+    // Create JWT token directly with web-admin type
+    const token = jwt.sign(
+      {
+        sub: payload.userId,
+        aud: 'surveylauncher-web-admin',
+        iss: 'surveylauncher-backend',
+        iat: now,
+        exp: now + ttlSeconds,
+        jti,
+        'x-device-id': payload.deviceId,
+        'x-session-id': payload.sessionId,
+        'x-team-id': '', // Web admin not bound to team
+        type: 'web-admin',
+      },
+      env.JWT_ACCESS_SECRET,
+      { algorithm: 'HS256' }
+    );
+
+    return {
+      token,
+      expiresAt,
+    };
+  }
+
+  /**
+   * Verify a web admin token
+   */
+  private static async verifyWebAdminToken(token: string): Promise<{
+    valid: boolean;
+    payload?: any;
+    error?: string;
+    jti?: string;
+  }> {
+    try {
+      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+        audience: 'surveylauncher-web-admin',
+        issuer: 'surveylauncher-backend',
+        algorithms: ['HS256'],
+      }) as any;
+
+      if (decoded.type !== 'web-admin') {
+        return { valid: false, error: 'Invalid token type for web admin' };
       }
 
       return {

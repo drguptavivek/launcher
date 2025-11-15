@@ -4,11 +4,15 @@ import { AuthService } from '../../services/auth-service';
 import { db } from '../../lib/db';
 import { devices } from '../../lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { authenticateToken, requirePermission, Resource, Action, AuthenticatedRequest } from '../../middleware/auth';
 
 const router = Router();
 
 // POST /api/v1/supervisor/override/login - Request supervisor override
-router.post('/override/login', async (req, res) => {
+router.post('/override/login',
+  authenticateToken,
+  requirePermission(Resource.SUPERVISOR, Action.OVERRIDE),
+  async (req: AuthenticatedRequest, res) => {
   try {
     const { supervisor_pin, deviceId } = req.body;
     const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown';

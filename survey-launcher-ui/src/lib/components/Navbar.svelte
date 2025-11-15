@@ -3,6 +3,7 @@
   import { authUtils } from '$lib/utils/auth.utils';
   import { getRoleContext, createRoleStore } from '$lib/stores/role.svelte.js';
   import { getNavigationForRole, getRoleDisplayName } from '$lib/utils/role.utils';
+  import APIHealthIndicator from '$lib/components/APIHealthIndicator.svelte';
 
   // Check if user is authenticated
   let isAuthenticated = $state(authUtils.isAuthenticated());
@@ -94,7 +95,7 @@
   }
 </script>
 
-<!-- Skip to main content link (visually hidden until focused) -->
+<!-- Skip to main content link -->
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
 <!-- Navigation Bar -->
@@ -122,8 +123,34 @@
               Home
             </a>
             {#if isAuthenticated}
+              <!-- Main Application Routes -->
+              <a href="/dashboard" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Dashboard</span>
+              </a>
+              <a href="/users" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
+                <span>Users</span>
+              </a>
+              <a href="/projects" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span>Projects</span>
+              </a>
+              <a href="/project-components" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                </svg>
+                <span>Components</span>
+              </a>
+
               <!-- Role-based navigation items -->
-              {#each navigationItems as item}
+              {#each navigationItems as item (item.href)}
                 <a
                   href={item.href}
                   class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2"
@@ -134,13 +161,17 @@
                   <span>{item.label}</span>
                 </a>
               {/each}
-              <!-- Development test links -->
-              <a href="/test" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                Test
-              </a>
-              <a href="/role-test" class="text-purple-600 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-purple-100 dark:hover:bg-purple-700 transition-colors">
-                Role Test
-              </a>
+
+              <!-- Development Tools Link (Development Only) -->
+              {#if !import.meta.env.PROD}
+                <div class="border-l border-gray-300 dark:border-gray-600 h-6 mx-2"></div>
+                <a href="/dev" class="text-orange-600 dark:text-orange-300 hover:text-orange-900 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-orange-100 dark:hover:bg-orange-700 transition-colors flex items-center space-x-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
+                  <span>Dev Tools</span>
+                </a>
+              {/if}
             {/if}
           </div>
         </div>
@@ -148,6 +179,9 @@
 
       <!-- Right side buttons -->
       <div class="hidden md:flex items-center space-x-4">
+        <!-- API Health Indicator (always visible) -->
+        <APIHealthIndicator />
+
         {#if isAuthenticated}
           <!-- Role information display -->
           {#if roleDisplayName}
@@ -206,8 +240,34 @@
           Home
         </a>
         {#if isAuthenticated}
+          <!-- Main Application Routes for mobile -->
+          <a href="/dashboard" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span>Dashboard</span>
+          </a>
+          <a href="/users" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+            </svg>
+            <span>Users</span>
+          </a>
+          <a href="/projects" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            <span>Projects</span>
+          </a>
+          <a href="/project-components" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+            </svg>
+            <span>Components</span>
+          </a>
+
           <!-- Role-based navigation items for mobile -->
-          {#each navigationItems as item}
+          {#each navigationItems as item (item.href)}
             <a
               href={item.href}
               class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center space-x-2"
@@ -218,16 +278,28 @@
               <span>{item.label}</span>
             </a>
           {/each}
-          <!-- Development test links -->
-          <a href="/test" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-gray-100 dark:hover:bg-gray-700">
-            Test
-          </a>
-          <a href="/role-test" class="text-purple-600 dark:text-purple-300 hover:text-purple-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-purple-100 dark:hover:bg-purple-700">
-            Role Test
-          </a>
+
+          <!-- Development Tools Link for mobile (Development Only) -->
+          {#if !import.meta.env.PROD}
+            <div class="border-t border-gray-300 dark:border-gray-600 my-2"></div>
+            <a href="/dev" class="text-orange-600 dark:text-orange-300 hover:text-orange-900 dark:hover:text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-orange-100 dark:hover:bg-orange-700 flex items-center space-x-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+              </svg>
+              <span>Dev Tools</span>
+            </a>
+          {/if}
         {/if}
       </div>
       <div class="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
+        <!-- API Health Indicator in mobile menu -->
+        <div class="px-3 py-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-gray-600 dark:text-gray-300">API Status:</span>
+            <APIHealthIndicator />
+          </div>
+        </div>
+
         <!-- Role information in mobile menu -->
         {#if isAuthenticated && roleDisplayName}
           <div class="px-3 py-2">
@@ -262,17 +334,18 @@
 </nav>
 
 <style>
-  /* Skip link styles - hidden until focused */
+  /* Skip link styles - visually hidden until focused */
   .skip-link {
     position: absolute;
     top: -40px;
     left: 6px;
     background: #000;
-    color: white;
+    color: #fff;
     padding: 8px;
     text-decoration: none;
-    z-index: 100;
     border-radius: 4px;
+    z-index: 1000;
+    transition: top 0.3s;
   }
 
   .skip-link:focus {

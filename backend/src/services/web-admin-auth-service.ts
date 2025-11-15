@@ -178,7 +178,7 @@ export class WebAdminAuthService {
         userId: adminUser.id,
         deviceId: webAdminDeviceId,
         sessionId: webAdminSessionId,
-        type: 'access'
+        type: 'web-admin'
       });
 
       const refreshTokenResult = await JWTService.createToken({

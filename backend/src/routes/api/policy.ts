@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PolicyService } from '../../services/policy-service';
 import { logger } from '../../lib/logger';
-import { authenticateToken, AuthenticatedRequest } from '../../middleware/auth';
+import { authenticateToken, requirePermission, Resource, Action, AuthenticatedRequest } from '../../middleware/auth';
 
 const router = Router();
 
@@ -9,7 +9,9 @@ const router = Router();
 router.use(authenticateToken);
 
 // GET /api/v1/policy/:deviceId - Get device policy
-router.get('/:deviceId', async (req: AuthenticatedRequest, res) => {
+router.get('/:deviceId',
+  requirePermission(Resource.POLICY, Action.READ), // Team members can read policies
+  async (req: AuthenticatedRequest, res) => {
   try {
     const { deviceId } = req.params;
 

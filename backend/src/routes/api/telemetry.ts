@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { TelemetryService } from '../../services/telemetry-service';
 import { logger } from '../../lib/logger';
+import { authenticateToken, requirePermission, Resource, Action, AuthenticatedRequest } from '../../middleware/auth';
 
 const router = Router();
 
 // POST /api/v1/telemetry - Submit telemetry data
-router.post('/', async (req, res) => {
+router.post('/',
+  authenticateToken,
+  requirePermission(Resource.TELEMETRY, Action.READ), // Team members can submit telemetry
+  async (req: AuthenticatedRequest, res) => {
   try {
     const { events, deviceId, sessionId } = req.body;
 

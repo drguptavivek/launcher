@@ -1,0 +1,263 @@
+uid=6_0 RootWebArea url="http://localhost:5173/"
+  uid=6_1 ignored
+    uid=6_2 ignored
+      uid=6_3 link "Skip to main content" url="http://localhost:5173/#main-content"
+        uid=6_4 StaticText "Skip to main content"
+          uid=6_5 InlineTextBox "Skip to main content"
+      uid=6_6 generic
+        uid=6_7 ignored
+          uid=6_8 link "Skip to main content" url="http://localhost:5173/#main-content"
+            uid=6_9 StaticText "Skip to main content"
+              uid=6_10 InlineTextBox "Skip to main content"
+          uid=6_11 navigation
+            uid=6_12 ignored
+              uid=6_13 ignored
+                uid=6_14 ignored
+                  uid=6_15 ignored
+                    uid=6_16 link "SurveyLauncher" url="http://localhost:5173/"
+                      uid=6_17 ignored
+                        uid=6_18 image
+                      uid=6_19 ignored
+                        uid=6_20 StaticText "SurveyLauncher"
+                          uid=6_21 InlineTextBox "SurveyLauncher"
+                  uid=6_22 ignored
+                    uid=6_23 ignored
+                      uid=6_24 link "Home" url="http://localhost:5173/"
+                        uid=6_25 StaticText "Home"
+                          uid=6_26 InlineTextBox "Home"
+                uid=6_27 ignored
+                  uid=6_28 button "API Health Status - Check connection" description="API Health Status - Click or press Enter/Space to refresh"
+                    uid=6_29 generic
+                      uid=6_30 ignored
+                      uid=6_31 generic
+                    uid=6_32 ignored
+                      uid=6_33 StaticText "API Healthy"
+                        uid=6_34 InlineTextBox "API Healthy"
+                  uid=6_35 link "Login" url="http://localhost:5173/auth/login"
+                    uid=6_36 StaticText "Login"
+                      uid=6_37 InlineTextBox "Login"
+          uid=6_38 main
+            uid=6_39 ignored
+              uid=6_40 ignored
+                uid=6_41 ignored
+                  uid=6_42 heading "SurveyLauncher Admin" level="1"
+                    uid=6_43 StaticText "SurveyLauncher Admin"
+                      uid=6_44 InlineTextBox "SurveyLauncher Admin"
+                  uid=6_45 paragraph
+                    uid=6_46 StaticText "Management interface for the SurveyLauncher backend system"
+                      uid=6_47 InlineTextBox "Management interface for the SurveyLauncher backend system"
+                  uid=6_48 ignored
+                    uid=6_49 ignored
+                    uid=6_50 ignored
+                      uid=6_51 StaticText "Backend API: Available"
+                        uid=6_52 InlineTextBox "Backend API: Available"
+                  uid=6_53 ignored
+                    uid=6_54 link "Login to Admin" url="http://localhost:5173/auth/login"
+                      uid=6_55 StaticText "Login to Admin"
+                        uid=6_56 InlineTextBox "Login to Admin"
+                    uid=6_57 link "Test Implementation" url="http://localhost:5173/test"
+                      uid=6_58 StaticText "Test Implementation"
+                        uid=6_59 InlineTextBox "Test Implementation"
+                uid=6_60 ignored
+                  uid=6_61 ignored
+                    uid=6_62 ignored
+                      uid=6_63 generic
+                        uid=6_64 StaticText "🔐 Authentication"
+                          uid=6_65 InlineTextBox "🔐 Authentication"
+                      uid=6_66 paragraph
+                        uid=6_67 StaticText "Secure JWT-based authentication with multi-factor security"
+                          uid=6_68 InlineTextBox "Secure JWT-based authentication with "
+                          uid=6_69 InlineTextBox "multi-factor security"
+                    uid=6_70 ignored
+                      uid=6_71 list
+                        uid=6_72 listitem level="1"
+                          uid=6_73 StaticText "• Device-based authentication"
+                            uid=6_74 InlineTextBox "• Device-based authentication"
+                        uid=6_75 listitem level="1"
+                          uid=6_76 StaticText "• User code + PIN system"
+                            uid=6_77 InlineTextBox "• User code + PIN system"
+                        uid=6_78 listitem level="1"
+                          uid=6_79 StaticText "• Automatic token refresh"
+                            uid=6_80 InlineTextBox "• Automatic token refresh"
+                        uid=6_81 listitem level="1"
+                          uid=6_82 StaticText "• Session management"
+                            uid=6_83 InlineTextBox "• Session management"
+                  uid=6_84 ignored
+                    uid=6_85 ignored
+                      uid=6_86 generic
+                        uid=6_87 StaticText "👥 User Management"
+                          uid=6_88 InlineTextBox "👥 User Management"
+                      uid=6_89 paragraph
+                        uid=6_90 StaticText "Complete user lifecycle management and administration"
+                          uid=6_91 InlineTextBox "Complete user lifecycle management "
+                          uid=6_92 InlineTextBox "and administration"
+                    uid=6_93 ignored
+                      uid=6_94 list
+                        uid=6_95 listitem level="1"
+                          uid=6_96 StaticText "• User CRUD operations"
+                            uid=6_97 InlineTextBox "• User CRUD operations"
+                        uid=6_98 listitem level="1"
+                          uid=6_99 StaticText "• Team assignments"
+                            uid=6_100 InlineTextBox "• Team assignments"
+                        uid=6_101 listitem level="1"
+                          uid=6_102 StaticText "• Device provisioning"
+                            uid=6_103 InlineTextBox "• Device provisioning"
+                        uid=6_104 listitem level="1"
+                          uid=6_105 StaticText "• Activity monitoring"
+                            uid=6_106 InlineTextBox "• Activity monitoring"
+                  uid=6_107 ignored
+                    uid=6_108 ignored
+                      uid=6_109 generic
+                        uid=6_110 StaticText "📱 Device Management"
+                          uid=6_111 InlineTextBox "📱 Device Management"
+                      uid=6_112 paragraph
+                        uid=6_113 StaticText "Device provisioning, monitoring, and configuration"
+                          uid=6_114 InlineTextBox "Device provisioning, monitoring, and "
+                          uid=6_115 InlineTextBox "configuration"
+                    uid=6_116 ignored
+                      uid=6_117 list
+                        uid=6_118 listitem level="1"
+                          uid=6_119 StaticText "• Device registration"
+                            uid=6_120 InlineTextBox "• Device registration"
+                        uid=6_121 listitem level="1"
+                          uid=6_122 StaticText "• Policy enforcement"
+                            uid=6_123 InlineTextBox "• Policy enforcement"
+                        uid=6_124 listitem level="1"
+                          uid=6_125 StaticText "• GPS tracking"
+                            uid=6_126 InlineTextBox "• GPS tracking"
+                        uid=6_127 listitem level="1"
+                          uid=6_128 StaticText "• Telemetry monitoring"
+                            uid=6_129 InlineTextBox "• Telemetry monitoring"
+                  uid=6_130 ignored
+                    uid=6_131 ignored
+                      uid=6_132 generic
+                        uid=6_133 StaticText "🏢 Team Management"
+                          uid=6_134 InlineTextBox "🏢 Team Management"
+                      uid=6_135 paragraph
+                        uid=6_136 StaticText "Hierarchical team organization and management"
+                          uid=6_137 InlineTextBox "Hierarchical team organization and "
+                          uid=6_138 InlineTextBox "management"
+                    uid=6_139 ignored
+                      uid=6_140 list
+                        uid=6_141 listitem level="1"
+                          uid=6_142 StaticText "• Team hierarchy"
+                            uid=6_143 InlineTextBox "• Team hierarchy"
+                        uid=6_144 listitem level="1"
+                          uid=6_145 StaticText "• Supervisor assignments"
+                            uid=6_146 InlineTextBox "• Supervisor assignments"
+                        uid=6_147 listitem level="1"
+                          uid=6_148 StaticText "• Policy inheritance"
+                            uid=6_149 InlineTextBox "• Policy inheritance"
+                        uid=6_150 listitem level="1"
+                          uid=6_151 StaticText "• Reporting structure"
+                            uid=6_152 InlineTextBox "• Reporting structure"
+                  uid=6_153 ignored
+                    uid=6_154 ignored
+                      uid=6_155 generic
+                        uid=6_156 StaticText "📋 Policy Editor"
+                          uid=6_157 InlineTextBox "📋 Policy Editor"
+                      uid=6_158 paragraph
+                        uid=6_159 StaticText "Visual policy creation and compliance management"
+                          uid=6_160 InlineTextBox "Visual policy creation and compliance "
+                          uid=6_161 InlineTextBox "management"
+                    uid=6_162 ignored
+                      uid=6_163 list
+                        uid=6_164 listitem level="1"
+                          uid=6_165 StaticText "• Visual policy builder"
+                            uid=6_166 InlineTextBox "• Visual policy builder"
+                        uid=6_167 listitem level="1"
+                          uid=6_168 StaticText "• Time window rules"
+                            uid=6_169 InlineTextBox "• Time window rules"
+                        uid=6_170 listitem level="1"
+                          uid=6_171 StaticText "• GPS requirements"
+                            uid=6_172 InlineTextBox "• GPS requirements"
+                        uid=6_173 listitem level="1"
+                          uid=6_174 StaticText "• Compliance monitoring"
+                            uid=6_175 InlineTextBox "• Compliance monitoring"
+                  uid=6_176 ignored
+                    uid=6_177 ignored
+                      uid=6_178 generic
+                        uid=6_179 StaticText "📊 Telemetry Dashboard"
+                          uid=6_180 InlineTextBox "📊 Telemetry Dashboard"
+                      uid=6_181 paragraph
+                        uid=6_182 StaticText "Real-time analytics and monitoring dashboard"
+                          uid=6_183 InlineTextBox "Real-time analytics and monitoring "
+                          uid=6_184 InlineTextBox "dashboard"
+                    uid=6_185 ignored
+                      uid=6_186 list
+                        uid=6_187 listitem level="1"
+                          uid=6_188 StaticText "• Real-time metrics"
+                            uid=6_189 InlineTextBox "• Real-time metrics"
+                        uid=6_190 listitem level="1"
+                          uid=6_191 StaticText "• GPS tracking maps"
+                            uid=6_192 InlineTextBox "• GPS tracking maps"
+                        uid=6_193 listitem level="1"
+                          uid=6_194 StaticText "• Device status"
+                            uid=6_195 InlineTextBox "• Device status"
+                        uid=6_196 listitem level="1"
+                          uid=6_197 StaticText "• Alert management"
+                            uid=6_198 InlineTextBox "• Alert management"
+                uid=6_199 ignored
+                  uid=6_200 ignored
+                    uid=6_201 ignored
+                      uid=6_202 generic
+                        uid=6_203 StaticText "🚀 Getting Started"
+                          uid=6_204 InlineTextBox "🚀 Getting Started"
+                      uid=6_205 paragraph
+                        uid=6_206 StaticText "Navigate to different sections of the admin interface"
+                          uid=6_207 InlineTextBox "Navigate to different sections of the admin interface"
+                    uid=6_208 ignored
+                      uid=6_209 ignored
+                        uid=6_210 ignored
+                          uid=6_211 strong
+                            uid=6_212 StaticText "Main Pages:"
+                              uid=6_213 InlineTextBox "Main Pages:"
+                          uid=6_214 list
+                            uid=6_215 listitem level="1"
+                              uid=6_216 StaticText "• "
+                                uid=6_217 InlineTextBox "• "
+                              uid=6_218 link "Login Page" url="http://localhost:5173/auth/login"
+                                uid=6_219 StaticText "Login Page"
+                                  uid=6_220 InlineTextBox "Login Page"
+                            uid=6_221 listitem level="1"
+                              uid=6_222 StaticText "• "
+                                uid=6_223 InlineTextBox "• "
+                              uid=6_224 link "Dashboard" url="http://localhost:5173/dashboard"
+                                uid=6_225 StaticText "Dashboard"
+                                  uid=6_226 InlineTextBox "Dashboard"
+                            uid=6_227 listitem level="1"
+                              uid=6_228 StaticText "• "
+                                uid=6_229 InlineTextBox "• "
+                              uid=6_230 link "User Management" url="http://localhost:5173/users"
+                                uid=6_231 StaticText "User Management"
+                                  uid=6_232 InlineTextBox "User Management"
+                            uid=6_233 listitem level="1"
+                              uid=6_234 StaticText "• "
+                                uid=6_235 InlineTextBox "• "
+                              uid=6_236 link "Device Management" url="http://localhost:5173/devices"
+                                uid=6_237 StaticText "Device Management"
+                                  uid=6_238 InlineTextBox "Device Management"
+                        uid=6_239 ignored
+                          uid=6_240 strong
+                            uid=6_241 StaticText "Test Pages:"
+                              uid=6_242 InlineTextBox "Test Pages:"
+                          uid=6_243 list
+                            uid=6_244 listitem level="1"
+                              uid=6_245 StaticText "• "
+                                uid=6_246 InlineTextBox "• "
+                              uid=6_247 link "Implementation Test" url="http://localhost:5173/test"
+                                uid=6_248 StaticText "Implementation Test"
+                                  uid=6_249 InlineTextBox "Implementation Test"
+                            uid=6_250 listitem level="1"
+                              uid=6_251 StaticText "• "
+                                uid=6_252 InlineTextBox "• "
+                              uid=6_253 link "Component Library" url="http://localhost:5173/components"
+                                uid=6_254 StaticText "Component Library"
+                                  uid=6_255 InlineTextBox "Component Library"
+                            uid=6_256 listitem level="1"
+                              uid=6_257 StaticText "• "
+                                uid=6_258 InlineTextBox "• "
+                              uid=6_259 link "Style Guide" url="http://localhost:5173/styleguide"
+                                uid=6_260 StaticText "Style Guide"
+                                  uid=6_261 InlineTextBox "Style Guide"
+        uid=6_262 generic

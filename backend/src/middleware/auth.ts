@@ -882,6 +882,118 @@ export const requireOwnerAccess = (userIdParam: string = 'userId') => {
 };
 
 /**
+ * Web Admin Authentication middleware - verifies web admin JWT tokens
+ * Separate from mobile authentication for proper security boundaries
+ */
+export const authenticateWebAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: 'MISSING_TOKEN',
+          message: 'Web admin authorization token required'
+        }
+      });
+    }
+
+    // Verify web admin token
+    const verification = await JWTService.verifyToken(token, 'web-admin');
+
+    if (!verification.valid || !verification.payload) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: 'INVALID_WEB_ADMIN_TOKEN',
+          message: 'Invalid or expired web admin token'
+        }
+      });
+    }
+
+    const payload = verification.payload;
+    const userId = payload.sub;
+
+    // Get web admin user information
+    const { WebAdminAuthService } = await import('../services/web-admin-auth-service');
+    const webAdminAuthService = new WebAdminAuthService();
+    const userResult = await webAdminAuthService.whoami(userId);
+
+    if (!userResult.success || !userResult.user) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: 'WEB_ADMIN_USER_NOT_FOUND',
+          message: 'Web admin user not found or inactive'
+        }
+      });
+    }
+
+    // Create enhanced user context for web admin
+    const webAdminUser = {
+      id: userResult.user.id,
+      code: 'WEB_ADMIN',
+      teamId: '', // Web admin not bound to team
+      displayName: userResult.user.fullName,
+      email: userResult.user.email,
+      isActive: true,
+      roles: [{
+        id: userResult.user.id,
+        name: userResult.user.role,
+        displayName: userResult.user.role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        hierarchyLevel: getHierarchyLevel(userResult.user.role as UserRole)
+      }],
+      effectivePermissions: [],
+      role: userResult.user.role
+    };
+
+    req.user = webAdminUser;
+
+    logger.info('Web admin authenticated successfully', {
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      requestId: req.headers['x-request-id']
+    });
+
+    next();
+  } catch (error) {
+    logger.error('Web admin authentication error', {
+      error: error instanceof Error ? error.message : String(error),
+      requestId: req.headers['x-request-id']
+    });
+
+    return res.status(500).json({
+      ok: false,
+      error: {
+        code: 'WEB_ADMIN_AUTH_ERROR',
+        message: 'Web admin authentication failed'
+      }
+    });
+  }
+};
+
+/**
+ * Get hierarchy level for role sorting
+ */
+function getHierarchyLevel(role: UserRole): number {
+  const hierarchy = {
+    [UserRole.TEAM_MEMBER]: 1,
+    [UserRole.FIELD_SUPERVISOR]: 2,
+    [UserRole.REGIONAL_MANAGER]: 3,
+    [UserRole.SUPPORT_AGENT]: 4,
+    [UserRole.DEVICE_MANAGER]: 5,
+    [UserRole.POLICY_ADMIN]: 6,
+    [UserRole.AUDITOR]: 7,
+    [UserRole.NATIONAL_SUPPORT_ADMIN]: 8,
+    [UserRole.SYSTEM_ADMIN]: 9
+  };
+  return hierarchy[role] || 0;
+}
+
+/**
  * Helper function to combine multiple middleware
  */
 export const combineMiddleware = (...middleware: Array<(req: AuthenticatedRequest, res: Response, next: NextFunction) => void>) => {
