@@ -1,4 +1,5 @@
 import { db, roles, permissions, rolePermissions, userRoleAssignments, users, teams, permissionCache } from '../lib/db';
+import { projectPermissionService } from './project-permission-service';
 import { logger } from '../lib/logger';
 import {
   Role,
@@ -204,6 +205,11 @@ export class AuthorizationService {
       // Special protection for SYSTEM_SETTINGS resource
       if (resource === this.SYSTEM_SETTINGS_RESOURCE) {
         return this.checkSystemSettingsAccess(userId, action, context, requestId);
+      }
+
+      // Special handling for PROJECTS resource
+      if (resource === 'PROJECTS') {
+        return this.checkProjectsAccess(userId, action, context, requestId);
       }
 
       // Try cache first
@@ -656,6 +662,71 @@ export class AuthorizationService {
       return {
         allowed: false,
         reason: 'SYSTEM_SETTINGS_CHECK_ERROR'
+      };
+    }
+  }
+
+  /**
+   * Check PROJECTS resource access using ProjectPermissionService
+   */
+  private static async checkProjectsAccess(
+    userId: string,
+    action: string,
+    context?: PermissionContext,
+    requestId?: string
+  ): Promise<PermissionCheckResult> {
+    try {
+      logger.info('PROJECTS resource access check', {
+        userId,
+        action,
+        resourceId: context?.resourceId,
+        requestId
+      });
+
+      // Delegate to ProjectPermissionService for project-specific logic
+      const projectResult = await projectPermissionService.checkProjectPermission(
+        userId,
+        action,
+        context?.resourceId, // Project ID if available
+        {
+          userId,
+          userTeamId: context?.teamId,
+          organizationId: context?.organizationId,
+          action,
+          deviceTeamId: context?.deviceId ? undefined : undefined, // Could be enhanced
+          requestId
+        }
+      );
+
+      // Convert ProjectPermissionCheckResult to PermissionCheckResult format
+      const grantedBy = projectResult.grantedBy ? [{
+        roleId: projectResult.grantedBy.id,
+        roleName: projectResult.grantedBy.name,
+        permissionId: 'projects-permission'
+      }] : [];
+
+      return {
+        allowed: projectResult.allowed,
+        reason: projectResult.reason,
+        grantedBy,
+        evaluationTime: Date.now(),
+        requiredPermission: `PROJECTS.${action}`,
+        cacheHit: false // Project permissions are handled separately from main cache
+      };
+
+    } catch (error) {
+      logger.error('PROJECTS access check failed', {
+        error: error instanceof Error ? error.message : String(error),
+        userId,
+        action,
+        resourceId: context?.resourceId,
+        requestId
+      });
+
+      return {
+        allowed: false,
+        reason: 'PROJECTS_CHECK_ERROR',
+        requiredPermission: `PROJECTS.${action}`
       };
     }
   }

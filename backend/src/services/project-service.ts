@@ -116,14 +116,18 @@ export class ProjectService {
    * Get project with additional details (creator, region, member counts)
    */
   private async getProjectWithDetails(id: string): Promise<ProjectWithDetails | null> {
-    // Get basic project info
-    const [project] = await db.select()
-      .from(projects)
-      .where(eq(projects.id, id));
+    try {
+      // Get basic project info (exclude soft-deleted projects)
+      const [project] = await db.select()
+        .from(projects)
+        .where(and(
+          eq(projects.id, id),
+          isNull(projects.deletedAt)
+        ));
 
-    if (!project) {
-      return null;
-    }
+      if (!project) {
+        return null;
+      }
 
     // Get creator details
     const [creator] = await db.select({
@@ -170,6 +174,10 @@ export class ProjectService {
       memberCount: Number(memberCount?.count) || 0,
       teamCount: Number(teamCount?.count) || 0
     };
+    } catch (error) {
+      // Handle invalid UUID or other database errors
+      return null;
+    }
   }
 
   /**
@@ -303,31 +311,41 @@ export class ProjectService {
       updateData.organizationId = input.organizationId;
     }
 
-    const [updatedProject] = await db.update(projects)
-      .set(updateData)
-      .where(eq(projects.id, id))
-      .returning();
+    try {
+      const [updatedProject] = await db.update(projects)
+        .set(updateData)
+        .where(eq(projects.id, id))
+        .returning();
 
-    if (!updatedProject) {
+      if (!updatedProject) {
+        return null;
+      }
+
+      return this.getProjectWithDetails(id);
+    } catch (error) {
+      // Handle invalid UUID or other database errors
       return null;
     }
-
-    return this.getProjectWithDetails(id);
   }
 
   /**
    * Soft delete project
    */
   async deleteProject(id: string): Promise<boolean> {
-    const [deletedProject] = await db.update(projects)
-      .set({
-        deletedAt: new Date(),
-        updatedAt: new Date()
-      })
-      .where(eq(projects.id, id))
-      .returning();
+    try {
+      const [deletedProject] = await db.update(projects)
+        .set({
+          deletedAt: new Date(),
+          updatedAt: new Date()
+        })
+        .where(eq(projects.id, id))
+        .returning();
 
-    return !!deletedProject;
+      return !!deletedProject;
+    } catch (error) {
+      // Handle invalid UUID or other database errors
+      return false;
+    }
   }
 
   /**
@@ -614,13 +632,14 @@ export class ProjectService {
     teams: ProjectTeamAssignmentWithDetails[];
     totalMembers: number;
   }> {
-    // Get individual user assignments
-    const userAssignments = await db.select()
-      .from(projectAssignments)
-      .where(and(
-        eq(projectAssignments.projectId, projectId),
-        eq(projectAssignments.isActive, true)
-      ));
+    try {
+      // Get individual user assignments
+      const userAssignments = await db.select()
+        .from(projectAssignments)
+        .where(and(
+          eq(projectAssignments.projectId, projectId),
+          eq(projectAssignments.isActive, true)
+        ));
 
     const usersWithDetails: ProjectAssignmentWithDetails[] = [];
     for (const assignment of userAssignments) {
@@ -666,6 +685,14 @@ export class ProjectService {
       teams: teamsWithDetails,
       totalMembers
     };
+    } catch (error) {
+      // Handle invalid UUID or other database errors
+      return {
+        users: [],
+        teams: [],
+        totalMembers: 0
+      };
+    }
   }
 
   /**
