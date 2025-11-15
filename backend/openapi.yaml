@@ -4,9 +4,11 @@ info:
   description: |
     Comprehensive REST API for SurveyLauncher mobile device management platform.
 
-    The SurveyLauncher backend provides a comprehensive REST API with two distinct interfaces:
-    1. **Mobile App API** (`/api/v1/*`) - For Android device authentication and field operations
-    2. **Web Admin API** (`/api/web-admin/*`) - For administrative and management functions
+    The SurveyLauncher backend provides a unified REST API with consolidated endpoints:
+    1. **Unified API** (`/api/v1/*`) - All endpoints under a single prefix
+       - Mobile device authentication and field operations (`/api/v1/auth/*`)
+       - Web administrative and management functions (`/api/v1/web-admin/*`)
+       - Projects, teams, users, devices, and more
 
     The API follows a consistent JSON format with proper error handling and response structures,
     implementing enterprise-grade role-based access control (RBAC) with nine specialized roles.
@@ -224,8 +226,118 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  # Note: Web Admin Authentication endpoints are planned but not yet implemented
-  # These will be added when the web admin interface is developed
+  # Web Admin Authentication endpoints
+  /api/v1/web-admin/auth/login:
+    post:
+      tags: [Web Admin Authentication]
+      summary: Authenticate web admin user
+      description: Authenticate a web admin user with email and password
+      operationId: webAdminLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebAdminLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebAdminLoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '423':
+          $ref: '#/components/responses/Locked'
+
+  /api/v1/web-admin/auth/whoami:
+    get:
+      tags: [Web Admin Authentication]
+      summary: Get current web admin user info
+      description: Get current web admin user information
+      operationId: webAdminWhoami
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User info retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebAdminUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/web-admin/auth/logout:
+    post:
+      tags: [Web Admin Authentication]
+      summary: Logout web admin user
+      description: End web admin session and clear cookies
+      operationId: webAdminLogout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/web-admin/auth/refresh:
+    post:
+      tags: [Web Admin Authentication]
+      summary: Refresh web admin access token
+      description: Refresh web admin access token using refresh token
+      operationId: webAdminRefreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebAdminRefreshResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/web-admin/auth/create-admin:
+    post:
+      tags: [Web Admin Authentication]
+      summary: Create web admin user
+      description: Create a new web admin user (for initial setup)
+      operationId: createWebAdminUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebAdminRequest'
+      responses:
+        '201':
+          description: Admin user created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebAdminUserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   # Teams endpoints
   /api/v1/teams:
@@ -477,6 +589,288 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  # Projects endpoints
+  /api/v1/projects:
+    get:
+      tags: [Projects]
+      summary: List projects
+      description: List projects with pagination and search
+      operationId: listProjects
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/GeographicScope'
+      responses:
+        '200':
+          description: Projects retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags: [Projects]
+      summary: Create project
+      description: Create a new project
+      operationId: createProject
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/projects/{id}:
+    get:
+      tags: [Projects]
+      summary: Get project
+      description: Get a specific project by ID
+      operationId: getProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    put:
+      tags: [Projects]
+      summary: Update project
+      description: Update project information
+      operationId: updateProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Project updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    delete:
+      tags: [Projects]
+      summary: Delete project
+      description: Delete a project (soft delete)
+      operationId: deleteProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/projects/{id}/members:
+    get:
+      tags: [Projects]
+      summary: Get project members
+      description: Get project members with their roles
+      operationId: getProjectMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Project members retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectMembersResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/projects/{id}/members/users:
+    post:
+      tags: [Projects]
+      summary: Assign user to project
+      description: Assign individual user to project
+      operationId: assignUserToProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignUserToProjectRequest'
+      responses:
+        '200':
+          description: User assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/projects/{id}/members/teams:
+    post:
+      tags: [Projects]
+      summary: Assign team to project
+      description: Assign team to project
+      operationId: assignTeamToProject
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Project UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignTeamToProjectRequest'
+      responses:
+        '200':
+          description: Team assigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /api/v1/projects/my:
+    get:
+      tags: [Projects]
+      summary: Get my projects
+      description: Get projects accessible to current user
+      operationId: getMyProjects
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Projects retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProjectsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/projects/stats:
+    get:
+      tags: [Projects]
+      summary: Get project statistics
+      description: Get project statistics (admin only)
+      operationId: getProjectStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectStatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   # Users endpoints
   /api/v1/users:
@@ -1375,6 +1769,224 @@ components:
         token:
           type: string
           description: Override token
+
+    # Projects schemas
+    ProjectsResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    ProjectResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        project:
+          $ref: '#/components/schemas/Project'
+
+    CreateProjectRequest:
+      type: object
+      required:
+        - title
+        - abbreviation
+        - contactPersonDetails
+        - geographicScope
+      properties:
+        title:
+          type: string
+          description: Project title
+          minLength: 1
+          maxLength: 255
+        abbreviation:
+          type: string
+          description: Project abbreviation
+          minLength: 1
+          maxLength: 50
+        contactPersonDetails:
+          type: string
+          description: Contact person information
+          minLength: 1
+          maxLength: 500
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, COMPLETED, SUSPENDED]
+          default: ACTIVE
+          description: Project status
+        geographicScope:
+          type: string
+          enum: [NATIONAL, REGIONAL, STATE, DISTRICT, CITY]
+          description: Geographic scope of project
+
+    UpdateProjectRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        abbreviation:
+          type: string
+          minLength: 1
+          maxLength: 50
+        contactPersonDetails:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, COMPLETED, SUSPENDED]
+        geographicScope:
+          type: string
+          enum: [NATIONAL, REGIONAL, STATE, DISTRICT, CITY]
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: National Health Survey 2024
+        abbreviation:
+          type: string
+          example: NHS2024
+        contactPersonDetails:
+          type: string
+          example: Dr. John Doe - john.doe@healthministry.gov
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, COMPLETED, SUSPENDED]
+        geographicScope:
+          type: string
+          enum: [NATIONAL, REGIONAL, STATE, DISTRICT, CITY]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ProjectMembersResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectMember'
+
+    ProjectMember:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        joinedAt:
+          type: string
+          format: date-time
+
+    AssignUserToProjectRequest:
+      type: object
+      required:
+        - userId
+        - role
+      properties:
+        userId:
+          type: string
+          format: uuid
+          description: User ID to assign to project
+        role:
+          type: string
+          description: Role to assign to user in this project
+
+    AssignTeamToProjectRequest:
+      type: object
+      required:
+        - teamId
+      properties:
+        teamId:
+          type: string
+          format: uuid
+          description: Team ID to assign to project
+
+    MyProjectsResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        userRole:
+          type: string
+          description: User's role across these projects
+
+    ProjectStatsResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        stats:
+          type: object
+          properties:
+            total:
+              type: integer
+              example: 25
+            active:
+              type: integer
+              example: 18
+            inactive:
+              type: integer
+              example: 5
+            completed:
+              type: integer
+              example: 2
+            suspended:
+              type: integer
+              example: 0
+            byGeographicScope:
+              type: object
+              properties:
+                national:
+                  type: integer
+                  example: 3
+                regional:
+                  type: integer
+                  example: 7
+                state:
+                  type: integer
+                  example: 10
+                district:
+                  type: integer
+                  example: 4
+                city:
+                  type: integer
+                  example: 1
 
   responses:
     BadRequest:

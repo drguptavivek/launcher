@@ -464,6 +464,255 @@ Create a new web admin user (for initial setup).
 - Only accepts 8 valid web admin roles (excludes TEAM_MEMBER)
 - Password must be at least 8 characters long
 
+### Project Management Endpoints
+
+#### POST /api/v1/projects
+
+Create a new project.
+
+**Authentication:** Required (Web Admin or Mobile App with appropriate permissions)
+
+**Request Body:**
+```json
+{
+  "title": "string",
+  "abbreviation": "string",
+  "contactPersonDetails": "string",
+  "status": "ACTIVE|INACTIVE|COMPLETED|SUSPENDED",
+  "geographicScope": "NATIONAL|REGIONAL|STATE|DISTRICT|LOCAL"
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "ok": true,
+  "project": {
+    "id": "uuid",
+    "title": "string",
+    "abbreviation": "string",
+    "contactPersonDetails": "string",
+    "status": "ACTIVE",
+    "geographicScope": "NATIONAL",
+    "organizationId": "string",
+    "createdBy": "uuid",
+    "createdAt": "2025-01-01T00:00:00Z",
+    "updatedAt": "2025-01-01T00:00:00Z"
+  }
+}
+```
+
+#### GET /api/v1/projects
+
+List projects with pagination and search.
+
+**Authentication:** Required (Web Admin or Mobile App with appropriate permissions)
+
+**Query Parameters:**
+- `page` (number, default: 1) - Page number for pagination
+- `limit` (number, default: 50, max: 100) - Items per page
+- `search` (string) - Search term for project titles
+- `status` (string) - Filter by project status
+- `geographicScope` (string) - Filter by geographic scope
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "projects": [
+    {
+      "id": "uuid",
+      "title": "string",
+      "abbreviation": "string",
+      "status": "ACTIVE",
+      "geographicScope": "NATIONAL",
+      "createdAt": "2025-01-01T00:00:00Z",
+      "updatedAt": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 50
+}
+```
+
+#### GET /api/v1/projects/:id
+
+Get a specific project by ID.
+
+**Authentication:** Required (With project access permissions)
+
+**URL Parameters:**
+- `id` (string) - Project UUID
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "project": {
+    "id": "uuid",
+    "title": "string",
+    "abbreviation": "string",
+    "contactPersonDetails": "string",
+    "status": "ACTIVE",
+    "geographicScope": "NATIONAL",
+    "organizationId": "string",
+    "createdBy": "uuid",
+    "createdAt": "2025-01-01T00:00:00Z",
+    "updatedAt": "2025-01-01T00:00:00Z"
+  }
+}
+```
+
+#### PUT /api/v1/projects/:id
+
+Update project information.
+
+**Authentication:** Required (Project manager, supervisor, or admin)
+
+**URL Parameters:**
+- `id` (string) - Project UUID
+
+**Request Body:**
+```json
+{
+  "title": "string",
+  "abbreviation": "string",
+  "contactPersonDetails": "string",
+  "status": "ACTIVE",
+  "geographicScope": "NATIONAL"
+}
+```
+
+#### DELETE /api/v1/projects/:id
+
+Delete a project (soft delete).
+
+**Authentication:** Required (System admin or project owner)
+
+**URL Parameters:**
+- `id` (string) - Project UUID
+
+#### GET /api/v1/projects/:id/members
+
+Get project members with their roles.
+
+**Authentication:** Required (Project access)
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "members": [
+    {
+      "userId": "uuid",
+      "userCode": "string",
+      "displayName": "string",
+      "roleInProject": "Project Lead",
+      "assignedAt": "2025-01-01T00:00:00Z",
+      "isActive": true
+    }
+  ],
+  "teams": [
+    {
+      "teamId": "uuid",
+      "teamName": "string",
+      "assignedRole": "Implementation Team",
+      "assignedAt": "2025-01-01T00:00:00Z",
+      "isActive": true
+    }
+  ]
+}
+```
+
+#### POST /api/v1/projects/:id/members/users
+
+Assign individual user to project.
+
+**Authentication:** Required (Project manager or admin)
+
+**Request Body:**
+```json
+{
+  "userId": "uuid",
+  "roleInProject": "Project Lead|Field Coordinator|Data Analyst",
+  "assignedUntil": "2025-12-31T23:59:59Z"
+}
+```
+
+#### POST /api/v1/projects/:id/members/teams
+
+Assign team to project.
+
+**Authentication:** Required (Project manager or admin)
+
+**Request Body:**
+```json
+{
+  "teamId": "uuid",
+  "assignedRole": "Implementation Team|Support Team|QA Team",
+  "assignedUntil": "2025-12-31T23:59:59Z"
+}
+```
+
+#### DELETE /api/v1/projects/:id/members/users/:userId
+
+Remove user from project.
+
+**Authentication:** Required (Project manager or admin)
+
+#### DELETE /api/v1/projects/:id/members/teams/:teamId
+
+Remove team from project.
+
+**Authentication:** Required (Project manager or admin)
+
+#### GET /api/v1/projects/my
+
+Get projects accessible to current user.
+
+**Authentication:** Required
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "projects": [
+    {
+      "id": "uuid",
+      "title": "string",
+      "roleInProject": "Project Lead",
+      "permissions": ["read", "write", "manage_members"]
+    }
+  ]
+}
+```
+
+#### GET /api/v1/projects/stats
+
+Get project statistics (admin only).
+
+**Authentication:** Required (Admin role)
+
+**Response (200 OK):**
+```json
+{
+  "ok": true,
+  "stats": {
+    "totalProjects": 25,
+    "activeProjects": 20,
+    "completedProjects": 4,
+    "suspendedProjects": 1,
+    "projectsByScope": {
+      "NATIONAL": 10,
+      "REGIONAL": 8,
+      "STATE": 5,
+      "DISTRICT": 2
+    }
+  }
+}
+```
+
 ### Team Management Endpoints
 
 #### POST /api/v1/teams
@@ -1647,7 +1896,7 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
 
 **Test Web Admin Login:**
 ```bash
-curl -X POST http://localhost:3000/api/web-admin/auth/login \
+curl -X POST http://localhost:3000/api/v1/web-admin/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"adminpassword123"}'
 ```
@@ -1657,7 +1906,7 @@ curl -X POST http://localhost:3000/api/web-admin/auth/login \
 # Create a team
 curl -X POST http://localhost:3000/api/v1/teams \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer mock-token" \
+  -H "Authorization: Bearer web-admin-token" \
   -d '{"name":"Test Team","timezone":"UTC","stateId":"US-CA"}'
 ```
 
@@ -1665,7 +1914,7 @@ curl -X POST http://localhost:3000/api/v1/teams \
 ```bash
 curl -X POST http://localhost:3000/api/v1/users \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer mock-token" \
+  -H "Authorization: Bearer web-admin-token" \
   -d '{"teamId":"team-uuid","code":"USER001","displayName":"Test User","pin":"123456","role":"TEAM_MEMBER"}'
 ```
 
@@ -1673,15 +1922,24 @@ curl -X POST http://localhost:3000/api/v1/users \
 ```bash
 curl -X POST http://localhost:3000/api/v1/devices \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer mock-token" \
+  -H "Authorization: Bearer web-admin-token" \
   -d '{"teamId":"team-uuid","name":"Test Device","androidId":"test123","appVersion":"1.0.0"}'
+```
+
+**Test Projects:**
+```bash
+# Create a project
+curl -X POST http://localhost:3000/api/v1/projects \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer web-admin-token" \
+  -d '{"title":"Test Project","abbreviation":"TP","contactPersonDetails":"Test Contact","status":"ACTIVE","geographicScope":"NATIONAL"}'
 ```
 
 **Test Supervisor PINs:**
 ```bash
 curl -X POST http://localhost:3000/api/v1/supervisor/pins \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer mock-token" \
+  -H "Authorization: Bearer web-admin-token" \
   -d '{"teamId":"team-uuid","name":"Main PIN","pin":"789012"}'
 ```
 
