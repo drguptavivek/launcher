@@ -215,7 +215,7 @@
                   <dl>
                     <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Projects</dt>
                     <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                      {projectsLoading ? '...' : projectStats.totalProjects}
+                      {projectsLoading ? '...' : projectStats().totalProjects}
                     </dd>
                   </dl>
                 </div>
@@ -236,7 +236,7 @@
                   <dl>
                     <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Active Projects</dt>
                     <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                      {projectsLoading ? '...' : projectStats.activeProjects}
+                      {projectsLoading ? '...' : projectStats().activeProjects}
                     </dd>
                   </dl>
                 </div>
@@ -255,7 +255,7 @@
                 <div class="ml-5 w-0 flex-1">
                   <dl>
                     <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Users</dt>
-                    <dd class="text-lg font-medium text-gray-900 dark:text-white">{stats.totalUsers}</dd>
+                    <dd class="text-lg font-medium text-gray-900 dark:text-white">{stats().totalUsers}</dd>
                   </dl>
                 </div>
               </div>
@@ -274,7 +274,7 @@
                 <div class="ml-5 w-0 flex-1">
                   <dl>
                     <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Active Devices</dt>
-                    <dd class="text-lg font-medium text-gray-900 dark:text-white">{stats.activeDevices}</dd>
+                    <dd class="text-lg font-medium text-gray-900 dark:text-white">{stats().activeDevices}</dd>
                   </dl>
                 </div>
               </div>
@@ -293,7 +293,7 @@
                 <div class="ml-5 w-0 flex-1">
                   <dl>
                     <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Surveys</dt>
-                    <dd class="text-lg font-medium text-gray-900 dark:text-white">{stats.totalSurveys}</dd>
+                    <dd class="text-lg font-medium text-gray-900 dark:text-white">{stats().totalSurveys}</dd>
                   </dl>
                 </div>
               </div>
@@ -312,7 +312,7 @@
                 <div class="ml-5 w-0 flex-1">
                   <dl>
                     <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Active Sessions</dt>
-                    <dd class="text-lg font-medium text-gray-900 dark:text-white">{stats.activeSessions}</dd>
+                    <dd class="text-lg font-medium text-gray-900 dark:text-white">{stats().activeSessions}</dd>
                   </dl>
                 </div>
               </div>

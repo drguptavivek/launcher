@@ -3,6 +3,7 @@
 
 import { form, query, command } from '$app/server';
 import { getRequestEvent } from '$app/server';
+import * as v from 'valibot';
 import {
 	API_BASE_URL,
 	API_ENDPOINTS,
@@ -47,21 +48,31 @@ export const getProjects = query(async () => {
  * Create a new project
  * POST /api/v1/projects
  */
-export const createProject = form(async (formData: CreateProjectRequest) => {
-	try {
-		const accessToken = getAccessToken();
-		const url = `${API_BASE_URL}${API_ENDPOINTS.PROJECTS}`;
+export const createProject = form(
+	// Validation schema matching CreateProjectRequest interface
+	v.object({
+		title: v.string(),
+		abbreviation: v.string(),
+		description: v.optional(v.string()),
+		geographicScope: v.picklist(['NATIONAL', 'REGIONAL']),
+		teamIds: v.optional(v.array(v.string()))
+	}),
+	async (formData: CreateProjectRequest) => {
+		try {
+			const accessToken = getAccessToken();
+			const url = `${API_BASE_URL}${API_ENDPOINTS.PROJECTS}`;
 
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: getAuthHeaders(accessToken),
-			body: JSON.stringify(formData)
-		});
+			const response = await fetch(url, {
+				method: 'POST',
+				headers: getAuthHeaders(accessToken),
+				body: JSON.stringify(formData)
+			});
 
-		const data = await response.json();
-		return handleApiResponse(response, data);
-	} catch (error) {
-		console.error('Create project error:', error);
-		throw error;
+			const data = await response.json();
+			return handleApiResponse(response, data);
+		} catch (error) {
+			console.error('Create project error:', error);
+			throw error;
+		}
 	}
-});
+);

@@ -79,11 +79,11 @@
 	let showEditForm = false;
 	let showCreateForm = false;
 
-	function handleProjectClick(event: CustomEvent) {
+	function handleProjectClick(event: CustomEvent<{ project: Project }>) {
 		selectedProject = event.detail.project;
 	}
 
-	function handleEditProject(event: CustomEvent) {
+	function handleEditProject(event: CustomEvent<{ project: Project }>) {
 		selectedProject = event.detail.project;
 		showEditForm = true;
 		showCreateForm = false;
@@ -95,7 +95,7 @@
 		showEditForm = false;
 	}
 
-	function handleFormSubmit(event: CustomEvent) {
+	function handleFormSubmit(event: CustomEvent<{ data: any; isEdit: boolean }>) {
 		const { data, isEdit } = event.detail;
 		console.log('Form submitted:', { data, isEdit });
 		// Handle form submission
@@ -135,8 +135,8 @@
 			<h2 class="text-2xl font-semibold mb-4">Create New Project Form</h2>
 			<ProjectForm
 				project={null}
-				onsubmit={handleFormSubmit}
-				oncancel={handleFormCancel}
+				on:submit={handleFormSubmit}
+				on:cancel={handleFormCancel}
 			/>
 		</div>
 	{:else}
@@ -151,8 +151,8 @@
 			<h2 class="text-2xl font-semibold mb-4">Edit Project Form</h2>
 			<ProjectForm
 				project={selectedProject}
-				onsubmit={handleFormSubmit}
-				oncancel={handleFormCancel}
+				on:submit={handleFormSubmit}
+				on:cancel={handleFormCancel}
 			/>
 		</div>
 	{/if}
@@ -162,8 +162,8 @@
 		<h2 class="text-2xl font-semibold mb-4">Project Table</h2>
 		<ProjectTable
 			projects={mockProjects}
-			onprojectClick={handleProjectClick}
-			oneditProject={handleEditProject}
+			on:projectClick={handleProjectClick}
+			on:editProject={handleEditProject}
 		/>
 	</div>
 
@@ -174,11 +174,11 @@
 			{#each mockProjects as project}
 				<ProjectCard
 					project={project}
-					onclick={handleProjectClick}
-					onedit={handleEditProject}
-					onmanageUsers={(e) => console.log('Manage users for:', e.detail.project)}
-					onmanageTeams={(e) => console.log('Manage teams for:', e.detail.project)}
-					ondelete={(e) => console.log('Delete project:', e.detail.project)}
+					on:click={handleProjectClick}
+					on:edit={handleEditProject}
+					on:manageUsers={(e: CustomEvent<{ project: Project }>) => console.log('Manage users for:', e.detail.project)}
+					on:manageTeams={(e: CustomEvent<{ project: Project }>) => console.log('Manage teams for:', e.detail.project)}
+					on:delete={(e: CustomEvent<{ project: Project }>) => console.log('Delete project:', e.detail.project)}
 				/>
 			{/each}
 		</div>
@@ -193,8 +193,8 @@
 			<UserAssignmentComponent
 				assignments={mockUserAssignments}
 				projectId={selectedProject.id}
-				onaddUser={handleAddUser}
-				onremoveUser={handleRemoveUser}
+				on:addUser={handleAddUser}
+				on:removeUser={handleRemoveUser}
 			/>
 		</div>
 	{/if}
@@ -208,20 +208,20 @@
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 				<ProjectActions
 					project={selectedProject}
-					onviewDetails={(e) => console.log('View details:', e.detail.project)}
-					onedit={handleEditProject}
-					onmanageUsers={(e) => console.log('Manage users:', e.detail.project)}
-					onmanageTeams={(e) => console.log('Manage teams:', e.detail.project)}
-					ondelete={(e) => console.log('Delete project:', e.detail.project)}
+					on:viewDetails={(e: CustomEvent<{ project: Project }>) => console.log('View details:', e.detail.project)}
+					on:edit={handleEditProject}
+					on:manageUsers={(e: CustomEvent<{ project: Project }>) => console.log('Manage users:', e.detail.project)}
+					on:manageTeams={(e: CustomEvent<{ project: Project }>) => console.log('Manage teams:', e.detail.project)}
+					on:delete={(e: CustomEvent<{ project: Project }>) => console.log('Delete project:', e.detail.project)}
 				/>
 				<ProjectActions
 					project={selectedProject}
 					size="small"
-					onviewDetails={(e) => console.log('View details:', e.detail.project)}
-					onedit={handleEditProject}
-					onmanageUsers={(e) => console.log('Manage users:', e.detail.project)}
-					onmanageTeams={(e) => console.log('Manage teams:', e.detail.project)}
-					ondelete={(e) => console.log('Delete project:', e.detail.project)}
+					on:viewDetails={(e: CustomEvent<{ project: Project }>) => console.log('View details:', e.detail.project)}
+					on:edit={handleEditProject}
+					on:manageUsers={(e: CustomEvent<{ project: Project }>) => console.log('Manage users:', e.detail.project)}
+					on:manageTeams={(e: CustomEvent<{ project: Project }>) => console.log('Manage teams:', e.detail.project)}
+					on:delete={(e: CustomEvent<{ project: Project }>) => console.log('Delete project:', e.detail.project)}
 				/>
 			</div>
 		</div>

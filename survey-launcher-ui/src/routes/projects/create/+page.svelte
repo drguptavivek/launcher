@@ -65,26 +65,8 @@
     validationErrors[field] = errors;
   }
 
-  async function handleSubmit(event: SubmitEvent) {
-    event.preventDefault();
-
-    if (!isValid || isSubmitting) return;
-
-    isSubmitting = true;
-    submitError = null;
-
-    try {
-      await createProject(formData);
-
-      // Success - redirect to projects list
-      window.location.href = '/projects';
-    } catch (error: any) {
-      submitError = error.message || 'Failed to create project';
-      console.error('Create project error:', error);
-    } finally {
-      isSubmitting = false;
-    }
-  }
+  // Note: Form submission is handled automatically by the createProject remote function
+  // The remote function will be called when the form is submitted
 
   function handleCancel() {
     window.location.href = '/projects';
@@ -125,7 +107,7 @@
       <CardTitle>Project Information</CardTitle>
     </CardHeader>
     <CardContent>
-      <form onsubmit={handleSubmit} class="space-y-6">
+      <form {...createProject} class="space-y-6">
         <!-- Basic Information -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-2">
