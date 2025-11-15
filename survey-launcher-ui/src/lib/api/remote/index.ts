@@ -27,6 +27,27 @@ export {
 	getDeviceTelemetryStats
 } from './telemetry.remote';
 
+// Project Management remote functions
+export {
+	getProjects,
+	getProjectById,
+	createProject,
+	updateProject,
+	deleteProject,
+	assignUserToProject,
+	getProjectUsers,
+	removeUserFromProject,
+	assignTeamToProject,
+	getProjectTeams,
+	removeTeamFromProject,
+	getUserProjects,
+	getTeamProjects,
+	getRoles,
+	validateProjectTitle,
+	validateProjectAbbreviation,
+	validateGeographicScope
+} from './projects.remote';
+
 
 // Users utilities and types
 export {
@@ -65,4 +86,29 @@ export type {
 	ApiResponse,
 	ApiErrorCode
 } from './types';
+
+// Project Management types
+export type {
+	Project,
+	CreateProjectRequest,
+	UpdateProjectRequest,
+	UserAssignment,
+	TeamAssignment,
+	AssignUserToProjectRequest,
+	AssignTeamToProjectRequest,
+	ProjectsResponse,
+	ProjectResponse,
+	UserAssignmentsResponse,
+	TeamAssignmentsResponse,
+	UserProjectsResponse,
+	TeamProjectsResponse,
+	Role,
+	RolesResponse,
+	ProjectsFilterOptions,
+	AssignmentFilterOptions,
+	ValidationError,
+	ProjectStatus,
+	GeographicScope,
+	AssignmentScope
+} from './projects.types';
 

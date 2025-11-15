@@ -14,7 +14,7 @@ export const API_ENDPOINTS = {
 		LOGOUT: '/api/v1/auth/logout',
 		REFRESH: '/api/v1/auth/refresh',
 		WHOAMI: '/api/v1/auth/whoami',
-		END_SESSION: '/api/v1/auth/session/end'
+	END_SESSION: '/api/v1/auth/session/end'
 	},
 
 	// Supervisor endpoints
@@ -28,7 +28,18 @@ export const API_ENDPOINTS = {
 	// Telemetry endpoints
 	TELEMETRY: {
 		SUBMIT: '/api/v1/telemetry'
-	}
+	},
+
+	// Project Management endpoints
+	PROJECTS: '/api/v1/projects',
+	PROJECT: (id: string) => `/api/v1/projects/${id}`,
+	PROJECT_USERS: (id: string) => `/api/v1/projects/${id}/users`,
+	PROJECT_USER: (id: string, userId: string) => `/api/v1/projects/${id}/users/${userId}`,
+	PROJECT_TEAMS: (id: string) => `/api/v1/projects/${id}/teams`,
+	PROJECT_TEAM: (id: string, teamId: string) => `/api/v1/projects/${id}/teams/${teamId}`,
+	USER_PROJECTS: (userId: string) => `/api/v1/users/${userId}/projects`,
+	TEAM_PROJECTS: (teamId: string) => `/api/v1/teams/${teamId}/projects`,
+	ROLES: '/api/v1/roles'
 } as const;
 
 // Request headers configuration

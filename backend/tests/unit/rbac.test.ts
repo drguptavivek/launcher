@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { db, roles, permissions, rolePermissions, userRoleAssignments, users, teams, permissionCache } from '../../src/lib/db';
+import { db, roles, permissions, rolePermissions, userRoleAssignments, users, teams, permissionCache, pinAttempts, sessions, telemetryEvents, policyIssues, userPins, devices, projects, projectAssignments, projectTeamAssignments } from '../../src/lib/db';
 import { AuthorizationService } from '../../src/services/authorization-service';
 import { RoleService } from '../../src/services/role-service';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,12 +39,23 @@ describe('RBAC Services', () => {
   let testPermission: TestPermission;
 
   beforeEach(async () => {
-    // Clean up any existing test data
+    // Clean up any existing test data in correct order due to foreign key constraints
     await db.delete(permissionCache);
     await db.delete(userRoleAssignments);
     await db.delete(rolePermissions);
     await db.delete(permissions);
     await db.delete(roles);
+    await db.delete(projectAssignments);
+    await db.delete(projectTeamAssignments);
+    await db.delete(projects);
+    await db.delete(pinAttempts);
+    await db.delete(sessions);
+    await db.delete(telemetryEvents);
+    await db.delete(policyIssues);
+    await db.delete(userPins);
+    await db.delete(devices);
+    await db.delete(users);
+    await db.delete(teams);
 
     // Create test team
     const teamResult = await db.insert(teams).values({
@@ -92,12 +103,21 @@ describe('RBAC Services', () => {
   });
 
   afterEach(async () => {
-    // Clean up test data
+    // Clean up test data in correct order due to foreign key constraints
     await db.delete(permissionCache);
     await db.delete(userRoleAssignments);
     await db.delete(rolePermissions);
     await db.delete(permissions);
     await db.delete(roles);
+    await db.delete(projectAssignments);
+    await db.delete(projectTeamAssignments);
+    await db.delete(projects);
+    await db.delete(pinAttempts);
+    await db.delete(sessions);
+    await db.delete(telemetryEvents);
+    await db.delete(policyIssues);
+    await db.delete(userPins);
+    await db.delete(devices);
     await db.delete(users);
     await db.delete(teams);
   });
