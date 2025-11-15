@@ -1,7 +1,7 @@
 <!-- Project Details Page -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getProjectById, getProjectUsers, assignUserToProject, removeUserFromProject } from '$lib/api/remote';
+  import { getProjects } from '$lib/api/remote';
   import { Button } from '$lib/components/ui/button';
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Badge } from '$lib/components/ui/badge';
@@ -9,16 +9,17 @@
   import type { Project } from '$lib/api/remote';
 
   // Get the project ID from URL parameters
-  let projectId = $state($params.id);
+  let { params } = $props();
+  let projectId = $state(params.id);
   let project = $state<Project | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let activeTab = $state<'details' | 'users' | 'teams'>('details');
 
   // Load project data
-  $effect(async () => {
+  $effect(() => {
     if (projectId) {
-      await loadProject();
+      loadProject();
     }
   });
 
@@ -26,8 +27,12 @@
     loading = true;
     error = null;
     try {
-      const response = await getProjectById(projectId);
-      project = response.project;
+      const response = await getProjects();
+      // Find the project with matching ID from the projects array
+      project = response.devices?.find((p: any) => p.id === projectId) || null;
+      if (!project) {
+        error = 'Project not found';
+      }
     } catch (err: any) {
       error = err.message || 'Failed to load project';
       console.error('Load project error:', err);
@@ -140,10 +145,10 @@
         <ProjectActions
           project={project}
           size="normal"
-          onedit={handleEdit}
-          ondelete={handleDelete}
-          onmanageUsers={handleManageUsers}
-          onmanageTeams={handleManageTeams}
+          on:edit={() => handleEdit()}
+          on:delete={() => handleDelete()}
+          on:manageUsers={() => handleManageUsers()}
+          on:manageTeams={() => handleManageTeams()}
         />
       </div>
     </div>
@@ -153,25 +158,19 @@
       <div class="border-b border-gray-200 dark:border-gray-700">
         <nav class="-mb-px flex space-x-8">
           <button
-            class="py-2 px-1 border-b-2 font-medium text-sm"
-            class:border-indigo-500 text-indigo-600={activeTab === 'details'}
-            class:border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300={activeTab !== 'details'}
+            class="py-2 px-1 border-b-2 font-medium text-sm {activeTab === 'details' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
             onclick={() => activeTab = 'details'}
           >
             Project Details
           </button>
           <button
-            class="py-2 px-1 border-b-2 font-medium text-sm"
-            class:border-indigo-500 text-indigo-600={activeTab === 'users'}
-            class:border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300={activeTab !== 'users'}
+            class="py-2 px-1 border-b-2 font-medium text-sm {activeTab === 'users' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
             onclick={() => activeTab = 'users'}
           >
             User Assignments
           </button>
           <button
-            class="py-2 px-1 border-b-2 font-medium text-sm"
-            class:border-indigo-500 text-indigo-600={activeTab === 'teams'}
-            class:border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300={activeTab !== 'teams'}
+            class="py-2 px-1 border-b-2 font-medium text-sm {activeTab === 'teams' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}"
             onclick={() => activeTab = 'teams'}
           >
             Team Assignments

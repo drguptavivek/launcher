@@ -37,7 +37,11 @@ router.get('/', requirePermission(Resource.DEVICES, Action.LIST), async (req: Au
     return res.json({
       ok: true,
       devices: result.devices,
-      pagination: result.pagination,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: result.total || 0
+      },
     });
 
   } catch (error: any) {

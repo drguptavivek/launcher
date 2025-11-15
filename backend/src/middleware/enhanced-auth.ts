@@ -143,7 +143,7 @@ export const enhancedAuthenticateToken = async (req: EnhancedAuthenticatedReques
     }
 
     // Get user's role information
-    const userRoles = await AuthorizationService.computeEffectivePermissions(userResult.user.id);
+    const userRoles = await AuthorizationService.computeEffectivePermissions(userResult.user?.id || '');
 
     req.user = {
       ...userResult.user,
@@ -442,10 +442,10 @@ export const requireSystemSettingsAccess = (action: string = 'READ') => {
 
     // Additional audit logging for sensitive system settings operations
     if (['UPDATE', 'DELETE', 'MANAGE'].includes(action)) {
-      logger.audit && logger.audit('System settings modified', {
+      logger.info('System settings modified', {
         action: 'system.settings.modify',
-        userId: req.user.id,
-        action: action,
+        userId: req.user?.id,
+        operation: action,
         endpoint: req.path,
         method: req.method,
         requestId: req.headers['x-request-id'],

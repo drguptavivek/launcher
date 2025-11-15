@@ -410,7 +410,7 @@ let policySigner: PolicySigner;
 try {
   policySigner = new PolicySigner(env.POLICY_SIGN_PRIVATE_BASE64);
 } catch (error) {
-  console.warn('Warning: Failed to initialize policy signer (some features may be limited):', error.message);
+  console.warn('Warning: Failed to initialize policy signer (some features may be limited):', error instanceof Error ? error.message : String(error));
   // Continue without policy signer for testing
 }
 

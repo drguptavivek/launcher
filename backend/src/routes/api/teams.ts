@@ -36,7 +36,12 @@ router.get('/', requirePermission(Resource.TEAMS, Action.LIST), async (req: Auth
     return res.json({
       ok: true,
       teams: result.teams,
-      pagination: result.pagination,
+      total: result.total,
+      pagination: {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        total: result.total || 0
+      }
     });
 
   } catch (error: any) {

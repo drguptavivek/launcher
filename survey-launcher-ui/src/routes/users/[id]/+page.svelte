@@ -4,7 +4,7 @@
 		import { ArrowLeft, Edit, Shield, Smartphone, Calendar } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 	import { getUserById } from '$lib/api/users.js';
-import { type User } from '$lib/api/remote/users.utils';
+import { type User } from '$lib/api/remote/users.remote';
 
 	// Props for user ID from URL parameter
 	let { params } = $props();
@@ -17,12 +17,12 @@ import { type User } from '$lib/api/remote/users.utils';
 	// Derived values
 	let userStatus = $derived.by(() => {
 		if (!user) return 'unknown';
-		return user.isActive ? 'Active' : 'Inactive';
+		return user.is_active ? 'Active' : 'Inactive';
 	});
 
 	let statusClass = $derived.by(() => {
 		if (!user) return 'bg-gray-100 text-gray-800';
-		return user.isActive
+		return user.is_active
 			? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'
 			: 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
 	});
@@ -102,15 +102,15 @@ import { type User } from '$lib/api/remote/users.utils';
 					<div class="grid grid-cols-2 gap-4">
 						<div>
 							<span class="text-sm font-medium text-muted-foreground">Name</span>
-							<p class="font-semibold">{user.name}</p>
+							<p class="font-semibold">{user.display_name}</p>
 						</div>
 						<div>
 							<span class="text-sm font-medium text-muted-foreground">Email</span>
-							<p class="font-semibold">{user.email}</p>
+							<p class="font-semibold">{user.email || 'No email'}</p>
 						</div>
 						<div>
 							<span class="text-sm font-medium text-muted-foreground">User Code</span>
-							<p class="font-semibold">{user.userCode}</p>
+							<p class="font-semibold">{user.code}</p>
 						</div>
 						<div>
 							<span class="text-sm font-medium text-muted-foreground">Status</span>
@@ -135,12 +135,8 @@ import { type User } from '$lib/api/remote/users.utils';
 						<p class="font-semibold capitalize">{user.role}</p>
 					</div>
 					<div>
-						<span class="text-sm font-medium text-muted-foreground">Team</span>
-						<p class="font-semibold">{user.teamName}</p>
-					</div>
-					<div>
 						<span class="text-sm font-medium text-muted-foreground">Team ID</span>
-						<p class="font-mono text-sm">{user.teamId}</p>
+						<p class="font-mono text-sm">{user.team_id}</p>
 					</div>
 				</CardContent>
 			</Card>
@@ -155,12 +151,8 @@ import { type User } from '$lib/api/remote/users.utils';
 				</CardHeader>
 				<CardContent class="space-y-4">
 					<div>
-						<span class="text-sm font-medium text-muted-foreground">Device ID</span>
-						<p class="font-mono text-sm">{user.deviceId}</p>
-					</div>
-					<div>
 						<span class="text-sm font-medium text-muted-foreground">Device Status</span>
-						<p class="font-semibold">Online</p>
+						<p class="font-semibold">Not Assigned</p>
 					</div>
 				</CardContent>
 			</Card>
@@ -176,11 +168,11 @@ import { type User } from '$lib/api/remote/users.utils';
 				<CardContent class="space-y-4">
 					<div>
 						<span class="text-sm font-medium text-muted-foreground">Last Login</span>
-						<p class="font-semibold">{user.lastLogin.toLocaleDateString()} {user.lastLogin.toLocaleTimeString()}</p>
+						<p class="font-semibold">{user.updated_at ? new Date(user.updated_at).toLocaleDateString() + ' ' + new Date(user.updated_at).toLocaleTimeString() : 'Never'}</p>
 					</div>
 					<div>
 						<span class="text-sm font-medium text-muted-foreground">Account Created</span>
-						<p class="font-semibold">{user.createdAt.toLocaleDateString()}</p>
+						<p class="font-semibold">{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'Unknown'}</p>
 					</div>
 				</CardContent>
 			</Card>

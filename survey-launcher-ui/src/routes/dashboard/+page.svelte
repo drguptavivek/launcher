@@ -9,7 +9,7 @@
   let user = $state(null);
   let isLoading = $state(true);
   let error = $state('');
-  let projects = $state([]);
+  let projects = $state<any[]>([]);
   let projectsLoading = $state(true);
   let projectsError = $state('');
 
@@ -46,8 +46,8 @@
         authUtils.clearAuthTokens();
         window.location.href = '/auth/login';
       }
-    } catch (err) {
-      error = `Failed to load user data: ${err.message}`;
+    } catch (err: any) {
+      error = `Failed to load user data: ${err.message || 'Unknown error'}`;
     } finally {
       isLoading = false;
     }

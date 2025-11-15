@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Label } from '$lib/components/ui/label';
 	import type { Project } from '$lib/api/remote';
-	import { getProjectStatusColor, getGeographicScopeLabel, formatDate } from '$lib/api/remote';
+	import { getProjectStatusColor, getGeographicScopeLabel, formatDate } from '$lib/api/remote/projects.utils';
 
 	let {
 		project,

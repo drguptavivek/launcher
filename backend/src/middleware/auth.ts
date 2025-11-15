@@ -380,7 +380,7 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
     const sessionId = payload['x-session-id'];
 
     // For override tokens, we need to handle differently
-    let userResult;
+    let userResult: any;
     if (tokenType === 'override') {
       // Override tokens are issued to supervisor PIN IDs, not regular users
       // Create a minimal user context for supervisor access
@@ -465,9 +465,14 @@ export const authenticateToken = async (req: AuthenticatedRequest, res: Response
 
     // For AuthorizationService errors, fail gracefully with fallback user info
     if (error instanceof Error && error.message.includes('Service unavailable')) {
-      // Create fallback user context
+      // Create fallback user context - using minimal info since userResult might be undefined
       const fallbackUser = {
-        ...userResult.user,
+        id: 'fallback-user',
+        code: 'FALLBACK',
+        teamId: 'fallback-team',
+        displayName: 'Fallback User',
+        email: null,
+        isActive: true,
         roles: [{
           id: 'fallback-role',
           name: 'TEAM_MEMBER',

@@ -1,6 +1,7 @@
 <!-- Login page for SurveyLauncher Admin -->
 <script lang="ts">
   import { webAdminLogin } from '$lib/api/remote';
+import { API_BASE_URL } from '$lib/api/client';
 
   // Form state for Web Admin authentication
   let formData = $state({
@@ -41,18 +42,17 @@
 
   function handleDemoLogin() {
     formData = {
-      deviceId: 'dev-mock-001',
-      userCode: 'u001',
-      pin: '123456'
+      email: 'admin@surveylauncher.com',
+      password: 'admin123456'
     };
   }
 
   function handleQuickLogin() {
-    formData = {
-      email: 'admin@surveylauncher.com',
-      password: 'admin123456'
-    };
-    handleLogin();
+    formData.email = 'admin@surveylauncher.com';
+    formData.password = 'admin123456';
+    // Create a mock event to trigger the login
+    const mockEvent = new Event('submit');
+    handleLogin(mockEvent);
   }
 </script>
 

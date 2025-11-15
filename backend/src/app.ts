@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -22,7 +22,7 @@ app.use((req, res, next) => {
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: typeof env.CORS_ALLOWED_ORIGINS === 'string' ? env.CORS_ALLOWED_ORIGINS.split(',') : ['http://localhost:5173'],
+  origin: typeof env.CORS_ALLOWED_ORIGINS === 'string' ? (env.CORS_ALLOWED_ORIGINS as string).split(',') : ['http://localhost:5173'],
   credentials: true,
 }));
 app.use(compression());
@@ -39,7 +39,7 @@ app.use('/api/v1', apiRouter);
 app.use('/api', webAdminApiRouter);
 
 // Error handling middleware
-app.use((err: Error, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   logger.error('Express error handler', {
     error: err.message,
     stack: err.stack,

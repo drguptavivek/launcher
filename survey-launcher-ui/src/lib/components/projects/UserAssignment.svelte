@@ -1,25 +1,26 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { Label } from '$lib/components/ui/label';
 	import type { UserAssignment, AssignUserToProjectRequest } from '$lib/api/remote';
-	import { getAssignmentScopeColor, getAssignmentScopeLabel, formatDate, isAssignmentActive } from '$lib/api/remote';
+	import { getAssignmentScopeColor, getAssignmentScopeLabel, formatDate, isAssignmentActive } from '$lib/api/remote/projects.utils';
 
 	let {
 		assignments = [],
 		loading = false,
 		error = null,
-		projectId
+		projectId,
+		onaddUser,
+		onremoveUser
 	} = $props<{
 		assignments?: UserAssignment[];
 		loading?: boolean;
 		error?: string | null;
 		projectId: string;
+		onaddUser?: (data: any) => void;
+		onremoveUser?: (data: any) => void;
 	}>();
-
-	const dispatch = createEventDispatcher();
 
 	let showAddForm = $state(false);
 	let newAssignment = $state<AssignUserToProjectRequest>({
@@ -30,7 +31,9 @@
 	});
 
 	function handleAddUser() {
-		dispatch('addUser', { assignment: newAssignment });
+		if (onaddUser) {
+			onaddUser({ assignment: newAssignment });
+		}
 		showAddForm = false;
 		Object.assign(newAssignment, {
 			userId: '',
@@ -41,7 +44,9 @@
 	}
 
 	function handleRemoveUser(assignment: UserAssignment) {
-		dispatch('removeUser', { assignment });
+		if (onremoveUser) {
+			onremoveUser({ assignment });
+		}
 	}
 
 	function toggleAddForm() {

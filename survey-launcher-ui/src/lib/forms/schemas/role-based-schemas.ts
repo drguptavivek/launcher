@@ -12,7 +12,13 @@ export const USER_ROLES = [
   'DEVICE_MANAGER',
   'POLICY_ADMIN',
   'NATIONAL_SUPPORT_ADMIN'
-] as const;
+];
+
+// Create enum types for Valibot using picklist (modern approach)
+const StatusEnum = v.picklist(['ACTIVE', 'INACTIVE']);
+const GeographicScopeEnum = v.picklist(['LOCAL', 'REGIONAL', 'NATIONAL']);
+const PriorityEnum = v.picklist(['LOW', 'MEDIUM', 'HIGH']);
+const UserRoleEnum = v.picklist(USER_ROLES);
 
 // Project schema with full role-based validation
 export const createProjectSchema = (userRole: UserRole) => {
@@ -36,9 +42,11 @@ export const createProjectSchema = (userRole: UserRole) => {
   if (['SYSTEM_ADMIN', 'REGIONAL_MANAGER'].includes(userRole)) {
     // Admin/Manager schema with all fields
     schema = v.object({
-      ...baseFields,
-      status: v.enum(['ACTIVE', 'INACTIVE'] as const),
-      geographicScope: v.enum(['LOCAL', 'REGIONAL', 'NATIONAL'] as const),
+      title: baseFields.title,
+      abbreviation: baseFields.abbreviation,
+      description: baseFields.description,
+      status: StatusEnum,
+      geographicScope: GeographicScopeEnum,
       teamIds: v.pipe(
         v.array(v.string()),
         v.minLength(1, 'Select at least one team')
@@ -47,13 +55,15 @@ export const createProjectSchema = (userRole: UserRole) => {
         v.number(),
         v.minValue(0, 'Budget must be a positive number')
       )),
-      priority: v.optional(v.enum(['LOW', 'MEDIUM', 'HIGH'] as const))
+      priority: v.optional(PriorityEnum)
     });
   } else if (userRole === 'FIELD_SUPERVISOR') {
     // Field Supervisor schema with limited fields
     schema = v.object({
-      ...baseFields,
-      status: v.enum(['ACTIVE', 'INACTIVE'] as const),
+      title: baseFields.title,
+      abbreviation: baseFields.abbreviation,
+      description: baseFields.description,
+      status: StatusEnum,
       geographicScope: v.literal('LOCAL'),
       teamIds: v.pipe(
         v.array(v.string()),
@@ -64,8 +74,10 @@ export const createProjectSchema = (userRole: UserRole) => {
   } else {
     // Other roles with basic fields only
     schema = v.object({
-      ...baseFields,
-      status: v.enum(['ACTIVE', 'INACTIVE'] as const)
+      title: baseFields.title,
+      abbreviation: baseFields.abbreviation,
+      description: baseFields.description,
+      status: StatusEnum
     });
   }
 
@@ -105,44 +117,74 @@ export const createUserSchema = (creatorRole: UserRole) => {
       v.string(),
       v.minLength(1, 'Team assignment required')
     ),
-    isActive: v.pipe(
-      v.boolean(),
-      v.defaultValue(true)
-    )
+    isActive: v.optional(v.boolean(), true)
   });
 
   let schema = baseSchema;
 
   // Role assignment based on creator permissions
   if (creatorRole === 'SYSTEM_ADMIN') {
-    schema = v.pipe(
-      schema,
-      v.extend({
-        role: v.enum(USER_ROLES),
-        stateId: v.pipe(
-          v.string(),
-          v.minLength(1, 'State ID is required')
-        )
-      })
-    );
+    schema = v.object({
+      name: v.pipe(
+        v.string(),
+        v.minLength(1, 'Name is required'),
+        v.maxLength(100, 'Name must be 100 characters or less')
+      ),
+      email: v.pipe(
+        v.string(),
+        v.email('Valid email required')
+      ),
+      teamId: v.pipe(
+        v.string(),
+        v.minLength(1, 'Team assignment required')
+      ),
+      isActive: v.optional(v.boolean(), true),
+      role: UserRoleEnum,
+      stateId: v.pipe(
+        v.string(),
+        v.minLength(1, 'State ID is required')
+      )
+    });
   } else if (creatorRole === 'REGIONAL_MANAGER') {
-    schema = v.pipe(
-      schema,
-      v.extend({
-        role: v.enum(['TEAM_MEMBER', 'FIELD_SUPERVISOR']),
-        stateId: v.pipe(
-          v.string(),
-          v.minLength(1, 'State ID is required')
-        )
-      })
-    );
+    schema = v.object({
+      name: v.pipe(
+        v.string(),
+        v.minLength(1, 'Name is required'),
+        v.maxLength(100, 'Name must be 100 characters or less')
+      ),
+      email: v.pipe(
+        v.string(),
+        v.email('Valid email required')
+      ),
+      teamId: v.pipe(
+        v.string(),
+        v.minLength(1, 'Team assignment required')
+      ),
+      isActive: v.optional(v.boolean(), true),
+      role: v.picklist(['TEAM_MEMBER', 'FIELD_SUPERVISOR']),
+      stateId: v.pipe(
+        v.string(),
+        v.minLength(1, 'State ID is required')
+      )
+    });
   } else if (creatorRole === 'FIELD_SUPERVISOR') {
-    schema = v.pipe(
-      schema,
-      v.extend({
-        role: v.literal('TEAM_MEMBER')
-      })
-    );
+    schema = v.object({
+      name: v.pipe(
+        v.string(),
+        v.minLength(1, 'Name is required'),
+        v.maxLength(100, 'Name must be 100 characters or less')
+      ),
+      email: v.pipe(
+        v.string(),
+        v.email('Valid email required')
+      ),
+      teamId: v.pipe(
+        v.string(),
+        v.minLength(1, 'Team assignment required')
+      ),
+      isActive: v.optional(v.boolean(), true),
+      role: v.literal('TEAM_MEMBER')
+    });
   }
 
   return v.pipe(
@@ -246,10 +288,7 @@ export const createAuditReportSchema = (userRole: UserRole) => {
       start: v.date(),
       end: v.date()
     }),
-    includeSensitive: v.pipe(
-      v.boolean(),
-      v.defaultValue(false)
-    )
+    includeSensitive: v.optional(v.boolean(), false)
   });
 
   // Only auditors and system admins can include sensitive data
@@ -311,10 +350,7 @@ export const createSupportTicketSchema = (userRole: UserRole) => {
     priority: v.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
     category: v.enum(['TECHNICAL', 'ACCOUNT', 'DEVICE', 'POLICY']),
     assignedTo: v.optional(v.string()),
-    status: v.pipe(
-      v.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']),
-      v.defaultValue('OPEN')
-    )
+    status: v.optional(v.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']), 'OPEN')
   });
 
   // Only support agents can assign tickets

@@ -2,9 +2,11 @@
 
 ## Overview
 
-The SurveyLauncher backend provides a comprehensive REST API with two distinct interfaces:
-1. **Mobile App API** (`/api/v1/*`) - For Android device authentication and field operations
-2. **Web Admin API** (`/api/web-admin/*`) - For administrative and management functions
+The SurveyLauncher backend provides a comprehensive REST API with unified endpoints:
+1. **Unified API** (`/api/v1/*`) - All endpoints consolidated under a single prefix
+   - Mobile device authentication and field operations (`/api/v1/auth/*`)
+   - Web administrative and management functions (`/api/v1/web-admin/*`)
+   - Projects, teams, users, devices, and more
 
 The API follows a consistent JSON format with proper error handling and response structures, implementing enterprise-grade role-based access control (RBAC) with nine specialized roles.
 
@@ -28,10 +30,20 @@ The API follows a consistent JSON format with proper error handling and response
 ## Base URLs
 
 ```
-Mobile App API: http://localhost:3000/api/v1
-Web Admin API:  http://localhost:3000/api/web-admin
+Unified API:   http://localhost:3000/api/v1
 Swagger UI:     http://localhost:3000/api-docs
 ```
+
+### API Structure
+- **Mobile Authentication**: `/api/v1/auth/*` - Device-based authentication for Android apps
+- **Web Administration**: `/api/v1/web-admin/*` - Email/password authentication for web interface
+- **Projects**: `/api/v1/projects/*` - Project management with role-based access
+- **Teams**: `/api/v1/teams/*` - Team and organization management
+- **Users**: `/api/v1/users/*` - User management and assignments
+- **Devices**: `/api/v1/devices/*` - Device registration and management
+- **Policy**: `/api/v1/policy/*` - Policy distribution for devices
+- **Telemetry**: `/api/v1/telemetry/*` - Data collection from devices
+- **Supervisor**: `/api/v1/supervisor/*` - Supervisor override functionality
 
 ## Development
 
@@ -301,7 +313,7 @@ Force end the current session.
 
 Web Admin API uses email/password authentication instead of device-based authentication.
 
-#### POST /api/web-admin/auth/login
+#### POST /api/v1/web-admin/auth/login
 
 Authenticate a web admin user with email and password.
 
@@ -338,7 +350,7 @@ Authenticate a web admin user with email and password.
 - `TEAM_MEMBER` role is rejected with `WEB_ACCESS_DENIED` error
 - Only 8 valid web admin roles are allowed
 
-#### GET /api/web-admin/auth/whoami
+#### GET /api/v1/web-admin/auth/whoami
 
 Get current web admin user information.
 
@@ -364,7 +376,7 @@ Get current web admin user information.
 - `401 UNAUTHORIZED` - Invalid or missing token
 - `403 FORBIDDEN` - User inactive or TEAM_MEMBER role
 
-#### POST /api/web-admin/auth/logout
+#### POST /api/v1/web-admin/auth/logout
 
 End web admin session and clear cookies.
 
@@ -384,7 +396,7 @@ End web admin session and clear cookies.
 - Clears auth_type cookie
 - Supports token revocation
 
-#### POST /api/web-admin/auth/refresh
+#### POST /api/v1/web-admin/auth/refresh
 
 Refresh web admin access token using refresh token.
 
@@ -410,7 +422,7 @@ Refresh web admin access token using refresh token.
 - `401 UNAUTHORIZED` - Invalid or expired refresh token
 - `403 FORBIDDEN` - User not found or inactive
 
-#### POST /api/web-admin/auth/create-admin
+#### POST /api/v1/web-admin/auth/create-admin
 
 Create a new web admin user (for initial setup).
 

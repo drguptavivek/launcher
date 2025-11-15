@@ -4,7 +4,7 @@
 	import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Label } from '$lib/components/ui/label';
 	import type { Project, CreateProjectRequest, UpdateProjectRequest } from '$lib/api/remote';
-	import { validateProjectTitle, validateProjectAbbreviation, validateGeographicScope } from '$lib/api/remote';
+	import { validateProjectTitle, validateProjectAbbreviation, validateGeographicScope } from '$lib/api/remote/projects.utils';
 
 	let {
 		project = null,
@@ -27,7 +27,9 @@
 	let validationErrors = $state({
 		title: [] as string[],
 		abbreviation: [] as string[],
-		geographicScope: [] as string[]
+		description: [] as string[],
+		geographicScope: [] as string[],
+		status: [] as string[]
 	});
 
 	const dispatch = createEventDispatcher();
@@ -81,8 +83,8 @@
 	}
 
 	function handleInputChange(field: keyof typeof formData, value: string) {
-		formData[field] = value as any;
-		validationErrors[field] = [];
+		(formData as any)[field] = value;
+		(validationErrors as any)[field] = [];
 		error = null;
 	}
 </script>

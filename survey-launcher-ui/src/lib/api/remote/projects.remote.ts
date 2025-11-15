@@ -9,6 +9,7 @@ import {
 	getAuthHeaders,
 	handleApiResponse
 } from '../client';
+import type { CreateProjectRequest } from '$lib/api/remote/projects.types';
 
 // Helper function to get access token from cookies
 function getAccessToken(): string {
@@ -46,7 +47,7 @@ export const getProjects = query(async () => {
  * Create a new project
  * POST /api/v1/projects
  */
-export const createProject = command(async () => {
+export const createProject = form(async (formData: CreateProjectRequest) => {
 	try {
 		const accessToken = getAccessToken();
 		const url = `${API_BASE_URL}${API_ENDPOINTS.PROJECTS}`;
@@ -54,7 +55,7 @@ export const createProject = command(async () => {
 		const response = await fetch(url, {
 			method: 'POST',
 			headers: getAuthHeaders(accessToken),
-			body: JSON.stringify({})
+			body: JSON.stringify(formData)
 		});
 
 		const data = await response.json();

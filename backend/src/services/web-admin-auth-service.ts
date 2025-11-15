@@ -3,7 +3,7 @@ import { webAdminUsers } from '../lib/db/schema';
 import { verifyPassword, hashPassword } from '../lib/crypto';
 import { JWTService } from './jwt-service';
 import { logger } from '../lib/logger';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { nowUTC, getExpiryTimestamp, generateJTI } from '../lib/crypto';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -323,7 +323,7 @@ export class WebAdminAuthService {
         };
       }
 
-      const role = userData.role;
+      const role = userData.role as typeof VALID_WEB_ADMIN_ROLES[number];
       if (!VALID_WEB_ADMIN_ROLES.includes(role)) {
         return {
           success: false,
@@ -408,7 +408,7 @@ export class WebAdminAuthService {
       const updatedUsers = await db
         .update(webAdminUsers)
         .set({
-          loginAttempts: db.raw('login_attempts + 1'),
+          loginAttempts: sql`login_attempts + 1`,
           updatedAt: new Date()
         })
         .where(eq(webAdminUsers.id, adminId))

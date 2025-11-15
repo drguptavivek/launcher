@@ -1,50 +1,13 @@
-import { Request, Response, NextFunction } from 'express';
-import { WebAdminAuthService, VALID_WEB_ADMIN_ROLES } from '../services/web-admin-auth-service';
-import { JWTUtils } from '../lib/crypto';
-import { logger } from '../lib/logger';
+import { Router, Request, Response } from 'express';
+import { WebAdminAuthService, VALID_WEB_ADMIN_ROLES } from '../../services/web-admin-auth-service';
+import { JWTUtils } from '../../lib/crypto';
+import { logger } from '../../lib/logger';
 
+const router = Router();
 const webAdminAuthService = new WebAdminAuthService();
 
-// Web Admin Authentication Routes
-export function webAdminApiRouter(req: Request, res: Response, next: NextFunction) {
-  const { method, originalUrl } = req;
-
-  logger.info('Web Admin API route requested', {
-    method,
-    url: originalUrl,
-    requestId: req.headers['x-request-id'],
-  });
-
-  // Web Admin Login
-  if (method === 'POST' && originalUrl === '/api/web-admin/auth/login') {
-    return webAdminLogin(req, res);
-  }
-
-  // Web Admin Who Am I
-  if (method === 'GET' && originalUrl === '/api/web-admin/auth/whoami') {
-    return webAdminWhoAmI(req, res);
-  }
-
-  // Web Admin Logout
-  if (method === 'POST' && originalUrl === '/api/web-admin/auth/logout') {
-    return webAdminLogout(req, res);
-  }
-
-  // Web Admin Refresh Token
-  if (method === 'POST' && originalUrl === '/api/web-admin/auth/refresh') {
-    return webAdminRefresh(req, res);
-  }
-
-  // Create Web Admin User (for initial setup)
-  if (method === 'POST' && originalUrl === '/api/web-admin/auth/create-admin') {
-    return createWebAdmin(req, res);
-  }
-
-  // If no route matches, pass to next handler
-  next();
-}
-
-async function webAdminLogin(req: Request, res: Response) {
+// Web Admin Login
+router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -139,9 +102,10 @@ async function webAdminLogin(req: Request, res: Response) {
       }
     });
   }
-}
+});
 
-async function webAdminWhoAmI(req: Request, res: Response) {
+// Web Admin Who Am I
+router.get('/whoami', async (req: Request, res: Response) => {
   try {
     const accessToken = req.headers['authorization']?.replace('Bearer ', '') || req.cookies?.access_token;
 
@@ -206,9 +170,10 @@ async function webAdminWhoAmI(req: Request, res: Response) {
       }
     });
   }
-}
+});
 
-async function webAdminLogout(req: Request, res: Response) {
+// Web Admin Logout
+router.post('/logout', async (req: Request, res: Response) => {
   try {
     const accessToken = req.headers['authorization']?.replace('Bearer ', '') || req.cookies?.access_token;
 
@@ -263,9 +228,10 @@ async function webAdminLogout(req: Request, res: Response) {
       }
     });
   }
-}
+});
 
-async function webAdminRefresh(req: Request, res: Response) {
+// Web Admin Refresh Token
+router.post('/refresh', async (req: Request, res: Response) => {
   try {
     const refreshToken = req.headers['authorization']?.replace('Bearer ', '') || req.cookies?.refresh_token;
 
@@ -331,9 +297,10 @@ async function webAdminRefresh(req: Request, res: Response) {
       }
     });
   }
-}
+});
 
-async function createWebAdmin(req: Request, res: Response) {
+// Create Web Admin User (for initial setup)
+router.post('/create-admin', async (req: Request, res: Response) => {
   try {
     const { email, password, firstName, lastName, role } = req.body;
 
@@ -412,4 +379,6 @@ async function createWebAdmin(req: Request, res: Response) {
       }
     });
   }
-}
+});
+
+export default router;

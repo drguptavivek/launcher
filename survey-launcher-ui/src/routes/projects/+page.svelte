@@ -16,8 +16,8 @@
   let selectedProject = $state<Project | null>(null);
 
   // Load projects on mount
-  $effect(async () => {
-    await loadProjects();
+  $effect(() => {
+    loadProjects();
   });
 
   async function loadProjects() {
@@ -118,8 +118,8 @@
         project={selectedProject}
         loading={false}
         error={null}
-        onsubmit={handleFormSubmit}
-        oncancel={handleFormCancel}
+        on:submit={(e) => handleFormSubmit(e.detail)}
+        on:cancel={() => handleFormCancel()}
       />
     </div>
   {:else if loading}
@@ -155,24 +155,22 @@
         projects={projects}
         loading={loading}
         error={error}
-        oneditProject={handleEditProject}
-        ondeleteProject={handleDeleteProject}
-        onprojectClick={handleProjectClick}
+        on:editProject={(e) => handleEditProject(e.detail)}
+        on:deleteProject={(e) => handleDeleteProject(e.detail)}
+        on:projectClick={(e) => handleProjectClick(e.detail)}
       />
     {:else}
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {#each projects as project (project.id)}
           <ProjectCard
             project={project}
-            onedit={(e) => {
-              e.stopPropagation();
-              handleEditProject(project);
+            on:edit={(e) => {
+              handleEditProject(e.detail.project);
             }}
-            ondelete={(e) => {
-              e.stopPropagation();
-              handleDeleteProject(project);
+            on:delete={(e) => {
+              handleDeleteProject(e.detail.project);
             }}
-            onclick={() => handleProjectClick(project)}
+            on:click={() => handleProjectClick(project)}
           />
         {/each}
       </div>

@@ -1,4 +1,5 @@
-import { getContext, setContext } from 'svelte';
+import { getContext, setContext, derived } from 'svelte';
+import { writable } from 'svelte/store';
 import type { UserRole } from '$lib/types/role.types';
 import { ROLE_PERMISSIONS, ROLE_NAVIGATION, ROLE_HIERARCHY, FORM_PERMISSIONS } from '$lib/types/role.types';
 
@@ -89,7 +90,7 @@ export class RoleState {
    */
   canPerformFormAction(formAction: string) {
     const requiredRoles = FORM_PERMISSIONS[formAction as keyof typeof FORM_PERMISSIONS];
-    if (!requiredRoles) return false;
+    if (!requiredRoles || !this.userRole) return false;
     return requiredRoles.includes(this.userRole);
   }
 
@@ -198,7 +199,7 @@ export class RoleState {
 /**
  * Create role context
  */
-export function setRoleContext(roleState) {
+export function setRoleContext(roleState: any) {
   setContext(ROLE_CONTEXT_KEY, roleState);
 }
 
@@ -212,7 +213,7 @@ export function getRoleContext() {
 /**
  * Create reactive role store
  */
-export function createRoleStore(initialData = {}) {
+export function createRoleStore(initialData: any = {}) {
   const roleState = new RoleState(initialData.userRole, initialData.user, initialData.sessionId);
 
   // Create writable store for external subscription
@@ -220,15 +221,15 @@ export function createRoleStore(initialData = {}) {
 
   return {
     subscribe: store.subscribe,
-    setRole: (userRole) => {
+    setRole: (userRole: UserRole | null) => {
       roleState.setRole(userRole);
       store.set(roleState);
     },
-    setUser: (user) => {
+    setUser: (user: any) => {
       roleState.setUser(user);
       store.set(roleState);
     },
-    setSession: (sessionId) => {
+    setSession: (sessionId: any) => {
       roleState.setSession(sessionId);
       store.set(roleState);
     },

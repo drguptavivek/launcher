@@ -283,7 +283,7 @@ export class UserService {
         : countQuery;
 
       const countResult = await searchCountQuery;
-      const [{ total }] = countResult;
+      const total = countResult[0]?.count || 0;
 
       // Get paginated results
       const usersList = await query
@@ -627,24 +627,26 @@ export class UserService {
     };
   }> {
     try {
-      let userQuery = db
-        .select({
-          total: count(),
-          active: count(),
-          teamMembers: count(),
-          supervisors: count(),
-          admins: count(),
-        })
-        .from(users);
+      const baseQuery = db.select().from(users);
 
       const conditions = [];
       if (teamId) {
         conditions.push(eq(users.teamId, teamId));
       }
 
-      if (conditions.length > 0) {
-        userQuery = userQuery.where(and(...conditions));
-      }
+      const filteredQuery = conditions.length > 0
+        ? baseQuery.where(and(...conditions))
+        : baseQuery;
+
+      const userQuery = db
+        .select({
+          total: count(),
+          active: sql<number>`SUM(CASE WHEN ${users.isActive} THEN 1 ELSE 0 END)`,
+          teamMembers: sql<number>`SUM(CASE WHEN ${users.role} = 'TEAM_MEMBER' THEN 1 ELSE 0 END)`,
+          supervisors: sql<number>`SUM(CASE WHEN ${users.role} = 'FIELD_SUPERVISOR' THEN 1 ELSE 0 END)`,
+          admins: sql<number>`SUM(CASE WHEN ${users.role} IN ('SYSTEM_ADMIN', 'SUPPORT_AGENT', 'AUDITOR', 'DEVICE_MANAGER', 'POLICY_ADMIN', 'NATIONAL_SUPPORT_ADMIN') THEN 1 ELSE 0 END)`,
+        })
+        .from(filteredQuery.as('filtered_users'));
 
       const [stats] = await userQuery;
 

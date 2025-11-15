@@ -76,7 +76,8 @@ app.get('/api-docs.json', (req, res) => {
 app.use('/api/v1', async (req, res, next) => {
   try {
     // Use modular API routes
-    const { apiRouter } = await import('./routes/api/index');
+    const apiModule = await import('./routes/api/index');
+    const apiRouter = apiModule.apiRouter || apiModule.default;
     apiRouter(req, res, next);
   } catch (error) {
     logger.error('API router error', {
@@ -87,17 +88,7 @@ app.use('/api/v1', async (req, res, next) => {
   }
 });
 
-// Web Admin API routes
-app.use('/api/web-admin', async (req, res, next) => {
-  try {
-    // Use web admin API routes
-    const { webAdminApiRouter } = await import('./routes/web-admin-api');
-    webAdminApiRouter(req, res, next);
-  } catch (error) {
-    logger.error('Web Admin API router error', { error: error.message });
-    next(error);
-  }
-});
+// Web Admin API routes are now handled under /api/v1/web-admin/auth
 
 // 404 handler
 app.use((req, res) => {

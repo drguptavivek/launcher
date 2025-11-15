@@ -21,8 +21,12 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown';
-    const userAgent = req.headers['user-agent'] || 'Unknown';
+    const ipAddress = Array.isArray(req.headers['x-forwarded-for'])
+      ? req.headers['x-forwarded-for'][0]
+      : (req.headers['x-forwarded-for'] as string) || (req.headers['x-real-ip'] as string) || 'Unknown';
+    const userAgent = Array.isArray(req.headers['user-agent'])
+      ? req.headers['user-agent'][0]
+      : (req.headers['user-agent'] as string) || 'Unknown';
 
     logger.info('mobile_login_attempt', {
       deviceId,

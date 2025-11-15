@@ -1,11 +1,10 @@
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { WebAdminAuthService } from '../../services/web-admin-auth-service';
-import { JWTUtils } from '../../lib/crypto';
-import { logger } from '../../lib/logger';
+import { WebAdminAuthService } from '../../../services/web-admin-auth-service';
+import { JWTService } from '../../../services/jwt-service';
+import { logger } from '../../../lib/logger';
 
-const router = new Hono();
+const router = Router();
 const webAdminAuthService = new WebAdminAuthService();
 
 // Validation schemas
@@ -22,73 +21,97 @@ const createAdminSchema = z.object({
   role: z.string().optional()
 });
 
+// Validation middleware
+const validateRequest = (schema: z.ZodObject<any, any>) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      schema.parse(req.body);
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          ok: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request data',
+            details: error.issues.map((err: any) => ({
+              field: err.path.join('.'),
+              message: err.message
+            }))
+          }
+        });
+      }
+      next(error);
+    }
+  };
+};
+
 /**
  * POST /api/web-admin/auth/login
  * Web Admin login endpoint
  */
-router.post('/login', zValidator('json', loginSchema), async (c) => {
+router.post('/login', validateRequest(loginSchema), async (req: Request, res: Response) => {
   try {
-    const credentials = c.req.valid('json');
-    const userAgent = c.req.header('User-Agent') || 'Unknown';
-    const ipAddress = c.req.header('X-Forwarded-For') || c.req.header('X-Real-IP') || 'Unknown';
+    const { email, password } = req.body;
+    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown';
+    const userAgent = req.headers['user-agent'] || 'Unknown';
 
     logger.info('web_admin_login_attempt', {
-      email: credentials.email,
+      email,
       userAgent,
       ipAddress,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
-    const result = await webAdminAuthService.login(credentials);
+    const result = await webAdminAuthService.login(
+      { email, password }
+    );
 
     if (!result.success) {
       logger.warn('web_admin_login_failed', {
-        email: credentials.email,
+        email,
         reason: result.error?.code,
         userAgent,
-        ipAddress
+        ipAddress,
       });
 
-      return c.json({
+      const statusCode = result.error?.code === 'RATE_LIMITED' ? 429 : 401;
+      return res.status(statusCode).json({
         ok: false,
-        error: result.error
-      }, 401);
+        error: result.error,
+      });
     }
 
-    // Set HTTP-only cookies for tokens
-    c.header('Set-Cookie', [
-      `access_token=${result.accessToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=1200`, // 20 minutes
-      `refresh_token=${result.refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200`, // 12 hours
-      `auth_type=web_admin; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=43200`
-    ]);
-
     logger.info('web_admin_login_success', {
+      email,
       adminId: result.user?.id,
-      email: result.user?.email,
       role: result.user?.role,
       userAgent,
-      ipAddress
+      ipAddress,
     });
 
-    return c.json({
+    return res.json({
       ok: true,
       user: result.user,
-      message: 'Login successful'
+      token: result.accessToken,
+      refreshToken: result.refreshToken,
     });
 
   } catch (error: any) {
-    logger.error('web_admin_login_endpoint_error', {
+    logger.error('web_admin_login_error', {
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
+      email: req.body?.email,
     });
 
-    return c.json({
+    return res.status(500).json({
       ok: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An internal error occurred during login'
-      }
-    }, 500);
+        message: 'An internal error occurred',
+        request_id: req.headers['x-request-id'],
+      },
+    });
   }
 });
 
@@ -96,118 +119,129 @@ router.post('/login', zValidator('json', loginSchema), async (c) => {
  * GET /api/web-admin/auth/whoami
  * Get current web admin user information
  */
-router.get('/whoami', async (c) => {
+router.get('/whoami', async (req: Request, res: Response) => {
   try {
-    const accessToken = c.req.header('Authorization')?.replace('Bearer ', '');
-    const authType = c.req.header('Cookie')?.includes('auth_type=web_admin');
+    const token = req.headers.authorization?.replace('Bearer ', '');
 
-    if (!accessToken) {
-      return c.json({
+    if (!token) {
+      return res.status(401).json({
         ok: false,
         error: {
-          code: 'NO_TOKEN',
-          message: 'No access token provided'
+          code: 'MISSING_TOKEN',
+          message: 'Authorization token required'
         }
-      }, 401);
+      });
     }
 
-    // Verify JWT token and extract user ID
-    const decoded = JWTUtils.verifyAccessToken(accessToken);
-    if (!decoded.success) {
-      return c.json({
+    const decoded = await JWTService.verifyToken(token, 'access');
+    if (!decoded.valid || !decoded.payload) {
+      return res.status(401).json({
         ok: false,
         error: {
           code: 'INVALID_TOKEN',
           message: 'Invalid or expired token'
         }
-      }, 401);
+      });
     }
 
-    // Check if this is a web admin token
-    if (decoded.payload.type !== 'web_admin') {
-      return c.json({
-        ok: false,
-        error: {
-          code: 'INVALID_TOKEN_TYPE',
-          message: 'Invalid token type for web admin authentication'
-        }
-      }, 401);
-    }
-
-    const result = await webAdminAuthService.whoami(decoded.payload.sub);
+    const adminId = decoded.payload.sub as string;
+    const result = await webAdminAuthService.whoami(adminId);
 
     if (!result.success) {
-      return c.json({
+      return res.status(401).json({
         ok: false,
-        error: result.error
-      }, 401);
+        error: result.error,
+      });
     }
 
-    return c.json({
+    return res.json({
       ok: true,
-      user: result.user
+      user: result.user,
     });
 
   } catch (error: any) {
-    logger.error('web_admin_whoami_endpoint_error', {
+    logger.error('web_admin_whoami_error', {
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
 
-    return c.json({
+    return res.status(500).json({
       ok: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An internal error occurred'
-      }
-    }, 500);
+        message: 'An internal error occurred',
+        request_id: req.headers['x-request-id'],
+      },
+    });
   }
 });
 
 /**
  * POST /api/web-admin/auth/logout
- * Web Admin logout endpoint
+ * Logout web admin user
  */
-router.post('/logout', async (c) => {
+router.post('/logout', async (req: Request, res: Response) => {
   try {
-    const accessToken = c.req.header('Authorization')?.replace('Bearer ', '');
+    const token = req.headers.authorization?.replace('Bearer ', '');
 
-    if (accessToken) {
-      const decoded = JWTUtils.verifyAccessToken(accessToken);
-      if (decoded.success) {
-        // TODO: Implement token revocation/blacklisting if needed
-        logger.info('web_admin_logout', {
-          adminId: decoded.payload.sub,
-          timestamp: new Date()
-        });
-      }
+    if (!token) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: 'MISSING_TOKEN',
+          message: 'Authorization token required'
+        }
+      });
     }
 
-    // Clear cookies
-    c.header('Set-Cookie', [
-      'access_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0',
-      'refresh_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0',
-      'auth_type=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0'
-    ]);
+    // For logout, we just verify the token and return success
+    // In a real implementation, you might want to add the token to a blacklist
+    const decoded = await JWTService.verifyToken(token, 'access');
+    if (!decoded.valid || !decoded.payload) {
+      return res.status(401).json({
+        ok: false,
+        error: {
+          code: 'INVALID_TOKEN',
+          message: 'Invalid or expired token'
+        }
+      });
+    }
 
-    return c.json({
+    const result = {
+      success: true,
+      user: {
+        id: decoded.payload.sub,
+        email: (decoded.payload as any).email,
+        role: (decoded.payload as any).role
+      },
+      loggedOutAt: new Date().toISOString()
+    };
+
+    logger.info('web_admin_logout_success', {
+      adminId: result.user?.id,
+      email: result.user?.email,
+    });
+
+    return res.json({
       ok: true,
-      message: 'Logout successful'
+      message: 'Logout successful',
+      logged_out_at: result.loggedOutAt,
     });
 
   } catch (error: any) {
-    logger.error('web_admin_logout_endpoint_error', {
+    logger.error('web_admin_logout_error', {
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
 
-    return c.json({
+    return res.status(500).json({
       ok: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An internal error occurred during logout'
-      }
-    }, 500);
+        message: 'An internal error occurred',
+        request_id: req.headers['x-request-id'],
+      },
+    });
   }
 });
 
@@ -215,122 +249,124 @@ router.post('/logout', async (c) => {
  * POST /api/web-admin/auth/refresh
  * Refresh access token
  */
-router.post('/refresh', async (c) => {
+router.post('/refresh', async (req: Request, res: Response) => {
   try {
-    const refreshToken = c.req.header('Authorization')?.replace('Bearer ', '') ||
-                        c.req.cookie('refresh_token');
+    const { refreshToken } = req.body;
 
     if (!refreshToken) {
-      return c.json({
+      return res.status(400).json({
         ok: false,
         error: {
-          code: 'NO_REFRESH_TOKEN',
-          message: 'No refresh token provided'
+          code: 'MISSING_REFRESH_TOKEN',
+          message: 'Refresh token is required'
         }
-      }, 401);
+      });
     }
 
-    // Verify refresh token
-    const decoded = JWTUtils.verifyRefreshToken(refreshToken);
-    if (!decoded.success || decoded.payload.user_type !== 'web_admin') {
-      return c.json({
+    const result = await JWTService.refreshToken(refreshToken);
+
+    if (!result.valid) {
+      return res.status(401).json({
         ok: false,
         error: {
           code: 'INVALID_REFRESH_TOKEN',
-          message: 'Invalid or expired refresh token'
+          message: result.error || 'Invalid refresh token'
         }
-      }, 401);
+      });
     }
 
-    // Get user information
-    const whoamiResult = await webAdminAuthService.whoami(decoded.payload.sub);
-    if (!whoamiResult.success) {
-      return c.json({
-        ok: false,
-        error: {
-          code: 'USER_NOT_FOUND',
-          message: 'User not found or inactive'
-        }
-      }, 401);
-    }
-
-    // Generate new access token
-    const newAccessToken = JWTUtils.signAccessToken({
-      sub: decoded.payload.sub,
-      email: whoamiResult.user!.email,
-      role: whoamiResult.user!.role,
-      type: 'web_admin'
-    });
-
-    return c.json({
+    return res.json({
       ok: true,
-      accessToken: newAccessToken,
-      user: whoamiResult.user
+      token: result.accessToken,
+      refreshToken: refreshToken, // Return the same refresh token
     });
 
   } catch (error: any) {
-    logger.error('web_admin_refresh_endpoint_error', {
+    logger.error('web_admin_refresh_error', {
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
     });
 
-    return c.json({
+    return res.status(500).json({
       ok: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An internal error occurred during token refresh'
-      }
-    }, 500);
+        message: 'An internal error occurred',
+        request_id: req.headers['x-request-id'],
+      },
+    });
   }
 });
 
 /**
  * POST /api/web-admin/auth/create-admin
- * Create a new web admin user (for initial setup or super admin)
+ * Create a new web admin user (protected endpoint)
  */
-router.post('/create-admin', zValidator('json', createAdminSchema), async (c) => {
+router.post('/create-admin', validateRequest(createAdminSchema), async (req: Request, res: Response) => {
   try {
-    // TODO: Add proper authorization check - only existing admins should be able to create new admins
-    // For now, this endpoint should be restricted or used only during initial setup
+    const { email, password, firstName, lastName, role } = req.body;
+    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown';
 
-    const userData = c.req.valid('json');
-    const result = await webAdminAuthService.createWebAdminUser(userData);
+    logger.info('web_admin_creation_attempt', {
+      email,
+      firstName,
+      lastName,
+      role,
+      ipAddress,
+    });
+
+    const result = await webAdminAuthService.createWebAdminUser({
+      email,
+      password,
+      firstName,
+      lastName,
+      role: role || 'SYSTEM_ADMIN'
+    });
 
     if (!result.success) {
-      return c.json({
+      logger.warn('web_admin_creation_failed', {
+        email,
+        reason: result.error,
+        ipAddress,
+      });
+
+      return res.status(400).json({
         ok: false,
         error: {
           code: 'CREATION_FAILED',
           message: result.error || 'Failed to create admin user'
         }
-      }, 400);
+      });
     }
 
-    logger.info('web_admin_user_created_via_api', {
+    logger.info('web_admin_creation_success', {
+      email,
       adminId: result.user?.id,
-      email: result.user?.email,
-      role: result.user?.role
+      role: result.user?.role,
+      ipAddress,
     });
 
-    return c.json({
+    return res.status(201).json({
       ok: true,
       user: result.user,
-      message: 'Admin user created successfully'
+      message: 'Admin user created successfully',
     });
 
   } catch (error: any) {
-    logger.error('web_admin_create_admin_endpoint_error', {
+    logger.error('web_admin_creation_error', {
       error: error.message,
-      stack: error.stack
+      stack: error.stack,
+      email: req.body?.email,
     });
 
-    return c.json({
+    return res.status(500).json({
       ok: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An internal error occurred while creating admin user'
-      }
-    }, 500);
+        message: 'An internal error occurred',
+        request_id: req.headers['x-request-id'],
+      },
+    });
   }
 });
 

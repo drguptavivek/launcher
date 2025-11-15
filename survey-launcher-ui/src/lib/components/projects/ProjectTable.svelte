@@ -5,7 +5,7 @@
 	import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '$lib/components/ui/table';
 	import { Label } from '$lib/components/ui/label';
 	import type { Project } from '$lib/api/remote';
-	import { getProjectStatusColor, getGeographicScopeLabel, formatDate } from '$lib/api/remote';
+	import { getProjectStatusColor, getGeographicScopeLabel, formatDate } from '$lib/api/remote/projects.utils';
 
 	let {
 		projects = [],

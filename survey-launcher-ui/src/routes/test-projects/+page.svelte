@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { getProjects, createProject, getRoles } from '$lib/api/remote';
+	import { getProjects, createProject } from '$lib/api/remote';
 	import type { CreateProjectRequest } from '$lib/api/remote';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
@@ -30,8 +30,7 @@
 
 			const functions = [
 				{ name: 'getProjects', fn: getProjects },
-				{ name: 'createProject', fn: createProject },
-				{ name: 'getRoles', fn: getRoles }
+				{ name: 'createProject', fn: createProject }
 			];
 
 			let functionsOk = true;

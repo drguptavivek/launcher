@@ -389,16 +389,19 @@ export class TelemetryService {
       let query = db.select({
         id: telemetryEvents.id,
         eventType: telemetryEvents.eventType,
-        eventData: telemetryEvents.eventData,
+        eventData: sql<string>`event_data`,
         timestamp: telemetryEvents.timestamp,
         receivedAt: telemetryEvents.receivedAt,
       })
         .from(telemetryEvents)
         .where(eq(telemetryEvents.deviceId, deviceId))
-        .orderBy('timestamp desc');
+        .orderBy(desc(telemetryEvents.timestamp));
 
       if (eventType) {
-        query = query.where(eq(telemetryEvents.eventType, eventType));
+        query = query.where(and(
+          eq(telemetryEvents.deviceId, deviceId),
+          eq(telemetryEvents.eventType, eventType)
+        ));
       }
 
       return await query.limit(limit);
@@ -469,8 +472,8 @@ export class TelemetryService {
 
       return {
         deviceId,
-        lastSeen: device[0].lastSeenAt,
-        lastGps: device[0].lastGpsAt,
+        lastSeen: device[0].lastSeenAt || undefined,
+        lastGps: device[0].lastGpsAt || undefined,
         totalEvents: totalEventsResult.length || 0,
         recentEventTypes,
       };
