@@ -1,270 +1,1032 @@
-The system is designed for project-specific roles, where users can have different roles across different projects. Here's
-  how it works:
+# SurveyLauncher Role-Based Access Control (RBAC)
 
-  📊 Database Schema Design
+The SurveyLauncher system implements a comprehensive Role-Based Access Control (RBAC) system with **9 hierarchical roles** and **29 granular permissions**. This document provides detailed information about the role structure, permissions, and concrete usage examples.
 
-  1. User Project Assignments (projectAssignments table)
+## 🏗️ System Architecture
 
-  - projectId: UUID  -- Which project
-  - userId: UUID      -- Which user  
-  - roleInProject: VARCHAR(100)  -- Role in THIS project
-    * Examples: "Project Lead", "Field Coordinator", "Data Analyst", "Survey Manager"
-  - assignedBy: UUID -- Who made the assignment
-  - assignedUntil: TIMESTAMP -- Temporary assignments
-  - isActive: BOOLEAN -- Enable/disable without deleting
+### Role Hierarchy
+```
+SYSTEM_ADMIN (Level 9)
+├── NATIONAL_SUPPORT_ADMIN (Level 8)
+├── REGIONAL_MANAGER (Level 7)
+├── DEVICE_MANAGER (Level 6)
+├── POLICY_ADMIN (Level 5)
+├── AUDITOR (Level 4)
+├── FIELD_SUPERVISOR (Level 3)
+└── TEAM_MEMBER (Level 1)
+```
 
-  2. Team Project Assignments (projectTeamAssignments table)
+### Database Schema
 
-  - projectId: UUID    -- Which project
-  - teamId: UUID        -- Which team
-  - assignedRole: VARCHAR(100)  -- Team's role in THIS project
-    * Examples: "Implementation Team", "Support Team", "QA Team"
-  - assignedBy: UUID   -- Who made the assignment
-  - assignedUntil: TIMESTAMP -- Temporary assignments
-  - isActive: BOOLEAN
+```sql
+-- Core Tables
+roles (9 records)
+├── id, name, display_name, description
+├── is_system_role, is_active, hierarchy_level
+└── created_at, updated_at
 
-  🔄 Access Control Logic
+permissions (29 records)
+├── id, name, resource, action, scope
+├── description, conditions, is_active
+└── created_at
 
-  The system determines user permissions through a hierarchical check:
+role_permissions (link table)
+├── role_id, permission_id, granted_by
+├── granted_at, is_active
+└── created_at
 
-  Step 1: Direct Project Assignment
+user_role_assignments
+├── user_id, role_id, team_id, project_id
+├── granted_by, granted_at, expires_at
+└── is_active
 
-  // Check if user has direct assignment to project
-  const directAssignment = await db.select()
-    .from(projectAssignments)
-    .where(and(
-      eq(projectAssignments.projectId, projectId),
-      eq(projectAssignments.userId, userId),
-      eq(projectAssignments.isActive, true)
-    ));
+permission_cache (performance optimization)
+├── user_id, resource, action, result
+├── expires_at, created_at
+└── metadata
+```
 
-  Step 2: Team-Based Assignment
+## 🎭 System Roles (9 Roles)
 
-  // Check if user's team is assigned to project
-  const userTeam = await db.select({ teamId: users.teamId })
-    .from(users)
-    .where(eq(users.id, userId));
+### Level 1: TEAM_MEMBER
+**Display Name**: Team Member
+**Description**: Frontline survey operators with basic team access
 
-  const teamAssignment = await db.select()
-    .from(projectTeamAssignments)
-    .where(and(
-      eq(projectTeamAssignments.projectId, projectId),
-      eq(projectTeamAssignments.teamId, userTeam.teamId),
-      eq(projectTeamAssignments.isActive, true)
-    ));
+**Permissions**:
+- ✅ TEAMS: READ, LIST
+- ✅ USERS: READ, LIST
+- ✅ DEVICES: READ, LIST
+- ✅ TELEMETRY: READ, LIST
+- ✅ POLICY: READ
+- ✅ AUTH: READ
+- ✅ PROJECTS: READ, LIST, EXECUTE
+- ✅ SUPPORT_TICKETS: READ, LIST
 
-  Step 3: System-Wide Role Fallback
+### Level 3: FIELD_SUPERVISOR
+**Display Name**: Field Supervisor
+**Description**: On-site supervisors managing field operations and team devices
 
-  // If no project-specific assignment, check system-wide role
-  const systemRole = await projectPermissionService.checkProjectPermission(
-    userId,
-    'READ',
-    projectId
-  );
+**Permissions**:
+- ✅ TEAMS: READ, LIST
+- ✅ USERS: READ, LIST, UPDATE
+- ✅ DEVICES: CREATE, READ, UPDATE, LIST
+- ✅ SUPERVISOR_PINS: READ, LIST
+- ✅ TELEMETRY: READ, LIST
+- ✅ POLICY: READ
+- ✅ AUTH: READ, EXECUTE (supervisor overrides)
+- ✅ PROJECTS: READ, LIST, ASSIGN
 
-  👥 Example Use Cases
+### Level 7: REGIONAL_MANAGER
+**Display Name**: Regional Manager
+**Description**: Multi-team regional oversight with cross-team access within region
 
-  User: John Doe
+**Permissions**:
+- ✅ TEAMS: MANAGE
+- ✅ USERS: MANAGE
+- ✅ DEVICES: MANAGE
+- ✅ PROJECTS: MANAGE
+- ✅ ORGANIZATION: READ, UPDATE
+- ✅ All Level 3 and below permissions
 
-  - Project A (National Survey): Project Lead
-  - Project B (Regional Health): Data Analyst
-  - Project C (Pilot Study): Field Coordinator
+### Level 9: SYSTEM_ADMIN
+**Display Name**: System Administrator
+**Description**: Full system configuration and administrative access
 
-  User: Jane Smith
+**Permissions**:
+- ✅ ALL RESOURCES: FULL ACCESS (CREATE, READ, UPDATE, DELETE, MANAGE)
+- ✅ SYSTEM_SETTINGS: MANAGE
+- ✅ ORGANIZATION: MANAGE
+- ✅ All other roles' permissions
 
-  - Project A (National Survey): Team Member (via team assignment)
-  - Project D (Emergency Response): Project Manager
+### Specialized Roles
+- **DEVICE_MANAGER**: Full device management specialization
+- **POLICY_ADMIN**: Full policy management
+- **AUDITOR**: Read-only audit access and compliance monitoring
+- **SUPPORT_AGENT**: User support and troubleshooting capabilities
+- **NATIONAL_SUPPORT_ADMIN**: National-level support with full cross-regional access
 
-  🎛️ API Examples
+## 🔐 Permission Matrix
 
-  Assign User with Project-Specific Role
+| Resource | TEAM_MEMBER | FIELD_SUPERVISOR | REGIONAL_MANAGER | SYSTEM_ADMIN |
+|----------|-------------|------------------|------------------|---------------|
+| **TEAMS** | READ, LIST | READ, LIST | MANAGE | MANAGE |
+| **USERS** | READ, LIST | READ, LIST, UPDATE | MANAGE | MANAGE |
+| **DEVICES** | READ, LIST | CREATE, READ, UPDATE, LIST | MANAGE | MANAGE |
+| **PROJECTS** | READ, LIST, EXECUTE | READ, LIST, ASSIGN | MANAGE | MANAGE |
+| **POLICY** | READ | READ | READ | MANAGE | MANAGE |
+| **AUTH** | READ | READ, EXECUTE | READ, EXECUTE | MANAGE |
+| **SYSTEM_SETTINGS** | ❌ | ❌ | ❌ | MANAGE | MANAGE |
 
-  POST /api/v1/projects/{projectId}/assign-user
-  {
-    "userId": "user-123",
-    "roleInProject": "Project Lead",
-    "assignedUntil": "2024-12-31T23:59:59Z"  // Optional temporary assignment
+## 💻 Concrete API Examples
+
+### 1. Web Admin Authentication
+
+```bash
+# Login as System Admin
+curl -X POST http://localhost:3000/api/v1/web-admin/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@surveylauncher.aiims",
+    "password": "admin123456"
+  }'
+
+# Response
+{
+  "ok": true,
+  "user": {
+    "id": "admin-uuid",
+    "email": "admin@surveylauncher.aiims",
+    "role": "SYSTEM_ADMIN",
+    "fullName": "Admin User"
+  },
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+### 2. Project Access with Authorization
+
+```bash
+# List Projects (requires authentication)
+curl -X GET http://localhost:3000/api/v1/projects \
+  -H "Authorization: Bearer <token>"
+
+# Create Project (requires PROJECTS.CREATE permission)
+curl -X POST http://localhost:3000/api/v1/projects \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "National Health Survey 2024",
+    "abbreviation": "NHS2024",
+    "contactPersonDetails": "Dr. John Doe",
+    "status": "ACTIVE",
+    "geographicScope": "NATIONAL"
+  }'
+
+# Response
+{
+  "ok": true,
+  "project": {
+    "id": "proj-uuid-123",
+    "title": "National Health Survey 2024",
+    "abbreviation": "NHS2024",
+    "status": "ACTIVE",
+    "createdAt": "2025-01-15T10:30:00Z"
   }
+}
+```
 
-  Get User's Projects with Roles
+### 3. Permission Enforcement
 
-  GET /api/v1/projects/my
-  # Returns:
+```bash
+# Access Denied - No Permission
+curl -X DELETE http://localhost:3000/api/v1/projects/proj-uuid-123 \
+  -H "Authorization: Bearer <team-member-token>"
+
+# Response
+{
+  "ok": false,
+  "error": {
+    "code": "INSUFFICIENT_PERMISSIONS",
+    "message": "Insufficient permissions to DELETE PROJECTS",
+    "request_id": "req-uuid-456"
+  }
+}
+```
+
+## 📋 Role Assignment Examples
+
+### 1. User Role Assignment via Database
+
+```sql
+-- Assign TEAM_MEMBER role to user
+INSERT INTO user_role_assignments (
+  id, user_id, role_id, team_id, project_id,
+  granted_by, granted_at, expires_at, is_active
+) VALUES (
+  'assignment-uuid',
+  'user-uuid-123',
+  (SELECT id FROM roles WHERE name = 'TEAM_MEMBER'),
+  'team-uuid-456',
+  'project-uuid-789',
+  'admin-uuid',
+  NOW(),
+  NULL,
+  true
+);
+```
+
+### 2. Project-Specific Permissions
+
+```bash
+# Assign user to project with specific role
+curl -X POST http://localhost:3000/api/v1/projects/proj-uuid-123/members \
+  -H "Authorization: Bearer <manager-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "user-uuid-123",
+    "role": "TEAM_MEMBER"
+  }'
+
+# Response
+{
+  "ok": true,
+  "message": "User assigned to project successfully"
+}
+```
+
+## 🎯 Real-World Scenarios
+
+### Scenario 1: Field Supervisor Managing Devices
+
+**User**: Sarah Chen (FIELD_SUPERVISOR)
+
+```bash
+# Can view all devices in her region
+curl -X GET http://localhost:3000/api/v1/devices
+
+# Can create new devices for field operations
+curl -X POST http://localhost:3000/api/v1/devices \
+  -H "Authorization: Bearer <sarah-token>" \
+  -d '{
+    "name": "Field Tablet 001",
+    "androidId": "android-123",
+    "teamId": "team-field-ops"
+  }'
+
+# Cannot delete system settings (permission denied)
+curl -X DELETE http://localhost:3000/api/v1/system-settings/config
+# Returns 403 Forbidden
+```
+
+### Scenario 2: System Administrator Full Access
+
+**User**: Alex Kumar (SYSTEM_ADMIN)
+
+```bash
+# Full system access
+curl -X GET http://localhost:3000/api/v1/projects  # All projects
+curl -X POST http://localhost:3000/api/v1/users     # Create users
+curl -X POST http://localhost:3000/api/v1/teams     # Create teams
+curl -X POST http://localhost:3000/api/v1/roles     # Manage roles
+curl -X GET http://localhost:3000/api/v1/audit     # View audit logs
+
+# Response shows all resources with full access
+```
+
+### Scenario 3: Team Member Limited Access
+
+**User**: Maria Garcia (TEAM_MEMBER)
+
+```bash
+# Can view her projects and devices
+curl -X GET http://localhost:3000/api/v1/projects/my
+curl -X GET http://localhost:3000/api/v1/devices
+
+# Cannot create new projects (permission denied)
+curl -X POST http://localhost:3000/api/v1/projects \
+  -d '{"title": "Unauthorized Project"}'
+# Returns 403 Forbidden
+
+# Can view telemetry data for assigned devices
+curl -X GET http://localhost:3000/api/v1/telemetry
+```
+
+## 🔍 Authorization Flow
+
+### 1. Authentication
+```typescript
+// JWT Token Validation
+const token = req.headers.authorization?.replace('Bearer ', '');
+const decoded = JWTUtils.verifyAccessToken(token);
+
+if (!decoded.success || !decoded.payload.userId) {
+  return res.status(401).json({ error: 'Invalid token' });
+}
+```
+
+### 2. Permission Check
+```typescript
+// Permission Middleware
+const permissionResult = await AuthorizationService.checkPermission(
+  req.user.id,
+  'PROJECTS',    // Resource
+  'CREATE',     // Action
   {
-    "projects": [
+    teamId: req.user.teamId,
+    projectId: req.params.projectId,
+    requestId: req.headers['x-request-id']
+  }
+);
+
+if (!permissionResult.allowed) {
+  return res.status(403).json({
+    error: 'INSUFFICIENT_PERMISSIONS',
+    message: permissionResult.reason
+  });
+}
+```
+
+### 3. Audit Logging
+```json
+{
+  "timestamp": "2025-01-15T10:30:00Z",
+  "userId": "user-uuid-123",
+  "resource": "PROJECTS",
+  "action": "CREATE",
+  "allowed": true,
+  "grantedBy": ["role-uuid-456"],
+  "evaluationTime": 15,
+  "requestId": "req-uuid-789"
+}
+```
+
+## 📊 Performance Features
+
+### Permission Caching
+- **Cache Duration**: 15 minutes for active permissions
+- **Cache Invalidation**: Automatic on role changes
+- **Performance**: Sub-millisecond permission checks after cache warm
+
+### Audit Trail
+- **All Access Attempts**: Logged with full context
+- **Decision Reason**: Clear explanation for allow/deny decisions
+- **Performance Metrics**: Track slow permission evaluations
+- **Security Monitoring**: Detect unusual access patterns
+
+## 🚀 Integration Examples
+
+### Frontend Integration
+
+```typescript
+// React Component with Permission Check
+import { hasPermission } from '../lib/permissions';
+
+function ProjectActions({ project, userRole }) {
+  const canEdit = hasPermission(userRole, 'PROJECTS', 'UPDATE');
+  const canDelete = hasPermission(userRole, 'PROJECTS', 'DELETE');
+
+  return (
+    <div>
+      {canEdit && (
+        <button onClick={() => editProject(project.id)}>
+          Edit Project
+        </button>
+      )}
+      {canDelete && (
+        <button onClick={() => deleteProject(project.id)}>
+          Delete Project
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+### Mobile App Integration
+
+```typescript
+// Android App Permission Check
+const checkProjectAccess = async (projectId: string, userId: string) => {
+  const response = await fetch(`${API_BASE}/projects/${projectId}`, {
+    headers: {
+      'Authorization': `Bearer ${await getAuthToken()}`
+    }
+  });
+
+  return response.ok;
+};
+```
+
+## 📚 Key Concepts
+
+1. **Hierarchical Roles**: Each level inherits permissions from lower levels
+2. **Granular Permissions**: 29 permissions across 9 roles for precise access control
+3. **Context-Aware**: Permissions consider team, project, and geographic scope
+4. **Audit-Ready**: All access decisions logged for compliance
+5. **Performance Optimized**: Caching and database indexes for fast lookups
+6. **Fail-Secure**: Default deny access, explicit grant required
+
+## 🔧 Configuration
+
+### Environment Variables
+```env
+# Role and Permission System
+RBAC_ENABLED=true
+PERMISSION_CACHE_TTL=900000  # 15 minutes
+AUDIT_LOG_LEVEL=INFO
+```
+
+### Database Migration
+```bash
+# Generate and run migrations
+npm run db:generate
+npm run db:migrate
+
+# Seed default roles and permissions
+npm run db:seed-default-roles
+```
+
+## 📊 Role Hierarchy Overview
+
+### 🏗️ Hierarchical Structure
+
+```
+SYSTEM_ADMIN (Level 9)
+├── NATIONAL_SUPPORT_ADMIN (Level 8)
+├── REGIONAL_MANAGER (Level 7)
+├── DEVICE_MANAGER (Level 6)
+├── POLICY_ADMIN (Level 5)
+├── AUDITOR (Level 4)
+├── FIELD_SUPERVISOR (Level 3)
+└── TEAM_MEMBER (Level 1)
+```
+
+### 📈 Role Breakdown by Level
+
+#### **Level 9: SYSTEM_ADMIN** 👑
+- **Access**: Full system control
+- **Scope**: All resources, all organizations
+- **Special**: System settings, organization management
+
+#### **Level 8: NATIONAL_SUPPORT_ADMIN** 🌍
+- **Access**: Cross-regional operational support
+- **Scope**: All teams, all regions (except system settings)
+- **Special**: National-level oversight and support
+
+#### **Level 7: REGIONAL_MANAGER** 🏢
+- **Access**: Multi-team regional management
+- **Scope**: All teams and projects within region
+- **Special**: Organization updates, cross-team access
+
+#### **Level 6: DEVICE_MANAGER** 📱
+- **Access**: Full device lifecycle management
+- **Scope**: All devices, telemetry, and technical support
+- **Special**: Device provisioning, monitoring, troubleshooting
+
+#### **Level 5: POLICY_ADMIN** 📋
+- **Access**: Complete policy management
+- **Scope**: All policies and compliance rules
+- **Special**: Policy creation, updates, enforcement
+
+#### **Level 4: AUDITOR** 🔍
+- **Access**: Read-only audit and compliance
+- **Scope**: All resources (read-only)
+- **Special**: Compliance monitoring, audit trails
+
+#### **Level 3: FIELD_SUPERVISOR** 👥
+- **Access**: On-site team and device management
+- **Scope**: Assigned teams and their devices
+- **Special**: Supervisor override capabilities
+
+#### **Level 1: TEAM_MEMBER** 🔧
+- **Access**: Basic operational access
+- **Scope**: Personal assignments and team data
+- **Special**: Survey execution, data collection
+
+### 🔐 Permission Inheritance
+
+**Higher levels inherit all permissions from lower levels + additional capabilities:**
+
+- **SYSTEM_ADMIN** = All permissions from all roles + system settings
+- **REGIONAL_MANAGER** = All Field Supervisor permissions + team/user management
+- **FIELD_SUPERVISOR** = All Team Member permissions + device/user management
+- **TEAM_MEMBER** = Base operational permissions
+
+### 🎯 Specialized Roles
+
+Some roles have **specialized focus** rather than hierarchical progression:
+
+- **SUPPORT_AGENT** (Level implied: ~2-3) - User support focus
+- **AUDITOR** (Level 4) - Read-only compliance focus
+- **DEVICE_MANAGER** (Level 6) - Technical device focus
+- **POLICY_ADMIN** (Level 5) - Policy management focus
+
+### 📈 Access Progression
+
+```
+Basic Operations → Team Management → Regional Oversight → National Support → System Administration
+     ↓                    ↓                  ↓                  ↓                    ↓
+TEAM_MEMBER → FIELD_SUPERVISOR → REGIONAL_MANAGER → NATIONAL_SUPPORT_ADMIN → SYSTEM_ADMIN
+```
+
+The hierarchy ensures **principle of least privilege** - users only get access needed for their specific responsibilities, with clear escalation paths for broader organizational needs.
+
+## 🚀 Step-by-Step Setup Guide
+
+This section provides a comprehensive guide for system administrators to set up projects, teams, users, and assign roles in the SurveyLauncher system.
+
+### Step 1: System Initialization
+
+#### 1.1 Database Setup and Role Seeding
+
+```bash
+# 1. Run database migrations
+npm run db:migrate
+
+# 2. Seed default roles and permissions
+npm run db:seed-default-roles seed
+
+# 3. Verify role configuration
+npm run db:seed-default-roles verify
+```
+
+Expected output:
+```
+✅ Default roles seeding completed successfully!
+📊 Summary:
+  - Roles created: 9
+  - Permissions created: 29
+  - Role-permission assignments: 89
+```
+
+#### 1.2 Create System Administrator Account
+
+```bash
+# Connect to database
+psql postgresql://laucnher_db_user:ieru7Eikfaef1Liueo9ix4Gi@127.0.0.1:5434/launcher
+
+# Create system admin user
+INSERT INTO users (
+  id, email, full_name, role, is_active,
+  email_verified, created_at, updated_at
+) VALUES (
+  gen_random_uuid(),
+  'admin@surveylauncher.aiims',
+  'System Administrator',
+  'SYSTEM_ADMIN',
+  true,
+  true,
+  NOW(),
+  NOW()
+);
+```
+
+### Step 2: Organizational Structure Setup
+
+#### 2.1 Create Organization
+
+```bash
+curl -X POST http://localhost:3000/api/v1/organizations \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "AIIMS National Health Survey",
+    "code": "AIIMS_NHS",
+    "description": "National health survey organization",
+    "settings": {
+      "maxUsersPerTeam": 50,
+      "sessionTimeoutHours": 8,
+      "gpsRequired": true
+    }
+  }'
+```
+
+Response:
+```json
+{
+  "ok": true,
+  "organization": {
+    "id": "org-uuid-123",
+    "name": "AIIMS National Health Survey",
+    "code": "AIIMS_NHS",
+    "isActive": true,
+    "createdAt": "2025-01-15T10:00:00Z"
+  }
+}
+```
+
+#### 2.2 Create Teams
+
+```bash
+# Create regional teams
+curl -X POST http://localhost:3000/api/v1/teams \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Delhi Field Operations",
+    "code": "DELHI_FO",
+    "region": "DELHI",
+    "organizationId": "org-uuid-123",
+    "supervisorUserId": "supervisor-uuid-456"
+  }'
+
+curl -X POST http://localhost:3000/api/v1/teams \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Mumbai Field Operations",
+    "code": "MUMBAI_FO",
+    "region": "MAHARASHTRA",
+    "organizationId": "org-uuid-123",
+    "supervisorUserId": "supervisor-uuid-789"
+  }'
+```
+
+### Step 3: Create Projects
+
+#### 3.1 Create National Survey Project
+
+```bash
+curl -X POST http://localhost:3000/api/v1/projects \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "National Health Survey 2024",
+    "abbreviation": "NHS2024",
+    "description": "Comprehensive national health assessment",
+    "contactPersonDetails": "Dr. Sarah Kumar",
+    "contactEmail": "sarah.kumar@aiims.edu",
+    "contactPhone": "+91-11-1234-5678",
+    "status": "ACTIVE",
+    "startDate": "2025-02-01",
+    "endDate": "2025-12-31",
+    "geographicScope": "NATIONAL",
+    "organizationId": "org-uuid-123",
+    "settings": {
+      "gpsRequired": true,
+      "minGpsAccuracy": 50,
+      "heartbeatInterval": 10,
+      "sessionTimeout": 8
+    }
+  }'
+```
+
+#### 3.2 Create Regional Projects
+
+```bash
+# Delhi-specific project
+curl -X POST http://localhost:3000/api/v1/projects \
+  -H "Authorization: Bearer <regional-manager-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Delhi Urban Health Assessment",
+    "abbreviation": "DUHA2024",
+    "description": "Urban health survey for Delhi region",
+    "contactPersonDetails": "Dr. Rajesh Singh",
+    "status": "ACTIVE",
+    "startDate": "2025-03-01",
+    "endDate": "2025-08-31",
+    "geographicScope": "REGIONAL",
+    "organizationId": "org-uuid-123",
+    "parentProjectId": "national-project-uuid"
+  }'
+```
+
+### Step 4: Create and Assign Users
+
+#### 4.1 Create Field Supervisor
+
+```bash
+curl -X POST http://localhost:3000/api/v1/users \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "sarah.chen@surveylauncher.aiims",
+    "fullName": "Sarah Chen",
+    "role": "FIELD_SUPERVISOR",
+    "teamId": "delhi-team-uuid",
+    "phone": "+91-98765-43210",
+    "isActive": true
+  }'
+```
+
+Response:
+```json
+{
+  "ok": true,
+  "user": {
+    "id": "user-uuid-456",
+    "email": "sarah.chen@surveylauncher.aiims",
+    "fullName": "Sarah Chen",
+    "role": "FIELD_SUPERVISOR",
+    "teamId": "delhi-team-uuid",
+    "isActive": true,
+    "createdAt": "2025-01-15T10:30:00Z"
+  }
+}
+```
+
+#### 4.2 Create Team Members
+
+```bash
+# Create multiple team members for Delhi team
+curl -X POST http://localhost:3000/api/v1/users \
+  -H "Authorization: Bearer <supervisor-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "maria.garcia@surveylauncher.aiims",
+    "fullName": "Maria Garcia",
+    "role": "TEAM_MEMBER",
+    "teamId": "delhi-team-uuid",
+    "phone": "+91-98765-43211",
+    "isActive": true
+  }'
+
+curl -X POST http://localhost:3000/api/v1/users \
+  -H "Authorization: Bearer <supervisor-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "ahmed.khan@surveylauncher.aiims",
+    "fullName": "Ahmed Khan",
+    "role": "TEAM_MEMBER",
+    "teamId": "delhi-team-uuid",
+    "phone": "+91-98765-43212",
+    "isActive": true
+  }'
+```
+
+#### 4.3 Create Device Manager
+
+```bash
+curl -X POST http://localhost:3000/api/v1/users \
+  -H "Authorization: Bearer <admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "tech.support@surveylauncher.aiims",
+    "fullName": "Technical Support Team",
+    "role": "DEVICE_MANAGER",
+    "teamId": "tech-team-uuid",
+    "phone": "+91-11-2345-6789",
+    "isActive": true
+  }'
+```
+
+### Step 5: Assign Users to Projects
+
+#### 5.1 Assign Team Members to Projects
+
+```bash
+# Assign team member to national project
+curl -X POST http://localhost:3000/api/v1/projects/national-project-uuid/members \
+  -H "Authorization: Bearer <manager-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "maria-uuid-789",
+    "role": "TEAM_MEMBER",
+    "assignedAt": "2025-01-15T11:00:00Z"
+  }'
+
+# Assign supervisor to multiple projects
+curl -X POST http://localhost:3000/api/v1/projects/national-project-uuid/members \
+  -H "Authorization: Bearer <manager-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "sarah-uuid-456",
+    "role": "FIELD_SUPERVISOR",
+    "assignedAt": "2025-01-15T11:00:00Z"
+  }'
+```
+
+#### 5.2 Bulk Assignment for Team
+
+```bash
+curl -X POST http://localhost:3000/api/v1/projects/regional-project-uuid/members/bulk \
+  -H "Authorization: Bearer <supervisor-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "assignments": [
       {
-        "id": "proj-1",
-        "title": "National Health Survey",
-        "roleInProject": "Project Lead",
-        "accessType": "direct"
+        "userId": "maria-uuid-789",
+        "role": "TEAM_MEMBER"
       },
       {
-        "id": "proj-2",
-        "title": "Regional Pilot Study",
-        "roleInProject": "Data Analyst",
-        "accessType": "direct"
+        "userId": "ahmed-uuid-790",
+        "role": "TEAM_MEMBER"
       }
     ]
-  }
+  }'
+```
 
-  🔐 Permission Matrix Integration
+### Step 6: Device Setup and Assignment
 
-  The project-specific roles work alongside the system-wide role hierarchy:
+#### 6.1 Register Android Devices
 
-  System Roles (9 levels)
+```bash
+curl -X POST http://localhost:3000/api/v1/devices \
+  -H "Authorization: Bearer <device-manager-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Delhi Field Tablet 001",
+    "androidId": "android_12345abcdef",
+    "teamId": "delhi-team-uuid",
+    "assignedUserId": "maria-uuid-789",
+    "model": "Samsung Galaxy Tab A8",
+    "osVersion": "Android 13",
+    "appVersion": "1.0.0",
+    "status": "ACTIVE"
+  }'
+```
 
-  - TEAM_MEMBER → FIELD_SUPERVISOR → REGIONAL_MANAGER → SYSTEM_ADMIN
+#### 6.2 Configure Device Policies
 
-  Project Roles (unlimited, custom)
-
-  - Project Lead → Field Coordinator → Data Analyst → Survey Manager
-
-  Permission Resolution
-
-  1. Project-specific role determines what they can do in that project
-  2. System role determines where they can do it (geographic/scope limits)
-
-  📋 Key Features
-
-  ✅ Flexible Role Naming: Each project can define its own role names✅ Temporary Assignments: Roles can have expiry dates✅ Dual Assignment: Users can
-  be assigned individually AND via teams✅ Audit Trail: All assignments track who assigned and when✅ Active/Inactive: Disable roles without deleting
-  history✅ Access Control: Permissions checked per-project based on assignment
-
-  This architecture allows for maximum flexibility while maintaining proper security boundaries. A user can be a Project Lead on one project, a Team 
-  Member on another, and have no access to a third project - all simultaneously!
-
-
-⏺ 🚫 What Happens to Users with No Projects?
-
-  Users who are not assigned to any projects have specific behavior based on their system role and the context:
-
-  📋 Default Behavior for Users with No Projects
-
-  1. Project Access Returns Empty
-
-  // From project-service.ts:472-474
-  if (allProjectIds.length === 0) {
-    return { projects: [], total: 0 };
-  }
-  - No projects found: Returns empty array
-  - No errors: Graceful handling, not treated as an error
-  - Total count: 0
-
-  2. System Role-Based Access (Limited)
-
-  Users still have access based on their system-wide roles, but with restrictions:
-
-  🔒 SYSTEM_ADMIN & NATIONAL_SUPPORT_ADMIN
-
-  // Can see all projects organization-wide, but only:
-  // - LIST projects (can see project catalog)
-  // - CREATE new projects  
-  // - Cannot MANAGE/UPDATE/DELETE projects they're not assigned to
-
-  👥 REGIONAL_MANAGER
-
-  // Can see projects in their region, but only:
-  // - LIST projects in their geographic scope
-  // - CREATE projects in their region
-  // - Cannot manage projects they're not assigned to
-
-  👤 TEAM_MEMBER & FIELD_SUPERVISOR
-
-  // Very limited access without project assignment:
-  // - Can LIST projects (if they have permission)
-  // - Cannot CREATE/UPDATE/DELETE any projects
-  // - Cannot see project details or members
-
-  🔐 Permission Matrix for Unassigned Users
-
-  | System Role      | List Projects | Create Projects | View Details  | Manage Projects | Assign Users  |
-  |------------------|---------------|-----------------|---------------|-----------------|---------------|
-  | SYSTEM_ADMIN     | ✅ (All)       | ✅ (All)         | ❌ (No Access) | ❌ (No Access)   | ❌ (No Access) |
-  | REGIONAL_MANAGER | ✅ (Region)    | ✅ (Region)      | ❌ (No Access) | ❌ (No Access)   | ❌ (No Access) |
-  | TEAM_MEMBER      | ✅ (Limited)   | ❌               | ❌ (No Access) | ❌ (No Access)   | ❌ (No Access) |
-  | FIELD_SUPERVISOR | ✅ (Limited)   | ❌               | ❌ (No Access) | ❌ (No Access)   | ❌ (No Access) |
-
-  📱 API Response Examples
-
-  User with No Projects
-
-  GET /api/v1/projects/my
-  # Response:
-  {
-    "ok": true,
-    "projects": [],
-    "total": 0
-  }
-
-  Trying to Access Project Details
-
-  GET /api/v1/projects/{some-project-id}
-  # Response:
-  {
-    "ok": false,
-    "error": {
-      "code": "PROJECT_ACCESS_DENIED",
-      "message": "Access denied to this project"
+```bash
+curl -X POST http://localhost:3000/api/v1/devices/device-uuid-123/policy \
+  -H "Authorization: Bearer <policy-admin-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "gpsSettings": {
+      "required": true,
+      "minAccuracy": 50,
+      "collectionInterval": 3
+    },
+    "timeWindows": [
+      {
+        "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        "startTime": "08:00",
+        "endTime": "19:30"
+      },
+      {
+        "days": ["Sat"],
+        "startTime": "09:00",
+        "endTime": "15:00"
+      }
+    ],
+    "supervisorOverride": {
+      "enabled": true,
+      "maxDurationMinutes": 120
     }
-  }
+  }'
+```
 
-  Trying to List All Projects (if has system permission)
+### Step 7: Verify Setup
 
-  GET /api/v1/projects
-  # Response for TEAM_MEMBER:
-  {
-    "ok": true,
-    "projects": [],  // Empty because no project assignments
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 0,
-      "totalPages": 0
-    }
-  }
+#### 7.1 Verify Team Structure
 
-  🎯 Use Case Scenarios
+```bash
+# List all teams
+curl -X GET http://localhost:3000/api/v1/teams \
+  -H "Authorization: Bearer <admin-token>"
 
-  New Employee Onboarding
+# View team members
+curl -X GET http://localhost:3000/api/v1/teams/delhi-team-uuid/members \
+  -H "Authorization: Bearer <supervisor-token>"
 
-  1. User Created: Has system role (e.g., TEAM_MEMBER)
-  2. No Projects Yet: Can see project catalog but can't access details
-  3. Manager Assigns: Added to first project with specific role
-  4. Access Gained: Can now participate in assigned projects
+# View team devices
+curl -X GET http://localhost:3000/api/v1/teams/delhi-team-uuid/devices \
+  -H "Authorization: Bearer <supervisor-token>"
+```
 
-  Between Project Assignments
+#### 7.2 Verify User Permissions
 
-  1. Project Ends: User removed from all active projects
-  2. Limited Access: Still has login and basic navigation
-  3. Can See: Available projects catalog (if system role allows)
-  4. Cannot Act: Cannot create, edit, or manage any projects
+```bash
+# Check current user permissions
+curl -X GET http://localhost:3000/api/v1/auth/whoami \
+  -H "Authorization: Bearer <user-token>"
 
-  System Administrators
+# Test specific permissions
+curl -X GET http://localhost:3000/api/v1/projects \
+  -H "Authorization: Bearer <team-member-token>"
 
-  1. Always Has Access: Can create new projects
-  2. Can Assign Self: Can assign themselves to any project
-  3. Full Control: Once assigned, has full project management capabilities
+# Attempt restricted operation (should fail)
+curl -X DELETE http://localhost:3000/api/v1/projects/project-uuid \
+  -H "Authorization: Bearer <team-member-token>"
+# Expected: 403 Forbidden
+```
 
-  ⚠️ Important Considerations
+#### 7.3 Database Verification
 
-  User Experience
+```sql
+-- Verify organizational structure
+SELECT
+  o.name as organization,
+  t.name as team,
+  u.full_name as user_name,
+  u.role as user_role,
+  COUNT(d.id) as device_count
+FROM organizations o
+LEFT JOIN teams t ON t.organization_id = o.id
+LEFT JOIN users u ON u.team_id = t.id
+LEFT JOIN devices d ON d.assigned_user_id = u.id
+GROUP BY o.id, t.id, u.id
+ORDER BY o.name, t.name, u.full_name;
 
-  - No Breaking: Users don't get errors, just empty results
-  - Clear Messaging: API responses clearly indicate access limitations
-  - Graceful Degradation: System remains usable even without projects
+-- Verify project assignments
+SELECT
+  p.title as project,
+  u.full_name as user_name,
+  u.role as user_role,
+  pm.assigned_at,
+  pm.is_active
+FROM projects p
+JOIN project_members pm ON pm.project_id = p.id
+JOIN users u ON pm.user_id = u.id
+WHERE p.is_active = true
+ORDER BY p.title, u.full_name;
+```
 
-  Security
+### Step 8: User Access Testing
 
-  - Principle of Least Privilege: No access until explicitly granted
-  - Audit Trail: All access attempts are logged
-  - Role Boundaries: System roles provide baseline, project assignments provide additional access
+#### 8.1 Test System Administrator Access
 
-  Administrative
+```bash
+# Login as system admin
+curl -X POST http://localhost:3000/api/v1/web-admin/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@surveylauncher.aiims",
+    "password": "admin123456"
+  }'
 
-  - Easy Management: Users can be created without immediate project assignment
-  - Flexibility: Projects can be created independently of user assignments
-  - Monitoring: Admins can see users without projects and assign them appropriately
+# Test full system access
+curl -X GET http://localhost:3000/api/v1/users
+curl -X GET http://localhost:3000/api/v1/teams
+curl -X GET http://localhost:3000/api/v1/projects
+curl -X GET http://localhost:3000/api/v1/devices
+curl -X GET http://localhost:3000/api/v1/audit-logs
+```
 
-  This design ensures that users are never "stuck" - they always have some level of access based on their system role, but project-specific actions 
-  require explicit assignment, maintaining security and clarity.
+#### 8.2 Test Regional Manager Access
 
+```bash
+# Login as regional manager
+curl -X POST http://localhost:3000/api/v1/web-admin/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "delhi.manager@surveylauncher.aiims",
+    "password": "manager123456"
+  }'
+
+# Test regional access
+curl -X GET http://localhost:3000/api/v1/teams/region/DELHI
+curl -X GET http://localhost:3000/api/v1/projects/region/DELHI
+curl -X POST http://localhost:3000/api/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullName": "New Team Member",
+    "role": "TEAM_MEMBER",
+    "teamId": "delhi-team-uuid"
+  }'
+```
+
+#### 8.3 Test Field Supervisor Access
+
+```bash
+# Test device management
+curl -X GET http://localhost:3000/api/v1/devices/team/delhi-team-uuid
+curl -X POST http://localhost:3000/api/v1/devices \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Field Tablet",
+    "androidId": "android_new_device",
+    "teamId": "delhi-team-uuid"
+  }'
+
+# Test team member management
+curl -X GET http://localhost:3000/api/v1/users/team/delhi-team-uuid
+curl -X PUT http://localhost:3000/api/v1/users/maria-uuid-789 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "phone": "+91-98765-54321"
+  }'
+```
+
+#### 8.4 Test Team Member Access
+
+```bash
+# Test limited access
+curl -X GET http://localhost:3000/api/v1/projects/my
+curl -X GET http://localhost:3000/api/v1/devices/assigned
+curl -X GET http://localhost:3000/api/v1/teams/my
+
+# Attempt restricted operations (should fail)
+curl -X POST http://localhost:3000/api/v1/projects
+curl -X DELETE http://localhost:3000/api/v1/devices/device-uuid
+# Expected: 403 Forbidden for all
+```
+
+### 📋 Setup Checklist
+
+#### ✅ System Configuration
+- [ ] Database migrated and roles seeded
+- [ ] System administrator account created
+- [ ] Organization registered
+- [ ] Security policies configured
+
+#### ✅ Organizational Structure
+- [ ] Regional teams created
+- [ ] Team supervisors assigned
+- [ ] Team members created and assigned to teams
+- [ ] Team hierarchy verified
+
+#### ✅ Project Management
+- [ ] National project created
+- [ ] Regional projects established
+- [ ] Users assigned to appropriate projects
+- [ ] Project permissions verified
+
+#### ✅ Device Management
+- [ ] Android devices registered
+- [ ] Device policies configured
+- [ ] Device-user assignments completed
+- [ ] Device access tested
+
+#### ✅ Access Verification
+- [ ] All user roles can login successfully
+- [ ] Permissions working correctly for each role
+- [ ] Restricted operations properly blocked
+- [ ] Audit logs capturing all access attempts
+
+This comprehensive setup guide ensures a properly configured SurveyLauncher system with clear role separation, appropriate access controls, and verified functionality across all user levels.
+
+This RBAC system provides enterprise-grade access control while maintaining flexibility for the diverse needs of survey project management across different organizational levels and geographic scopes.
