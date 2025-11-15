@@ -1,39 +1,36 @@
-##  Backened Service
+# SurveyLauncher - Complete Mobile Device Management System
 
-Complete Backend Functionality Overview
+## High-Level Functionality
 
-🔐 Authentication System (Full Implementation)
+SurveyLauncher is an enterprise-grade mobile device management (MDM) platform designed for field operations with comprehensive authentication, policy enforcement, and real-time telemetry collection.
 
-- Multi-factor auth: Device ID + User Code + PIN verification
-- JWT Token management: Access (20min), Refresh (12hr), Override (2hr) tokens
-- PIN Security: Scrypt hashing, lockout after 5 failed attempts (5min-1hr backoff)
-- Session Management: Complete lifecycle with timeout and override support
-- Rate Limiting: 5 login attempts/15min per device+IP
+### **🎯 Core Capabilities**
 
-📋 Policy Management (Production Ready)
+#### **📱 Mobile Application (Android)**
+- **Kiosk Mode Launcher**: Custom Android launcher that controls device access
+- **Multi-Factor Authentication**: Device ID + User Code + PIN verification
+- **GPS Telemetry**: Real-time location tracking with configurable intervals
+- **Policy Enforcement**: Time window controls and access restrictions
+- **Offline Support**: Secure local caching with sync capabilities
 
-- JWS-signed policies: Ed25519 cryptographic signatures
-- Time window enforcement: Mon-Fri 08:00-19:30, Sat 09:00-15:00 (Asia/Kolkata)
-- Grace periods: 10-minute session grace
-- Supervisor override: 120-minute extension capability
-- GPS configuration: 3-min intervals, 50m displacement requirement
-- Policy validation: Clock skew protection (±180 seconds)
+#### **🌐 Web Admin Dashboard**
+- **User Management**: Complete CRUD operations for users and devices
+- **Team Organization**: Hierarchical team structure with geographic scoping
+- **Real-time Monitoring**: Live GPS tracking and device status
+- **Analytics & Reporting**: Comprehensive dashboards and compliance reports
+- **Policy Configuration**: Visual management of access rules and schedules
 
-📡 Telemetry Collection (Comprehensive)
+#### **🔐 Enterprise Security**
+- **9-Role RBAC System**: Granular access control with role-based permissions
+- **Dual Interface Architecture**: Separate authentication for mobile and web
+- **Cryptographic Security**: Ed25519 signed policies and Argon2id password hashing
+- **Audit Logging**: Complete activity tracking and compliance monitoring
 
-- Event types: Heartbeat, GPS, app_usage, battery, network, errors
-- Batch processing: Up to 50 events per batch
-- Validation: GPS coordinates, battery ranges, timestamp validation
-- Device tracking: Automatic lastSeen/lastGps updates
-- 24-hour retention: Configurable data cleanup
-
-👨‍💼 Supervisor Override System
-
-- Separate PIN auth: Different from user PINs
-- Override tokens: 2-hour validity
-- Audit logging: Complete override tracking
-- Team-specific: Supervisor access per team
-
+#### **📊 Data & Analytics**
+- **Telemetry Pipeline**: Batch processing of GPS, heartbeat, and system events
+- **Geographic Scope Management**: Local, regional, and national access levels
+- **Performance Monitoring**: Device health metrics and usage analytics
+- **Compliance Reporting**: Automated reporting for audit and regulatory requirements
 
 
 ## 📖 **User Documentation & Support**
@@ -96,7 +93,45 @@ Each documentation file includes:
 - **Security considerations** and compliance requirements
 - **Performance metrics** and monitoring guidelines
 
-## TECHINCAL
+# TECHINCAL
+
+##  Backened Service
+
+Complete Backend Functionality Overview
+
+🔐 Authentication System (Full Implementation)
+
+- Multi-factor auth: Device ID + User Code + PIN verification
+- JWT Token management: Access (20min), Refresh (12hr), Override (2hr) tokens
+- PIN Security: Scrypt hashing, lockout after 5 failed attempts (5min-1hr backoff)
+- Session Management: Complete lifecycle with timeout and override support
+- Rate Limiting: 5 login attempts/15min per device+IP
+
+📋 Policy Management (Production Ready)
+
+- JWS-signed policies: Ed25519 cryptographic signatures
+- Time window enforcement: Mon-Fri 08:00-19:30, Sat 09:00-15:00 (Asia/Kolkata)
+- Grace periods: 10-minute session grace
+- Supervisor override: 120-minute extension capability
+- GPS configuration: 3-min intervals, 50m displacement requirement
+- Policy validation: Clock skew protection (±180 seconds)
+
+📡 Telemetry Collection (Comprehensive)
+
+- Event types: Heartbeat, GPS, app_usage, battery, network, errors
+- Batch processing: Up to 50 events per batch
+- Validation: GPS coordinates, battery ranges, timestamp validation
+- Device tracking: Automatic lastSeen/lastGps updates
+- 24-hour retention: Configurable data cleanup
+
+👨‍💼 Supervisor Override System
+
+- Separate PIN auth: Different from user PINs
+- Override tokens: 2-hour validity
+- Audit logging: Complete override tracking
+- Team-specific: Supervisor access per team
+
+
 
 🗄️ Database Schema (Complete - PostgreSQL)
 
