@@ -33,6 +33,57 @@ SurveyLauncher is an enterprise-grade mobile device management (MDM) platform de
 - **Compliance Reporting**: Automated reporting for audit and regulatory requirements
 
 
+
+## SurveyLauncher High-Level System Overview
+
+```mermaid
+flowchart TB
+    subgraph "Mobile Layer" ["Mobile Layer - Field Operations"]
+        A1["Android Launcher App<br/>Device + User + PIN Auth<br/>Role-Based Access Control<br/>GPS Telemetry<br/>Policy Enforcement"]
+        A2["Mobile App Users<br/>TEAM_MEMBERS<br/>FIELD_SUPERVISORS<br/>REGIONAL_MANAGERS"]
+    end
+
+    subgraph "Web Admin Layer" ["Web Admin Layer - Management Operations"]
+        C1["Admin Dashboard<br/>SvelteKit 5 + TailwindCSS<br/>Email + Password Auth<br/>Role Enforcement<br/>User/Device Management"]
+        C2["Web Admin Users<br/>FIELD_SUPERVISORS<br/>REGIONAL_MANAGERS<br/>SYSTEM_ADMINS<br/>SUPPORT_AGENTS<br/>AUDITORS<br/>DEVICE_MANAGERS<br/>POLICY_ADMINS<br/>NATIONAL_SUPPORT_ADMINS"]
+    end
+
+    subgraph "API Layer" ["API Layer - Dual Interface Support"]
+        B1["Backend Service<br/>SvelteKit API<br/>Mobile App APIs (/api/v1/)<br/>Web Admin APIs (/api/web-admin/)<br/>9-Role RBAC<br/>JWT Authentication<br/>JWS Policy Signing"]
+        B2["Authentication Services<br/>Mobile App Auth Service<br/>Web Admin Auth Service<br/>Role Validation<br/>Session Management"]
+    end
+
+    subgraph "Data Layer" ["Data Layer - PostgreSQL"]
+        D1["PostgreSQL Database<br/>Drizzle ORM<br/>Users Table (Mobile)<br/>Web Admin Users Table (Web)<br/>9-Role System<br/>Session Management<br/>Audit Logging"]
+        D2["Access Control<br/>Role-Based Permissions<br/>Interface Separation<br/>Geographic Scoping<br/>Cross-Team Access Rules"]
+    end
+
+    %% Interconnections
+    A1 <-->|"HTTPS + JWT<br/>Device + User + PIN"| B1
+    C1 <-->|"HTTPS + HTTP-Only Cookies<br/>Email + Password"| B1
+    B1 <-->|"ORM Queries"| D1
+    A2 -.-> A1
+    C2 -.-> C1
+    B2 -.-> B1
+    D2 -.-> D1
+
+    %% External Services
+    E1["External Services<br/>NTP Time Sync<br/>GPS Satellites<br/>Certificate Authority"] --> A1
+    E1 --> B1
+
+    %% Styling
+    style A1 fill:#e3f2fd
+    style A2 fill:#bbdefb
+    style C1 fill:#e8f5e8
+    style C2 fill:#c8e6c9
+    style B1 fill:#f3e5f5
+    style B2 fill:#e1bee7
+    style D1 fill:#fff8e1
+    style D2 fill:#ffecb3
+    style E1 fill:#fbe9e7
+```
+
+
 ## 📖 **User Documentation & Support**
 
 ### **🎯 Quick Start for Users**
@@ -93,9 +144,9 @@ Each documentation file includes:
 - **Security considerations** and compliance requirements
 - **Performance metrics** and monitoring guidelines
 
-# TECHINCAL
+# TECHNICAL
 
-##  Backened Service
+##  Backend Service
 
 Complete Backend Functionality Overview
 
@@ -195,55 +246,6 @@ Sample Credentials (for testing)
 
 
 ### System Architecture & Workflow
-
-## SurveyLauncher High-Level System Overview
-
-```mermaid
-flowchart TB
-    subgraph "Mobile Layer" ["Mobile Layer - Field Operations"]
-        A1["Android Launcher App<br/>Device + User + PIN Auth<br/>Role-Based Access Control<br/>GPS Telemetry<br/>Policy Enforcement"]
-        A2["Mobile App Users<br/>TEAM_MEMBERS<br/>FIELD_SUPERVISORS<br/>REGIONAL_MANAGERS"]
-    end
-
-    subgraph "Web Admin Layer" ["Web Admin Layer - Management Operations"]
-        C1["Admin Dashboard<br/>SvelteKit 5 + TailwindCSS<br/>Email + Password Auth<br/>Role Enforcement<br/>User/Device Management"]
-        C2["Web Admin Users<br/>FIELD_SUPERVISORS<br/>REGIONAL_MANAGERS<br/>SYSTEM_ADMINS<br/>SUPPORT_AGENTS<br/>AUDITORS<br/>DEVICE_MANAGERS<br/>POLICY_ADMINS<br/>NATIONAL_SUPPORT_ADMINS"]
-    end
-
-    subgraph "API Layer" ["API Layer - Dual Interface Support"]
-        B1["Backend Service<br/>SvelteKit API<br/>Mobile App APIs (/api/v1/)<br/>Web Admin APIs (/api/web-admin/)<br/>9-Role RBAC<br/>JWT Authentication<br/>JWS Policy Signing"]
-        B2["Authentication Services<br/>Mobile App Auth Service<br/>Web Admin Auth Service<br/>Role Validation<br/>Session Management"]
-    end
-
-    subgraph "Data Layer" ["Data Layer - PostgreSQL"]
-        D1["PostgreSQL Database<br/>Drizzle ORM<br/>Users Table (Mobile)<br/>Web Admin Users Table (Web)<br/>9-Role System<br/>Session Management<br/>Audit Logging"]
-        D2["Access Control<br/>Role-Based Permissions<br/>Interface Separation<br/>Geographic Scoping<br/>Cross-Team Access Rules"]
-    end
-
-    %% Interconnections
-    A1 <-->|"HTTPS + JWT<br/>Device + User + PIN"| B1
-    C1 <-->|"HTTPS + HTTP-Only Cookies<br/>Email + Password"| B1
-    B1 <-->|"ORM Queries"| D1
-    A2 -.-> A1
-    C2 -.-> C1
-    B2 -.-> B1
-    D2 -.-> D1
-
-    %% External Services
-    E1["External Services<br/>NTP Time Sync<br/>GPS Satellites<br/>Certificate Authority"] --> A1
-    E1 --> B1
-
-    %% Styling
-    style A1 fill:#e3f2fd
-    style A2 fill:#bbdefb
-    style C1 fill:#e8f5e8
-    style C2 fill:#c8e6c9
-    style B1 fill:#f3e5f5
-    style B2 fill:#e1bee7
-    style D1 fill:#fff8e1
-    style D2 fill:#ffecb3
-    style E1 fill:#fbe9e7
-```
 
 ## Detailed Process Flows
 
