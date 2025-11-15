@@ -101,37 +101,37 @@ Sample Credentials (for testing)
 
 ```mermaid
 flowchart TB
-    subgraph "Mobile Layer" [Mobile Layer - Field Operations]
-        A1[Android Launcher App• Device + User + PIN Auth• Role-Based Access Control• GPS Telemetry• Policy Enforcement]
-        A2[Mobile App Users• TEAM_MEMBERS• FIELD_SUPERVISORS• REGIONAL_MANAGERS]
+    subgraph "Mobile Layer" ["Mobile Layer - Field Operations"]
+        A1["Android Launcher App<br/>Device + User + PIN Auth<br/>Role-Based Access Control<br/>GPS Telemetry<br/>Policy Enforcement"]
+        A2["Mobile App Users<br/>TEAM_MEMBERS<br/>FIELD_SUPERVISORS<br/>REGIONAL_MANAGERS"]
     end
 
-    subgraph "Web Admin Layer" [Web Admin Layer - Management Operations]
-        C1[Admin DashboardSvelteKit 5 + TailwindCSS• Email + Password Auth• Role Enforcement• User/Device Management]
-        C2[Web Admin Users• FIELD_SUPERVISORS• REGIONAL_MANAGERS• SYSTEM_ADMINS• SUPPORT_AGENTS• AUDITORS• DEVICE_MANAGERS• POLICY_ADMINS• NATIONAL_SUPPORT_ADMINS]
+    subgraph "Web Admin Layer" ["Web Admin Layer - Management Operations"]
+        C1["Admin Dashboard<br/>SvelteKit 5 + TailwindCSS<br/>Email + Password Auth<br/>Role Enforcement<br/>User/Device Management"]
+        C2["Web Admin Users<br/>FIELD_SUPERVISORS<br/>REGIONAL_MANAGERS<br/>SYSTEM_ADMINS<br/>SUPPORT_AGENTS<br/>AUDITORS<br/>DEVICE_MANAGERS<br/>POLICY_ADMINS<br/>NATIONAL_SUPPORT_ADMINS"]
     end
 
-    subgraph "API Layer" [API Layer - Dual Interface Support]
-        B1[Backend ServiceSvelteKit API• Mobile App APIs (/api/v1/)• Web Admin APIs (/api/web-admin/)• 9-Role RBAC• JWT Authentication• JWS Policy Signing]
-        B2[Authentication Services• Mobile App Auth Service• Web Admin Auth Service• Role Validation• Session Management]
+    subgraph "API Layer" ["API Layer - Dual Interface Support"]
+        B1["Backend Service<br/>SvelteKit API<br/>Mobile App APIs (/api/v1/)<br/>Web Admin APIs (/api/web-admin/)<br/>9-Role RBAC<br/>JWT Authentication<br/>JWS Policy Signing"]
+        B2["Authentication Services<br/>Mobile App Auth Service<br/>Web Admin Auth Service<br/>Role Validation<br/>Session Management"]
     end
 
-    subgraph "Data Layer" [Data Layer - PostgreSQL]
-        D1[PostgreSQL DatabaseDrizzle ORM• Users Table (Mobile)• Web Admin Users Table (Web)• 9-Role System• Session Management• Audit Logging]
-        D2[Access Control• Role-Based Permissions• Interface Separation• Geographic Scoping• Cross-Team Access Rules]
+    subgraph "Data Layer" ["Data Layer - PostgreSQL"]
+        D1["PostgreSQL Database<br/>Drizzle ORM<br/>Users Table (Mobile)<br/>Web Admin Users Table (Web)<br/>9-Role System<br/>Session Management<br/>Audit Logging"]
+        D2["Access Control<br/>Role-Based Permissions<br/>Interface Separation<br/>Geographic Scoping<br/>Cross-Team Access Rules"]
     end
 
     %% Interconnections
-    A1 <-->|HTTPS + JWT<br/>Device + User + PIN| B1
-    C1 <-->|HTTPS + HTTP-Only Cookies<br/>Email + Password| B1
-    B1 <-->|ORM Queries| D1
+    A1 <-->|"HTTPS + JWT<br/>Device + User + PIN"| B1
+    C1 <-->|"HTTPS + HTTP-Only Cookies<br/>Email + Password"| B1
+    B1 <-->|"ORM Queries"| D1
     A2 -.-> A1
     C2 -.-> C1
     B2 -.-> B1
     D2 -.-> D1
 
     %% External Services
-    E1[External Services• NTP Time Sync• GPS Satellites• Certificate Authority] --> A1
+    E1["External Services<br/>NTP Time Sync<br/>GPS Satellites<br/>Certificate Authority"] --> A1
     E1 --> B1
 
     %% Styling
