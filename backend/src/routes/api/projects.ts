@@ -98,7 +98,17 @@ router.use((req, res, next) => {
   }
 
   // Fall back to regular authentication only if not web admin
-  authenticateToken(req, res, next);
+  authenticateToken(req, res, next).catch((error) => {
+    console.error('Authentication failed:', error);
+    return res.status(401).json({
+      ok: false,
+      error: {
+        code: 'UNAUTHORIZED',
+        message: 'Authentication failed',
+        request_id: req.headers['x-request-id']
+      }
+    });
+  });
 });
 
 // Validation schemas

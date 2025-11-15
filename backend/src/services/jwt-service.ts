@@ -63,7 +63,7 @@ export class JWTService {
         result = await this.createOverrideToken(payload);
         break;
       default:
-        throw new Error(`Invalid token type: ${type}`);
+        throw new Error(`Invalid token type: ${String(type)}`);
     }
 
     return {
@@ -149,7 +149,7 @@ export class JWTService {
         throw new Error('Session not found');
       }
 
-      const sessionData = session[0];
+      // Session data available if needed: const sessionData = session[0];
 
       // Mark session as ended
       await db.update(sessions)
@@ -277,7 +277,7 @@ export class JWTService {
    */
   private static async cleanupExpiredRevocations(): Promise<void> {
     try {
-      const now = nowUTC();
+      // Current timestamp available for cleanup: const now = nowUTC();
       await db.delete(jwtRevocations)
         .where(and(
           // You might need to adjust this based on your database capabilities

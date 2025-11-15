@@ -60,6 +60,8 @@
     "@vitest/ui": "^4.0.8",
     "drizzle-kit": "^0.31.6",
     "eslint": "^9.39.1",
+    "oxlint": "^1.28.0",
+    "oxlint-tsgolint": "^0.6.0",
     "pg": "^8.16.3",
     "supertest": "^7.1.4",
     "tsx": "^4.20.6",

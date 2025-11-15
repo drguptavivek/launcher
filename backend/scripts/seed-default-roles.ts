@@ -209,6 +209,7 @@ async function seedDefaultRoles() {
           const permissionId = uuidv4();
           await db.insert(permissions).values({
             id: permissionId,
+            name: permissionKey, // Add missing name field
             resource: perm.resource,
             action: perm.action,
             description: `${perm.action} access to ${perm.resource}`,

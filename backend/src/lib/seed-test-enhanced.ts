@@ -160,7 +160,7 @@ async function generateDevices(teams: any[], devicesPerTeam: number) {
       const deviceData = {
         id: uuidv4(),
         teamId: team.id,
-        name: `${manufacturer} ${model} (${faker.helpers.arrayElement(['Primary', 'Backup', 'Test', 'Demo'])} Device)`,
+        name: `${String(manufacturer)} ${String(model)} (${faker.helpers.arrayElement(['Primary', 'Backup', 'Test', 'Demo'])} Device)`,
         androidId: faker.string.alphanumeric({ length: 16 }).toLowerCase(),
         appVersion: faker.helpers.arrayElement(['1.0.0', '1.0.1', '1.1.0', '1.1.1', '1.2.0', '1.2.1', '2.0.0-beta']),
         isActive: Math.random() < 0.9, // 90% active

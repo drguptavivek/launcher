@@ -19,9 +19,12 @@ function generateJWTSecret(): string {
 }
 
 function generatePolicyKey() {
-  const keyPair = nacl.sign.keyPair();
+  // Generate a 32-byte random seed
+  const seed = nacl.randomBytes(32);
+  // Create key pair from seed
+  const keyPair = nacl.sign.keyPair.fromSeed(seed);
   return {
-    privateKey: Buffer.from(keyPair.secretKey).toString('base64'),
+    privateKey: Buffer.from(seed).toString('base64'), // 32-byte seed only
     publicKey: Buffer.from(keyPair.publicKey).toString('base64'),
   };
 }
@@ -40,7 +43,7 @@ function main() {
       const policyKey = generatePolicyKey();
       console.log('🔑 Ed25519 Policy Key Generated:');
       console.log('POLICY_SIGN_PRIVATE_BASE64:', policyKey.privateKey);
-      console.log('POLICY_SIGN_PUBLIC_BASE64:', policyKey.privateKey);
+      console.log('POLICY_SIGN_PUBLIC_BASE64:', policyKey.publicKey);
       break;
 
     default:

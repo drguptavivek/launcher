@@ -41,7 +41,7 @@ router.post('/override/login', async (req, res) => {
       });
     }
 
-    const teamId = device[0].teamId;
+    // Team ID available for logging/auditing: const teamId = device[0].teamId;
     const result = await AuthService.supervisorOverride(
       { supervisorPin: supervisor_pin, deviceId },
       ipAddress

@@ -21,7 +21,7 @@ router.post('/', async (req, res) => {
     }
 
     const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown';
-    const userAgent = req.headers['user-agent'] || 'Unknown';
+    // User agent available for future analytics: const userAgent = req.headers['user-agent'] || 'Unknown';
 
     const result = await TelemetryService.ingestBatch({
       events,

@@ -60,11 +60,27 @@ export enum UserRole {
   // Specialized Roles
   DEVICE_MANAGER = 'DEVICE_MANAGER',
   POLICY_ADMIN = 'POLICY_ADMIN',
-  NATIONAL_SUPPORT_ADMIN = 'NATIONAL_SUPPORT_ADMIN',
+  NATIONAL_SUPPORT_ADMIN = 'NATIONAL_SUPPORT_ADMIN'
+}
 
-  // Legacy compatibility mappings
-  SUPERVISOR = 'FIELD_SUPERVISOR', // Map legacy SUPERVISOR to FIELD_SUPERVISOR
-  ADMIN = 'SYSTEM_ADMIN' // Map legacy ADMIN to SYSTEM_ADMIN
+// Legacy compatibility mappings - using constants instead of enum duplicates
+export const LEGACY_ROLE_MAPPING = {
+  SUPERVISOR: UserRole.FIELD_SUPERVISOR,
+  ADMIN: UserRole.SYSTEM_ADMIN
+} as const;
+
+// Helper functions for backward compatibility
+export function getRoleFromLegacyRole(legacyRole: string): UserRole | null {
+  switch (legacyRole) {
+    case 'SUPERVISOR':
+      return UserRole.FIELD_SUPERVISOR;
+    case 'ADMIN':
+      return UserRole.SYSTEM_ADMIN;
+    default:
+      return Object.values(UserRole).includes(legacyRole as UserRole)
+        ? legacyRole as UserRole
+        : null;
+  }
 }
 
 export enum Resource {
@@ -95,7 +111,7 @@ export enum Action {
 }
 
 // Role-based access control matrix - Updated for 9-role system with complete resource coverage
-const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
+export const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
   // Field Operations Roles
   [UserRole.TEAM_MEMBER]: {
     [Resource.TEAMS]: [Action.READ, Action.LIST],
@@ -234,6 +250,36 @@ const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.PROJECTS]: [Action.MANAGE] // Full national access
   }
 };
+
+/**
+ * Check if a user role has permission for a specific action on a resource
+ * @param role - User role to check
+ * @param resource - Resource to access
+ * @param action - Action to perform
+ * @returns True if user has permission, false otherwise
+ */
+export function hasPermission(role: UserRole, resource: Resource, action: Action): boolean {
+  const rolePermissions = RBAC_MATRIX[role];
+  if (!rolePermissions) {
+    return false;
+  }
+
+  const resourcePermissions = rolePermissions[resource];
+  if (!resourcePermissions) {
+    return false;
+  }
+
+  return resourcePermissions.includes(action);
+}
+
+/**
+ * Get all permissions for a user role
+ * @param role - User role
+ * @returns Object with all resources and their allowed actions
+ */
+export function getRolePermissions(role: UserRole): Record<Resource, Action[]> {
+  return RBAC_MATRIX[role] || {};
+}
 
 /**
  * Enhanced user context with multi-role support and effective permissions

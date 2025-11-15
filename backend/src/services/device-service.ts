@@ -1,5 +1,5 @@
 import { eq, and, like, desc, count, ne } from 'drizzle-orm';
-import { db, devices, teams, users } from '../lib/db';
+import { db, devices, teams } from '../lib/db';
 import { NewDevice, Device } from '../lib/db/schema';
 import { logger } from '../lib/logger';
 import { randomUUID } from 'crypto';

@@ -503,7 +503,7 @@ export class AuthService {
     request: SupervisorOverrideRequest,
     ipAddress: string
   ): Promise<SupervisorOverrideResult> {
-    const { supervisorPin, deviceId } = request;
+    const { deviceId } = request; // supervisorPin extracted in validation below
 
     try {
       // Check rate limiting for supervisor PIN attempts
@@ -627,7 +627,7 @@ export class AuthService {
     userId: string | null,
     success: boolean,
     ipAddress: string,
-    reason: string
+    _reason: string // Reason parameter available for future audit logging
   ): Promise<void> {
     // Only record attempts when we have a valid userId
     // pin_attempts table requires userId to be non-null

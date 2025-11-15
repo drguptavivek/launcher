@@ -4,12 +4,7 @@ import { logger } from '../lib/logger';
 import {
   Role,
   Permission,
-  UserRoleAssignment,
-  PermissionCache,
-  userRoleEnum,
-  permissionScopeEnum,
-  permissionActionEnum,
-  resourceTypeEnum
+  UserRoleAssignment
 } from '../lib/db/schema';
 import {
   eq,
@@ -17,7 +12,6 @@ import {
   or,
   inArray,
   isNull,
-  not,
   lt,
   gt,
   desc,
