@@ -78,7 +78,7 @@ export interface CreateWebAdminUserResponse {
  * Web Admin login with email and password
  * POST /api/web-admin/auth/login
  */
-export const webAdminLogin = form(async (credentials: WebAdminLoginRequest) => {
+export const webAdminLogin = form(async (credentials) => {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/web-admin/auth/login`, {
 			method: 'POST',
@@ -223,7 +223,7 @@ export const refreshWebAdminToken = query(async () => {
  * Create a new Web Admin user (for initial setup)
  * POST /api/web-admin/auth/create-admin
  */
-export const createWebAdminUser = form(async (userData: CreateWebAdminUserRequest) => {
+export const createWebAdminUser = form(async (userData) => {
 	try {
 		const response = await fetch(`${API_BASE_URL}/api/web-admin/auth/create-admin`, {
 			method: 'POST',

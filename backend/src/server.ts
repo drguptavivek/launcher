@@ -6,6 +6,8 @@ import compression from 'compression';
 import { v4 as uuidv4 } from 'uuid';
 import { env } from './lib/config';
 import { logger } from './lib/logger';
+import { swaggerSpec, swaggerUiOptions } from './lib/swagger';
+import swaggerUi from 'swagger-ui-express';
 
 // Create Express app
 const app = express();
@@ -54,13 +56,45 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
+// Swagger UI documentation
+app.use('/api-docs', (req, res, next) => {
+  // Enable CORS for Swagger UI
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  next();
+}, swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+
+// OpenAPI JSON specification endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.header('Access-Control-Allow-Origin', '*');
+  res.send(swaggerSpec);
+});
+
+// API routes - use modular structure
 app.use('/api/v1', async (req, res, next) => {
   try {
-    // Use real API routes
-    const { apiRouter } = await import('./routes/api');
+    // Use modular API routes
+    const { apiRouter } = await import('./routes/api/index');
     apiRouter(req, res, next);
   } catch (error) {
+    logger.error('API router error', {
+      error: error.message,
+      stack: error.stack
+    });
+    next(error);
+  }
+});
+
+// Web Admin API routes
+app.use('/api/web-admin', async (req, res, next) => {
+  try {
+    // Use web admin API routes
+    const { webAdminApiRouter } = await import('./routes/web-admin-api');
+    webAdminApiRouter(req, res, next);
+  } catch (error) {
+    logger.error('Web Admin API router error', { error: error.message });
     next(error);
   }
 });

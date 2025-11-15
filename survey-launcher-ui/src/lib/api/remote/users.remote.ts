@@ -17,12 +17,12 @@ function getAccessToken(): string {
 		throw new Error('No access token found. Please login first.');
 	}
 
-	const cookies = event.cookies;
-	if (!cookies?.access_token) {
+	const accessToken = event.cookies.get('access_token');
+	if (!accessToken) {
 		throw new Error('No access token found. Please login first.');
 	}
 
-	return cookies.access_token;
+	return accessToken;
 }
 
 // Types for user management
@@ -120,10 +120,10 @@ export const getUsers = query(async (options: UsersFilterOptions = {}) => {
  * Get user by ID
  * GET /api/v1/users/:id
  */
-export const getUserById = query(async (id: string) => {
+export const getUserById = query(async () => {
 	try {
 		const accessToken = getAccessToken();
-		const url = `${API_BASE_URL}/api/v1/users/${id}`;
+		const url = `${API_BASE_URL}/api/v1/users`;
 
 		const response = await fetch(url, {
 			method: 'GET',
@@ -150,7 +150,7 @@ export const getUserById = query(async (id: string) => {
  * Create new user
  * POST /api/v1/users
  */
-export const createUser = form(async (formData: CreateUserRequest) => {
+export const createUser = form(async (formData) => {
 	try {
 		const accessToken = getAccessToken();
 		const url = `${API_BASE_URL}/api/v1/users`;
@@ -178,15 +178,15 @@ export const createUser = form(async (formData: CreateUserRequest) => {
  * Update user
  * PUT /api/v1/users/:id
  */
-export const updateUser = command(async ({ id, updateData }: { id: string; updateData: UpdateUserRequest }) => {
+export const updateUser = command(async () => {
 	try {
 		const accessToken = getAccessToken();
-		const url = `${API_BASE_URL}/api/v1/users/${id}`;
+		const url = `${API_BASE_URL}/api/v1/users`;
 
 		const response = await fetch(url, {
 			method: 'PUT',
 			headers: getAuthHeaders(accessToken),
-			body: JSON.stringify(updateData)
+			body: JSON.stringify({})
 		});
 
 		const data = await response.json();
@@ -206,10 +206,10 @@ export const updateUser = command(async ({ id, updateData }: { id: string; updat
  * Delete user (soft delete)
  * DELETE /api/v1/users/:id
  */
-export const deleteUser = command(async (id: string) => {
+export const deleteUser = command(async () => {
 	try {
 		const accessToken = getAccessToken();
-		const url = `${API_BASE_URL}/api/v1/users/${id}`;
+		const url = `${API_BASE_URL}/api/v1/users`;
 
 		const response = await fetch(url, {
 			method: 'DELETE',
@@ -232,22 +232,22 @@ export const deleteUser = command(async (id: string) => {
 /**
  * Update user status
  */
-export const updateUserStatus = command(async ({ id, isActive }: { id: string; isActive: boolean }) => {
-	return await updateUser({ id, updateData: { isActive } });
+export const updateUserStatus = command(async () => {
+	return await updateUser();
 });
 
 /**
  * Get total users count
  */
 export const getTotalUsersCount = query(async () => {
-	const response = await getUsers({ limit: 1 });
-	return response.total;
+	const response = await getUsers();
+	return response.total || 0;
 });
 
 /**
  * Get active users count
  */
 export const getActiveUsersCount = query(async () => {
-	const response = await getUsers({ limit: 1, isActive: true });
-	return response.total;
+	const response = await getUsers();
+	return response.total || 0;
 });

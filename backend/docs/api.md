@@ -8,11 +8,29 @@ The SurveyLauncher backend provides a comprehensive REST API with two distinct i
 
 The API follows a consistent JSON format with proper error handling and response structures, implementing enterprise-grade role-based access control (RBAC) with nine specialized roles.
 
+## 🚀 Interactive API Documentation
+
+### Swagger UI (Recommended)
+- **URL**: http://localhost:3000/api-docs
+- **Description**: Interactive API documentation with testing capabilities
+- **Features**:
+  - Try out endpoints directly from your browser
+  - View request/response schemas
+  - Authentication support (Bearer tokens and cookies)
+  - Real-time API testing
+  - Download OpenAPI specification
+
+### OpenAPI Specification
+- **JSON**: http://localhost:3000/api-docs.json
+- **YAML**: [openapi.yaml](../openapi.yaml)
+- **Usage**: Import into Postman, Insomnia, or other API clients
+
 ## Base URLs
 
 ```
 Mobile App API: http://localhost:3000/api/v1
 Web Admin API:  http://localhost:3000/api/web-admin
+Swagger UI:     http://localhost:3000/api-docs
 ```
 
 ## Development
@@ -22,7 +40,16 @@ Web Admin API:  http://localhost:3000/api/web-admin
 npm run dev
 ```
 
-The server runs with full PostgreSQL database implementation and all authentication/policy features enabled. For development setup instructions, see the database setup section below.
+The server runs with full PostgreSQL database implementation and all authentication/policy features enabled. Interactive documentation is available at `/api-docs` once the server starts.
+
+### Quick API Testing
+
+1. **Navigate to Swagger UI**: Open http://localhost:3000/api-docs
+2. **Test Authentication**: Use the `/api/v1/auth/login` endpoint
+3. **Authorize**: Click "Authorize" button and add your JWT token
+4. **Test Other Endpoints**: Use the authenticated session to explore other APIs
+
+For development setup instructions, see the database setup section below.
 
 ## Authentication
 

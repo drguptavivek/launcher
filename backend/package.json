@@ -38,7 +38,11 @@
     "test:auth": "vitest run tests/integration/auth.test.ts",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "docs:generate": "tsx scripts/generate-docs.ts",
+    "docs:validate": "tsx scripts/generate-docs.ts validate",
+    "docs:stats": "tsx scripts/generate-docs.ts stats",
+    "docs:serve": "tsx scripts/generate-docs.ts serve"
   },
   "devDependencies": {
     "@faker-js/faker": "^10.1.0",
@@ -64,7 +68,10 @@
   },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^11.0.0",
+    "@types/yamljs": "^0.2.34",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -74,8 +81,11 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
     "postgres": "^3.4.7",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "tweetnacl": "^1.0.3",
     "uuid": "^13.0.0",
+    "yamljs": "^0.3.0",
     "zod": "^4.1.12"
   }
 }

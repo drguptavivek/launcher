@@ -1,0 +1,1475 @@
+openapi: 3.0.3
+info:
+  title: SurveyLauncher API
+  description: |
+    Comprehensive REST API for SurveyLauncher mobile device management platform.
+
+    The SurveyLauncher backend provides a comprehensive REST API with two distinct interfaces:
+    1. **Mobile App API** (`/api/v1/*`) - For Android device authentication and field operations
+    2. **Web Admin API** (`/api/web-admin/*`) - For administrative and management functions
+
+    The API follows a consistent JSON format with proper error handling and response structures,
+    implementing enterprise-grade role-based access control (RBAC) with nine specialized roles.
+
+    ## Authentication
+    Most endpoints require JWT token authentication via the `Authorization` header:
+    ```
+    Authorization: Bearer <access_token>
+    ```
+
+    ## Role-Based Access Control
+    The API implements enterprise-grade RBAC with nine specialized roles:
+
+    ### 🟢 App + Web Roles (Hybrid Access)
+    - `TEAM_MEMBER` - Field users
+    - `FIELD_SUPERVISOR` - Frontline supervisors
+    - `REGIONAL_MANAGER` - Regional leadership
+
+    ### 🔵 Web Admin Only Roles (Web-Only Access)
+    - `SYSTEM_ADMIN` - Full system administrator
+    - `SUPPORT_AGENT` - Customer support
+    - `AUDITOR` - Compliance auditor
+    - `DEVICE_MANAGER` - Device management
+    - `POLICY_ADMIN` - Policy administrator
+    - `NATIONAL_SUPPORT_ADMIN` - National-level support
+  version: 1.0.0
+  contact:
+    name: SurveyLauncher Team
+    email: support@surveylauncher.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.surveylauncher.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Mobile app authentication endpoints
+  - name: Web Admin Authentication
+    description: Web admin authentication endpoints
+  - name: Teams
+    description: Team management endpoints
+  - name: Users
+    description: User management endpoints
+  - name: Devices
+    description: Device management endpoints
+  - name: Supervisor PINs
+    description: Supervisor PIN management endpoints
+  - name: Roles
+    description: Role management endpoints
+  - name: Projects
+    description: Project management endpoints
+  - name: Policy
+    description: Policy distribution endpoints
+  - name: Telemetry
+    description: Telemetry collection endpoints
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  # Health endpoints
+  /health:
+    get:
+      tags: [Health]
+      summary: Basic health check
+      description: Returns basic health status of the API
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Health check successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                timestamp: "2025-01-15T10:30:00Z"
+                version: "1.0.0"
+                environment: development
+
+  # Mobile App Authentication endpoints
+  /api/v1/auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate mobile app user
+      description: Authenticate a user with device credentials and obtain session tokens
+      operationId: mobileLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileLoginRequest'
+            example:
+              deviceId: "test-device-001"
+              userCode: "USER001"
+              pin: "123456"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileLoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout mobile app user
+      description: End the current user session
+      operationId: mobileLogout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: Refresh an access token using a refresh token
+      operationId: mobileRefreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/whoami:
+    get:
+      tags: [Authentication]
+      summary: Get current user info
+      description: Get current user and session information
+      operationId: mobileWhoami
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileWhoamiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/session/end:
+    post:
+      tags: [Authentication]
+      summary: Force end session
+      description: Force end the current session
+      operationId: mobileEndSession
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Session ended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/auth/heartbeat:
+    post:
+      tags: [Authentication]
+      summary: Send heartbeat
+      description: Send heartbeat to keep session active
+      operationId: mobileHeartbeat
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HeartbeatRequest'
+      responses:
+        '200':
+          description: Heartbeat received
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Note: Web Admin Authentication endpoints are planned but not yet implemented
+  # These will be added when the web admin interface is developed
+
+  # Teams endpoints
+  /api/v1/teams:
+    get:
+      tags: [Teams]
+      summary: List teams
+      description: List teams with pagination and search
+      operationId: listTeams
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/IsActive'
+      responses:
+        '200':
+          description: Teams retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamsListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Teams]
+      summary: Create team
+      description: Create a new team
+      operationId: createTeam
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTeamRequest'
+      responses:
+        '201':
+          description: Team created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/teams/{id}:
+    get:
+      tags: [Teams]
+      summary: Get team by ID
+      description: Get a specific team by ID
+      operationId: getTeam
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TeamId'
+      responses:
+        '200':
+          description: Team retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags: [Teams]
+      summary: Update team
+      description: Update team information
+      operationId: updateTeam
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TeamId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTeamRequest'
+      responses:
+        '200':
+          description: Team updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Teams]
+      summary: Delete team
+      description: Delete a team (soft delete)
+      operationId: deleteTeam
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TeamId'
+      responses:
+        '200':
+          description: Team deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # Devices endpoints
+  /api/v1/devices:
+    get:
+      tags: [Devices]
+      summary: List devices
+      description: List devices with pagination and search
+      operationId: listDevices
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/TeamId'
+        - $ref: '#/components/parameters/IsActive'
+      responses:
+        '200':
+          description: Devices retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Devices]
+      summary: Create device
+      description: Register a new device
+      operationId: createDevice
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeviceRequest'
+      responses:
+        '201':
+          description: Device created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/devices/{id}:
+    get:
+      tags: [Devices]
+      summary: Get device by ID
+      description: Get a specific device by ID
+      operationId: getDevice
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Device retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags: [Devices]
+      summary: Update device
+      description: Update device information
+      operationId: updateDevice
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeviceRequest'
+      responses:
+        '200':
+          description: Device updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Devices]
+      summary: Delete device
+      description: Delete a device (soft delete)
+      operationId: deleteDevice
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Device deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Users endpoints
+  /api/v1/users:
+    get:
+      tags: [Users]
+      summary: List users
+      description: List users with pagination and search
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/TeamId'
+        - $ref: '#/components/parameters/Role'
+        - $ref: '#/components/parameters/IsActive'
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Users]
+      summary: Create user
+      description: Create a new user with PIN
+      operationId: createUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      description: Get a specific user by ID
+      operationId: getUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags: [Users]
+      summary: Update user
+      description: Update user information
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Users]
+      summary: Delete user
+      description: Delete a user (soft delete)
+      operationId: deleteUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Policy endpoint
+  /api/v1/policy/{deviceId}:
+    get:
+      tags: [Policy]
+      summary: Get device policy
+      description: Retrieve the policy configuration for a specific device
+      operationId: getDevicePolicy
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Policy retrieved successfully
+          content:
+            application/jose:
+              schema:
+                type: string
+                description: JWS-signed policy JSON
+          headers:
+            Content-Type:
+              description: JWS content type
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Telemetry endpoint
+  /api/v1/telemetry:
+    post:
+      tags: [Telemetry]
+      summary: Submit telemetry
+      description: Submit a batch of telemetry events from a device
+      operationId: submitTelemetry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryBatchRequest'
+      responses:
+        '200':
+          description: Telemetry processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Supervisor override endpoints
+  /api/v1/supervisor/override/login:
+    post:
+      tags: [Authentication]
+      summary: Supervisor override login
+      description: Request supervisor override access for a device
+      operationId: supervisorOverrideLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SupervisorOverrideRequest'
+      responses:
+        '200':
+          description: Override granted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupervisorOverrideResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token for mobile app authentication
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: HTTP-only cookie for web admin authentication
+
+  parameters:
+    Page:
+      in: query
+      name: page
+      description: Page number for pagination
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      in: query
+      name: limit
+      description: Items per page (max 100)
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    Search:
+      in: query
+      name: search
+      description: Search term
+      required: false
+      schema:
+        type: string
+    IsActive:
+      in: query
+      name: is_active
+      description: Filter by active status
+      required: false
+      schema:
+        type: boolean
+    TeamId:
+      in: path
+      name: id
+      description: Team UUID
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DeviceId:
+      in: path
+      name: deviceId
+      description: Device UUID
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserId:
+      in: path
+      name: id
+      description: User UUID
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Role:
+      in: query
+      name: role
+      description: Filter by role
+      required: false
+      schema:
+        type: string
+        enum: [TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER, SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN]
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          example: 1.0.0
+        environment:
+          type: string
+          example: development
+
+    SuccessResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation successful
+
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          example: ERROR_CODE
+        message:
+          type: string
+          example: Human-readable error description
+        request_id:
+          type: string
+          example: unique-request-id
+
+    MobileLoginRequest:
+      type: object
+      required:
+        - deviceId
+        - userCode
+        - pin
+      properties:
+        deviceId:
+          type: string
+          description: Device identifier
+        userCode:
+          type: string
+          description: User login code
+        pin:
+          type: string
+          description: User PIN
+
+    MobileLoginResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        session:
+          $ref: '#/components/schemas/SessionInfo'
+        access_token:
+          type: string
+          description: JWT access token
+        refresh_token:
+          type: string
+          description: JWT refresh token
+        policy_version:
+          type: integer
+          example: 3
+
+    SessionInfo:
+      type: object
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        started_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        override_until:
+          type: string
+          format: date-time
+          nullable: true
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: JWT refresh token
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        access_token:
+          type: string
+          description: New JWT access token
+        expires_at:
+          type: string
+          format: date-time
+
+    MobileWhoamiResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/UserInfo'
+        session:
+          $ref: '#/components/schemas/SessionInfo'
+        policy_version:
+          type: integer
+          example: 3
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        team_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        email:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER]
+        is_active:
+          type: boolean
+
+    HeartbeatRequest:
+      type: object
+      required:
+        - deviceId
+        - ts
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+        ts:
+          type: string
+          format: date-time
+        battery:
+          type: number
+          minimum: 0
+          maximum: 1
+
+    WebAdminLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+
+    WebAdminLoginResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/WebAdminUserInfo'
+        message:
+          type: string
+          example: Login successful
+
+    WebAdminUserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN, FIELD_SUPERVISOR, REGIONAL_MANAGER]
+        fullName:
+          type: string
+
+    WebAdminWhoamiResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/WebAdminUserInfo'
+
+    WebAdminRefreshResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        accessToken:
+          type: string
+          description: New JWT access token
+        user:
+          $ref: '#/components/schemas/WebAdminUserInfo'
+
+    CreateWebAdminRequest:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        firstName:
+          type: string
+          minLength: 1
+        lastName:
+          type: string
+          minLength: 1
+        role:
+          type: string
+          enum: [SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN, FIELD_SUPERVISOR, REGIONAL_MANAGER]
+
+    CreateWebAdminResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/WebAdminUserInfo'
+        message:
+          type: string
+          example: Admin user created successfully
+
+    TeamResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        team:
+          $ref: '#/components/schemas/Team'
+
+    Team:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        timezone:
+          type: string
+        state_id:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TeamsListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        teams:
+          type: array
+          items:
+            $ref: '#/components/schemas/Team'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    CreateTeamRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        timezone:
+          type: string
+          default: UTC
+        stateId:
+          type: string
+
+    UpdateTeamRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        timezone:
+          type: string
+
+    DeviceResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        device:
+          $ref: '#/components/schemas/Device'
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        team_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        android_id:
+          type: string
+        app_version:
+          type: string
+        is_active:
+          type: boolean
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_gps_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DevicesListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        devices:
+          type: array
+          items:
+            $ref: '#/components/schemas/Device'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    CreateDeviceRequest:
+      type: object
+      required:
+        - teamId
+        - name
+      properties:
+        teamId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        androidId:
+          type: string
+        appVersion:
+          type: string
+
+    UpdateDeviceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        androidId:
+          type: string
+        appVersion:
+          type: string
+        isActive:
+          type: boolean
+
+    UserResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        team_id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        display_name:
+          type: string
+        email:
+          type: string
+          nullable: true
+        role:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UsersListResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    CreateUserRequest:
+      type: object
+      required:
+        - teamId
+        - code
+        - displayName
+        - pin
+      properties:
+        teamId:
+          type: string
+          format: uuid
+        code:
+          type: string
+        displayName:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        pin:
+          type: string
+          minLength: 4
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+        isActive:
+          type: boolean
+        pin:
+          type: string
+          minLength: 4
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        pages:
+          type: integer
+          minimum: 0
+
+    TelemetryBatchRequest:
+      type: object
+      required:
+        - events
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/TelemetryEvent'
+        deviceId:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+
+    TelemetryEvent:
+      type: object
+      required:
+        - type
+        - timestamp
+        - eventData
+      properties:
+        type:
+          type: string
+          enum: [heartbeat, gps, app_usage, screen_time]
+        timestamp:
+          type: string
+          format: date-time
+        eventData:
+          type: object
+          additionalProperties: true
+
+    TelemetryResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        accepted:
+          type: integer
+          description: Number of events accepted
+        dropped:
+          type: integer
+          description: Number of events dropped
+
+    SupervisorOverrideRequest:
+      type: object
+      required:
+        - supervisor_pin
+        - deviceId
+      properties:
+        supervisor_pin:
+          type: string
+        deviceId:
+          type: string
+          format: uuid
+
+    SupervisorOverrideResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        override_until:
+          type: string
+          format: date-time
+        token:
+          type: string
+          description: Override token
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ok: false
+            error:
+              code: MISSING_FIELDS
+              message: Required fields are missing
+              request_id: unique-request-id
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ok: false
+            error:
+              code: UNAUTHORIZED
+              message: Authentication required
+              request_id: unique-request-id
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ok: false
+            error:
+              code: FORBIDDEN
+              message: Access denied
+              request_id: unique-request-id
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ok: false
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+              request_id: unique-request-id
+
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ok: false
+            error:
+              code: CONFLICT
+              message: Resource already exists
+              request_id: unique-request-id
+
+    Locked:
+      description: Account locked
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ok: false
+            error:
+              code: ACCOUNT_LOCKED
+              message: Account temporarily locked
+              request_id: unique-request-id
+
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            ok: false
+            error:
+              code: RATE_LIMITED
+              message: Too many requests
+              request_id: unique-request-id
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying
+          schema:
+            type: integer
+            example: 300

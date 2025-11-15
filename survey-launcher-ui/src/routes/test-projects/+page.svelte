@@ -6,7 +6,14 @@
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Label } from '$lib/components/ui/label';
 
-	let testResults = [];
+	interface TestResult {
+		test: string;
+		message: string;
+		type: 'success' | 'error' | 'info' | 'warning';
+		timestamp: string;
+	}
+
+	let testResults: TestResult[] = [];
 	let isLoading = false;
 
 	onMount(() => {
@@ -64,7 +71,7 @@
 
 			try {
 				// This will fail due to no authentication, but tests that the function works
-				await getProjects({ page: 1, limit: 10 });
+				await getProjects();
 				addResult('API Calls', 'Unexpected success (should fail without auth)', 'warning');
 			} catch (error: any) {
 				if (error.message.includes('No access token found') || error.status === 401) {

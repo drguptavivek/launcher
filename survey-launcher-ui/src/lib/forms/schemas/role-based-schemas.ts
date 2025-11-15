@@ -1,0 +1,359 @@
+import * as v from 'valibot';
+import type { UserRole } from '$lib/types/role.types';
+
+// Role definitions for type safety
+export const USER_ROLES = [
+  'TEAM_MEMBER',
+  'FIELD_SUPERVISOR',
+  'REGIONAL_MANAGER',
+  'SYSTEM_ADMIN',
+  'SUPPORT_AGENT',
+  'AUDITOR',
+  'DEVICE_MANAGER',
+  'POLICY_ADMIN',
+  'NATIONAL_SUPPORT_ADMIN'
+] as const;
+
+export type UserRole = typeof USER_ROLES[number];
+
+// Project schema with full role-based validation
+export const createProjectSchema = (userRole: UserRole) => {
+  const baseSchema = v.object({
+    title: v.pipe(
+      v.string(),
+      v.minLength(1, 'Title is required'),
+      v.maxLength(200, 'Title must be 200 characters or less')
+    ),
+    abbreviation: v.pipe(
+      v.string(),
+      v.minLength(2, 'Abbreviation must be at least 2 characters'),
+      v.maxLength(10, 'Abbreviation must be 10 characters or less')
+    ),
+    description: v.optional(v.string()),
+    status: v.enum(['ACTIVE', 'INACTIVE'])
+  });
+
+  // Role-specific field additions
+  let schema = baseSchema;
+
+  if (['SYSTEM_ADMIN', 'REGIONAL_MANAGER'].includes(userRole)) {
+    schema = v.pipe(
+      schema,
+      v.extend({
+        geographicScope: v.enum(['LOCAL', 'REGIONAL', 'NATIONAL']),
+        teamIds: v.pipe(
+          v.array(v.string()),
+          v.minLength(1, 'Select at least one team')
+        ),
+        budget: v.optional(v.pipe(
+          v.number(),
+          v.minValue(0, 'Budget must be a positive number')
+        )),
+        priority: v.optional(v.enum(['LOW', 'MEDIUM', 'HIGH']))
+      })
+    );
+  }
+
+  if (userRole === 'FIELD_SUPERVISOR') {
+    schema = v.pipe(
+      schema,
+      v.extend({
+        geographicScope: v.literal('LOCAL'),
+        teamIds: v.pipe(
+          v.array(v.string()),
+          v.minLength(1, 'Select your team')
+        ),
+        assignedUsers: v.optional(v.array(v.string()))
+      })
+    );
+  }
+
+  // Role-based validation rules
+  return v.pipe(
+    schema,
+    v.check(() => ['SYSTEM_ADMIN', 'REGIONAL_MANAGER'].includes(userRole),
+      'Only administrators can create projects'),
+    v.check((data) => {
+      if (userRole === 'FIELD_SUPERVISOR' && data.status === 'INACTIVE') {
+        return false;
+      }
+      return true;
+    }, 'Field supervisors cannot create inactive projects'),
+    v.check((data) => {
+      if (userRole === 'FIELD_SUPERVISOR' && data.geographicScope === 'NATIONAL') {
+        return false;
+      }
+      return true;
+    }, 'Field supervisors cannot create national projects'),
+    v.check((data) => {
+      if (userRole === 'NATIONAL_SUPPORT_ADMIN' && data.geographicScope === 'LOCAL') {
+        return false;
+      }
+      return true;
+    }, 'National support admins must create regional or national projects')
+  );
+};
+
+// User management schema with role-based field restrictions
+export const createUserSchema = (creatorRole: UserRole) => {
+  const baseSchema = v.object({
+    name: v.pipe(
+      v.string(),
+      v.minLength(1, 'Name is required'),
+      v.maxLength(100, 'Name must be 100 characters or less')
+    ),
+    email: v.pipe(
+      v.string(),
+      v.email('Valid email required')
+    ),
+    teamId: v.pipe(
+      v.string(),
+      v.minLength(1, 'Team assignment required')
+    ),
+    isActive: v.pipe(
+      v.boolean(),
+      v.defaultValue(true)
+    )
+  });
+
+  let schema = baseSchema;
+
+  // Role assignment based on creator permissions
+  if (creatorRole === 'SYSTEM_ADMIN') {
+    schema = v.pipe(
+      schema,
+      v.extend({
+        role: v.enum(USER_ROLES),
+        stateId: v.pipe(
+          v.string(),
+          v.minLength(1, 'State ID is required')
+        )
+      })
+    );
+  } else if (creatorRole === 'REGIONAL_MANAGER') {
+    schema = v.pipe(
+      schema,
+      v.extend({
+        role: v.enum(['TEAM_MEMBER', 'FIELD_SUPERVISOR']),
+        stateId: v.pipe(
+          v.string(),
+          v.minLength(1, 'State ID is required')
+        )
+      })
+    );
+  } else if (creatorRole === 'FIELD_SUPERVISOR') {
+    schema = v.pipe(
+      schema,
+      v.extend({
+        role: v.literal('TEAM_MEMBER')
+      })
+    );
+  }
+
+  return v.pipe(
+    schema,
+    v.check(() => ['SYSTEM_ADMIN', 'REGIONAL_MANAGER', 'FIELD_SUPERVISOR'].includes(creatorRole),
+      'Insufficient permissions to create users')
+  );
+};
+
+// Device management schema
+export const createDeviceSchema = (userRole: UserRole) => {
+  const baseSchema = v.object({
+    deviceId: v.pipe(
+      v.string(),
+      v.minLength(1, 'Device ID required')
+    ),
+    deviceName: v.pipe(
+      v.string(),
+      v.minLength(1, 'Device name required')
+    ),
+    teamId: v.pipe(
+      v.string(),
+      v.minLength(1, 'Team assignment required')
+    )
+  });
+
+  let schema = baseSchema;
+
+  if (['SYSTEM_ADMIN', 'DEVICE_MANAGER'].includes(userRole)) {
+    schema = v.pipe(
+      schema,
+      v.extend({
+        configuration: v.optional(v.record(v.any())),
+        assignedUserId: v.optional(v.string()),
+        policyProfile: v.optional(v.string()),
+        maintenanceSchedule: v.optional(v.string())
+      })
+    );
+  }
+
+  return v.pipe(
+    schema,
+    v.check(() => ['SYSTEM_ADMIN', 'DEVICE_MANAGER', 'REGIONAL_MANAGER'].includes(userRole),
+      'Only administrators and device managers can register devices')
+  );
+};
+
+// Assignment schema with array validation
+export const createAssignmentSchema = (userRole: UserRole) => {
+  const baseSchema = v.object({
+    title: v.pipe(
+      v.string(),
+      v.minLength(1, 'Title is required')
+    ),
+    assignedUsers: v.pipe(
+      v.array(v.string()),
+      v.minLength(1, 'Select at least one user')
+    ),
+    assignedTeams: v.pipe(
+      v.array(v.string()),
+      v.minLength(1, 'Select at least one team')
+    ),
+    permissions: v.optional(v.array(v.string())),
+    startDate: v.date(),
+    endDate: v.pipe(
+      v.date(),
+      v.minValue(new Date(), 'End date must be in the future')
+    )
+  });
+
+  let schema = baseSchema;
+
+  // Only supervisors and admins can assign permissions
+  if (['SYSTEM_ADMIN', 'FIELD_SUPERVISOR'].includes(userRole)) {
+    schema = v.pipe(
+      schema,
+      v.extend({
+        permissions: v.pipe(
+          v.array(v.string()),
+          v.minLength(1, 'Select at least one permission')
+        )
+      })
+    );
+  }
+
+  return v.pipe(
+    schema,
+    v.check((data) => data.endDate > data.startDate, 'End date must be after start date')
+  );
+};
+
+// Audit report schema
+export const createAuditReportSchema = (userRole: UserRole) => {
+  const baseSchema = v.object({
+    reportType: v.enum(['COMPLIANCE', 'SECURITY', 'PERFORMANCE']),
+    scope: v.pipe(
+      v.string(),
+      v.minLength(1, 'Scope is required')
+    ),
+    dateRange: v.object({
+      start: v.date(),
+      end: v.date()
+    }),
+    includeSensitive: v.pipe(
+      v.boolean(),
+      v.defaultValue(false)
+    )
+  });
+
+  // Only auditors and system admins can include sensitive data
+  if (!['AUDITOR', 'SYSTEM_ADMIN'].includes(userRole)) {
+    return v.pipe(
+      baseSchema,
+      v.check((data) => !data.includeSensitive, 'Only auditors can include sensitive information')
+    );
+  }
+
+  return baseSchema;
+};
+
+// Policy creation schema
+export const createPolicySchema = (userRole: UserRole) => {
+  const baseSchema = v.object({
+    title: v.pipe(
+      v.string(),
+      v.minLength(1, 'Title is required')
+    ),
+    description: v.pipe(
+      v.string(),
+      v.minLength(1, 'Description is required')
+    ),
+    policyType: v.enum(['ACCESS', 'SECURITY', 'WORK_HOURS', 'DEVICE']),
+    scope: v.enum(['GLOBAL', 'REGIONAL', 'TEAM']),
+    rules: v.pipe(
+      v.array(v.object({
+        name: v.string(),
+        condition: v.string(),
+        action: v.string()
+      })),
+      v.minLength(1, 'At least one rule is required')
+    )
+  });
+
+  // National scope only for system admins and national support
+  if (userRole === 'POLICY_ADMIN') {
+    return v.pipe(
+      baseSchema,
+      v.check((data) => data.scope !== 'NATIONAL', 'Policy admins cannot create national policies')
+    );
+  }
+
+  return baseSchema;
+};
+
+// Support ticket schema
+export const createSupportTicketSchema = (userRole: UserRole) => {
+  const baseSchema = v.object({
+    title: v.pipe(
+      v.string(),
+      v.minLength(1, 'Title is required')
+    ),
+    description: v.pipe(
+      v.string(),
+      v.minLength(1, 'Description is required')
+    ),
+    priority: v.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+    category: v.enum(['TECHNICAL', 'ACCOUNT', 'DEVICE', 'POLICY']),
+    assignedTo: v.optional(v.string()),
+    status: v.pipe(
+      v.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']),
+      v.defaultValue('OPEN')
+    )
+  });
+
+  // Only support agents can assign tickets
+  if (userRole !== 'SUPPORT_AGENT' && userRole !== 'SYSTEM_ADMIN') {
+    return v.pipe(
+      baseSchema,
+      v.check((data) => !data.assignedTo, 'Only support agents can assign tickets')
+    );
+  }
+
+  return baseSchema;
+};
+
+// Export all schemas for easy access
+export const roleBasedSchemas = {
+  project: {
+    create: createProjectSchema,
+  },
+  user: {
+    create: createUserSchema,
+  },
+  device: {
+    create: createDeviceSchema,
+  },
+  assignment: {
+    create: createAssignmentSchema,
+  },
+  audit: {
+    create: createAuditReportSchema,
+  },
+  policy: {
+    create: createPolicySchema,
+  },
+  support: {
+    create: createSupportTicketSchema,
+  }
+} as const;

@@ -21,7 +21,7 @@ const AuthState = {
 let authState = $state(AuthState);
 
 // Direct API calls for authentication (simplified approach)
-async function loginApiCall(credentials) {
+async function loginApiCall(credentials: Record<string, any>) {
 	const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.AUTH.LOGIN}`, {
 		method: 'POST',
 		headers: {

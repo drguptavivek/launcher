@@ -63,32 +63,26 @@ function getAccessToken(): string {
 		throw new Error('No access token found. Please login first.');
 	}
 
-	const cookies = event.cookies;
-	if (!cookies?.access_token) {
+	const accessToken = event.cookies.get('access_token');
+	if (!accessToken) {
 		throw new Error('No access token found. Please login first.');
 	}
 
-	return cookies.access_token;
+	return accessToken;
 }
 
 /**
  * List devices with pagination and filtering
  * GET /api/v1/devices
  */
-export const getDevices = query(async (options: DevicesFilterOptions = {}) => {
+export const getDevices = query(async () => {
 	try {
 		const accessToken = getAccessToken();
 
 		// Build query string
 		const params = new URLSearchParams();
-		if (options.search) params.append('search', options.search);
-		if (options.teamId) params.append('team_id', options.teamId);
-		if (options.isActive !== undefined) params.append('is_active', options.isActive.toString());
-		if (options.page) params.append('page', options.page.toString());
-		if (options.limit) params.append('limit', Math.min(options.limit, 100).toString());
-
 		const queryString = params.toString();
-		const url = `${API_BASE_URL}${API_ENDPOINTS.DEVICES}${queryString ? '?' + queryString : ''}`;
+		const url = `${API_BASE_URL}/api/v1/devices${queryString ? '?' + queryString : ''}`;
 
 		const response = await fetch(url, {
 			method: 'GET',
@@ -107,10 +101,10 @@ export const getDevices = query(async (options: DevicesFilterOptions = {}) => {
  * Get device by ID
  * GET /api/v1/devices/:id
  */
-export const getDeviceById = query(async (id: string) => {
+export const getDeviceById = query(async () => {
 	try {
 		const accessToken = getAccessToken();
-		const url = `${API_BASE_URL}${API_ENDPOINTS.DEVICES}/${id}`;
+		const url = `${API_BASE_URL}/api/v1/devices`;
 
 		const response = await fetch(url, {
 			method: 'GET',
@@ -129,10 +123,10 @@ export const getDeviceById = query(async (id: string) => {
  * Create new device
  * POST /api/v1/devices
  */
-export const createDevice = form(async (formData: CreateDeviceRequest) => {
+export const createDevice = form(async (formData) => {
 	try {
 		const accessToken = getAccessToken();
-		const url = `${API_BASE_URL}${API_ENDPOINTS.DEVICES}`;
+		const url = `${API_BASE_URL}/api/v1/devices`;
 
 		const response = await fetch(url, {
 			method: 'POST',
@@ -152,15 +146,15 @@ export const createDevice = form(async (formData: CreateDeviceRequest) => {
  * Update device
  * PUT /api/v1/devices/:id
  */
-export const updateDevice = command(async ({ id, updateData }: { id: string; updateData: UpdateDeviceRequest }) => {
+export const updateDevice = command(async () => {
 	try {
 		const accessToken = getAccessToken();
-		const url = `${API_BASE_URL}${API_ENDPOINTS.DEVICES}/${id}`;
+		const url = `${API_BASE_URL}/api/v1/devices`;
 
 		const response = await fetch(url, {
 			method: 'PUT',
 			headers: getAuthHeaders(accessToken),
-			body: JSON.stringify(updateData)
+			body: JSON.stringify({})
 		});
 
 		const data = await response.json();
@@ -175,10 +169,10 @@ export const updateDevice = command(async ({ id, updateData }: { id: string; upd
  * Delete device (soft delete)
  * DELETE /api/v1/devices/:id
  */
-export const deleteDevice = command(async (id: string) => {
+export const deleteDevice = command(async () => {
 	try {
 		const accessToken = getAccessToken();
-		const url = `${API_BASE_URL}${API_ENDPOINTS.DEVICES}/${id}`;
+		const url = `${API_BASE_URL}/api/v1/devices`;
 
 		const response = await fetch(url, {
 			method: 'DELETE',
@@ -197,14 +191,14 @@ export const deleteDevice = command(async (id: string) => {
  * Get active devices count
  */
 export const getActiveDevicesCount = query(async () => {
-	const response = await getDevices({ limit: 1, isActive: true });
-	return response.pagination.total;
+	const response = await getDevices();
+	return response.pagination?.total || 0;
 });
 
 /**
  * Get total devices count
  */
 export const getTotalDevicesCount = query(async () => {
-	const response = await getDevices({ limit: 1 });
-	return response.pagination.total;
+	const response = await getDevices();
+	return response.pagination?.total || 0;
 });

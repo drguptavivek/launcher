@@ -3014,16 +3014,21 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
     return withAuthAndPermission(Resource.TEAMS, Action.LIST)(req, res, next, () => listTeams(req, res));
   }
 
-  if (method === 'GET' && originalUrl.startsWith('/api/v1/teams/') && req.params.id && !originalUrl.includes('/users') && !originalUrl.includes('/devices')) {
-    return withAuthAndPermission(Resource.TEAMS, Action.READ)(req, res, next, () => getTeam(req, res));
-  }
+  // Extract team ID from URL for parameterized routes
+  const teamIdMatch = originalUrl.match(/^\/api\/v1\/teams\/([a-f0-9-]{36})$/);
+  if (teamIdMatch) {
+    const teamId = teamIdMatch[1];
+    (req as any).params = { id: teamId };
 
-  if (method === 'PUT' && originalUrl.startsWith('/api/v1/teams/') && req.params.id) {
-    return withAuthAndPermission(Resource.TEAMS, Action.UPDATE)(req, res, next, () => updateTeam(req, res));
-  }
-
-  if (method === 'DELETE' && originalUrl.startsWith('/api/v1/teams/') && req.params.id) {
-    return withAuthAndPermission(Resource.TEAMS, Action.DELETE)(req, res, next, () => deleteTeam(req, res));
+    if (method === 'GET') {
+      return withAuthAndPermission(Resource.TEAMS, Action.READ)(req, res, next, () => getTeam(req, res));
+    }
+    if (method === 'PUT') {
+      return withAuthAndPermission(Resource.TEAMS, Action.UPDATE)(req, res, next, () => updateTeam(req, res));
+    }
+    if (method === 'DELETE') {
+      return withAuthAndPermission(Resource.TEAMS, Action.DELETE)(req, res, next, () => deleteTeam(req, res));
+    }
   }
 
   // Device management routes
@@ -3035,16 +3040,21 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
     return withAuthAndPermission(Resource.DEVICES, Action.LIST)(req, res, next, () => listDevices(req, res));
   }
 
-  if (method === 'GET' && originalUrl.startsWith('/api/v1/devices/') && req.params.id) {
-    return withAuthAndPermission(Resource.DEVICES, Action.READ)(req, res, next, () => getDevice(req, res));
-  }
+  // Extract device ID from URL for parameterized routes
+  const deviceIdMatch = originalUrl.match(/^\/api\/v1\/devices\/([a-f0-9-]{36})$/);
+  if (deviceIdMatch) {
+    const deviceId = deviceIdMatch[1];
+    (req as any).params = { id: deviceId };
 
-  if (method === 'PUT' && originalUrl.startsWith('/api/v1/devices/') && req.params.id) {
-    return withAuthAndPermission(Resource.DEVICES, Action.UPDATE)(req, res, next, () => updateDevice(req, res));
-  }
-
-  if (method === 'DELETE' && originalUrl.startsWith('/api/v1/devices/') && req.params.id) {
-    return withAuthAndPermission(Resource.DEVICES, Action.DELETE)(req, res, next, () => deleteDevice(req, res));
+    if (method === 'GET') {
+      return withAuthAndPermission(Resource.DEVICES, Action.READ)(req, res, next, () => getDevice(req, res));
+    }
+    if (method === 'PUT') {
+      return withAuthAndPermission(Resource.DEVICES, Action.UPDATE)(req, res, next, () => updateDevice(req, res));
+    }
+    if (method === 'DELETE') {
+      return withAuthAndPermission(Resource.DEVICES, Action.DELETE)(req, res, next, () => deleteDevice(req, res));
+    }
   }
 
   // User management routes
@@ -3056,16 +3066,21 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
     return withAuthAndPermission(Resource.USERS, Action.LIST)(req, res, next, () => listUsers(req, res));
   }
 
-  if (method === 'GET' && originalUrl.startsWith('/api/v1/users/') && req.params.id) {
-    return withAuthAndPermission(Resource.USERS, Action.READ)(req, res, next, () => getUser(req, res));
-  }
+  // Extract user ID from URL for parameterized routes
+  const userIdMatch = originalUrl.match(/^\/api\/v1\/users\/([a-f0-9-]{36})$/);
+  if (userIdMatch) {
+    const userId = userIdMatch[1];
+    (req as any).params = { id: userId };
 
-  if (method === 'PUT' && originalUrl.startsWith('/api/v1/users/') && req.params.id) {
-    return withAuthAndPermission(Resource.USERS, Action.UPDATE)(req, res, next, () => updateUser(req, res));
-  }
-
-  if (method === 'DELETE' && originalUrl.startsWith('/api/v1/users/') && req.params.id) {
-    return withAuthAndPermission(Resource.USERS, Action.DELETE)(req, res, next, () => deleteUser(req, res));
+    if (method === 'GET') {
+      return withAuthAndPermission(Resource.USERS, Action.READ)(req, res, next, () => getUser(req, res));
+    }
+    if (method === 'PUT') {
+      return withAuthAndPermission(Resource.USERS, Action.UPDATE)(req, res, next, () => updateUser(req, res));
+    }
+    if (method === 'DELETE') {
+      return withAuthAndPermission(Resource.USERS, Action.DELETE)(req, res, next, () => deleteUser(req, res));
+    }
   }
 
   // Role management routes
@@ -3218,7 +3233,10 @@ export function apiRouter(req: Request, res: Response, next: NextFunction) {
   }
 
   // Policy routes
-  if (method === 'GET' && originalUrl.startsWith('/api/v1/policy/')) {
+  const policyMatch = originalUrl.match(/^\/api\/v1\/policy\/([a-f0-9-]{36})$/);
+  if (policyMatch) {
+    const deviceId = policyMatch[1];
+    (req as any).params = { deviceId };
     return authenticateToken(req as AuthenticatedRequest, res, () => getPolicy(req, res));
   }
 

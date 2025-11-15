@@ -30,20 +30,8 @@ export {
 // Project Management remote functions
 export {
 	getProjects,
-	getProjectById,
 	createProject,
-	updateProject,
-	deleteProject,
-	assignUserToProject,
-	getProjectUsers,
-	removeUserFromProject,
-	assignTeamToProject,
-	getProjectTeams,
-	removeTeamFromProject,
-	getUserProjects,
-	getTeamProjects,
-	getRoles
-} from './projects.remote';
+		} from './projects.remote';
 
 // User Management remote functions
 export {
