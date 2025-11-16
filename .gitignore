@@ -4,6 +4,9 @@
 
 /**/.key-backups
 
+/**/tmp/**/*
+
+
 /**/*.db
 /**/*.db-shm
 /**/*.db-wal
