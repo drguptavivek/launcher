@@ -1,10 +1,11 @@
 # Roles Progress Review
-**Timestamp (UTC): 2025-11-16 11:35**
+**Timestamp (UTC): 2025-11-16 12:05**
 
 ## Resolved Since Last Update
 1. **Mobile login now enforces role rules** – `AuthService.login` rejects any user whose role is not one of the three hybrid/mobile roles, logs the attempt, and the login route returns HTTP 403 with `APP_ACCESS_DENIED` (`backend/src/services/auth-service.ts:120-220`, `backend/src/routes/api/auth.ts:1-120`). Added an integration test to guard the regression (`backend/tests/integration/auth.test.ts`).
 2. **Sessions + telemetry schema match runtime usage** – Added nullable `ip_address` and `user_agent` columns to `sessions` plus optional `user_id` for `telemetry_events`, via Drizzle migration `0006_dual_auth_columns` (`backend/src/lib/db/schema.ts:176-210`, `backend/drizzle/0006_dual_auth_columns.sql`). Session inserts no longer fail when capturing metadata, and telemetry batching can persist user metadata as intended.
-3. **API-created users now share the same PIN hashing as login** – `UserService` and `SupervisorPinService` now rely on the shared `hashPassword`/`verifyPassword` helpers (`backend/src/services/user-service.ts:1-220`, `backend/src/services/supervisor-pin-service.ts:1-460`), removing the scrypt mismatch that made API-created users impossible to authenticate. Added an integration test that creates a user via `UserService` and confirms `/auth/login` succeeds (guarded in `backend/tests/integration/auth.test.ts`; currently blocked locally until Postgres is reachable).
+3. **API-created users now share the same PIN hashing as login** – `UserService` and `SupervisorPinService` now rely on the shared `hashPassword`/`verifyPassword` helpers (`backend/src/services/user-service.ts`, `backend/src/services/supervisor-pin-service.ts`), removing the scrypt mismatch that made API-created users impossible to authenticate. Added an integration test that creates a user via `UserService` and confirms `/auth/login` succeeds (`backend/tests/integration/auth.test.ts`).
+4. **Logout + refresh flows aligned with tests** – `/api/v1/auth/logout` now returns `ended_at`, and `/api/v1/auth/refresh` no longer requires an access token guard, so the integration suite passes end-to-end (`backend/src/routes/api/auth.ts`, `backend/src/services/auth-service.ts`, `backend/src/services/jwt-service.ts`).
 
 ## Alignment Highlights
 - **Dual data model exists**: The Drizzle schema separates field `users` from `web_admin_users` and preserves the nine-role enum described in `backend/docs/role-differentiation.md`/`docs/roles.md` (`backend/src/lib/db/schema.ts:120-210`). This matches the dual-interface plan in the docs.
@@ -14,19 +15,17 @@
 - **Testing scaffolding**: Integration suites cover login/route protection using deterministic fixtures from `scripts/seed-fixed-users.ts` (`backend/tests/integration/auth.test.ts`, `backend/tests/integration/route-protection.test.ts`), keeping regressions visible.
 
 ## Critical Gaps / Edge Cases
-1. **Refresh endpoint unusable after access-token expiry**  
-   `/api/v1/auth/refresh` is guarded by `authenticateToken` (`backend/src/routes/api/auth.ts:152-198`), so clients need a still-valid access token to request a refresh. Once the access token expires (the normal refresh use case), the middleware blocks the call and there is no way to renew the session.
-2. **Web-admin cookies never honored**  
+1. **Web-admin cookies never honored**  
    Login sets HTTP-only `access_token` and `refresh_token` cookies (`backend/src/routes/api/web-admin-auth.ts:52-75`), but `authenticateWebAdmin` only checks the Authorization header and returns `MISSING_TOKEN` when it is absent (`backend/src/middleware/auth.ts:888-905`). Cookie-based sessions therefore cannot be used despite the documented flow.
-3. **Telemetry ingestion / authorization mismatches**  
+2. **Telemetry ingestion / authorization mismatches**  
    Endpoint authorization checks for `Action.READ` instead of `Action.CREATE`, so write intent is mislabeled and the RBAC matrix cannot restrict uploads correctly (`backend/src/routes/api/telemetry.ts:9-34`).
-4. **Supervisor override permissions reference a non-existent resource**  
+3. **Supervisor override permissions reference a non-existent resource**  
    The route wraps `requirePermission(Resource.SUPERVISOR, Action.OVERRIDE)` (`backend/src/routes/api/supervisor.ts:11-65`), but `Resource` only defines `SUPERVISOR_PINS`. This TypeScript/authorization mismatch breaks compilation or leaves the route unprotected when emitted JS is used.
-5. **Project "my" endpoint unusable**  
+4. **Project "my" endpoint unusable**  
    `/api/v1/projects/my` never calls `authenticateToken`, yet it expects `req.user` from that middleware (`backend/src/routes/api/projects.ts:191-224`). Every request fails with `UNAUTHENTICATED`, so users cannot list their assigned projects despite the feature being listed in the docs.
-6. **Policy history uses missing column name**  
+5. **Policy history uses missing column name**  
    `PolicyService.getRecentPolicyIssues` selects `policyIssues.policyVersion` (`backend/src/services/policy-service.ts:259-276`), but the table only contains `version` (`backend/src/lib/db/schema.ts:210-220`). Any call to this helper throws, and dashboards auditing policy issuance cannot be powered.
-7. **Refresh/signature edge cases undocumented**  
+6. **Refresh/signature edge cases undocumented**  
     Although `docs/role-differentiation.md` and `docs/understanding-your-role.md` describe PIN/POLICY enforcement, there is no structured logging or test covering supervisor overrides, policy-cache expiry, or GPS heartbeats yet (`backend/src/routes/api/auth.ts:200-260`, `backend/src/services/policy-service.ts:118-220`). These are critical acceptance criteria in the Android launcher plan.
 
 ## Additional Observations
