@@ -3,35 +3,11 @@ import { db, supervisorPins, teams } from '../lib/db';
 import { NewSupervisorPin, SupervisorPin } from '../lib/db/schema';
 import { logger } from '../lib/logger';
 import { randomUUID } from 'crypto';
-import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
+import { hashPassword, verifyPassword } from '../lib/crypto';
 
-// Generate UUID and salt
+// Generate UUID helper
 function generateId(): string {
   return randomUUID();
-}
-
-function generateSalt(): string {
-  return randomBytes(16).toString('hex');
-}
-
-// PIN hashing using scrypt
-async function hashPin(pin: string, salt: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    scrypt(pin, salt, 64, (err, derivedKey) => {
-      if (err) reject(err);
-      else resolve(derivedKey.toString('hex'));
-    });
-  });
-}
-
-// Verify PIN hash
-async function verifyPin(pin: string, salt: string, hash: string): Promise<boolean> {
-  try {
-    const hashedPin = await hashPin(pin, salt);
-    return timingSafeEqual(Buffer.from(hashedPin, 'hex'), Buffer.from(hash, 'hex'));
-  } catch {
-    return false;
-  }
 }
 
 // Response types
@@ -152,17 +128,16 @@ export class SupervisorPinService {
         };
       }
 
-      // Hash PIN
-      const salt = generateSalt();
-      const pinHash = await hashPin(pinData.pin, salt);
+      // Hash PIN using shared crypto helper for consistency
+      const hashedPin = await hashPassword(pinData.pin);
 
       // Create new supervisor PIN
       const newSupervisorPin: NewSupervisorPin = {
         id: generateId(),
         teamId: pinData.teamId,
         name: pinData.name.trim(),
-        pinHash,
-        salt,
+        pinHash: hashedPin.hash,
+        salt: hashedPin.salt,
         isActive: true,
       };
 
@@ -462,11 +437,9 @@ export class SupervisorPinService {
           };
         }
 
-        const salt = generateSalt();
-        const pinHash = await hashPin(updateData.pin, salt);
-
-        updateFields.pinHash = pinHash;
-        updateFields.salt = salt;
+        const hashedPin = await hashPassword(updateData.pin);
+        updateFields.pinHash = hashedPin.hash;
+        updateFields.salt = hashedPin.salt;
       }
 
       if (updateData.isActive !== undefined) {
@@ -573,7 +546,7 @@ export class SupervisorPinService {
       const supervisorPin = supervisorPinResult.supervisorPin!;
 
       // Verify PIN
-      const isValid = await verifyPin(pin, supervisorPin.salt, supervisorPin.pinHash);
+      const isValid = await verifyPassword(pin, supervisorPin.pinHash, supervisorPin.salt);
 
       if (!isValid) {
         return {

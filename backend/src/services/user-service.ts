@@ -3,35 +3,11 @@ import { db, users, teams, userPins, devices } from '../lib/db';
 import { NewUser, User, NewUserPin } from '../lib/db/schema';
 import { logger } from '../lib/logger';
 import { randomUUID } from 'crypto';
-import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
+import { hashPassword, verifyPassword } from '../lib/crypto';
 
-// Generate UUID and salt
+// Generate UUID helper
 function generateId(): string {
   return randomUUID();
-}
-
-function generateSalt(): string {
-  return randomBytes(16).toString('hex');
-}
-
-// PIN hashing using scrypt
-async function hashPin(pin: string, salt: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    scrypt(pin, salt, 64, (err, derivedKey) => {
-      if (err) reject(err);
-      else resolve(derivedKey.toString('hex'));
-    });
-  });
-}
-
-// Verify PIN hash
-async function verifyPin(pin: string, salt: string, hash: string): Promise<boolean> {
-  try {
-    const hashedPin = await hashPin(pin, salt);
-    return timingSafeEqual(Buffer.from(hashedPin, 'hex'), Buffer.from(hash, 'hex'));
-  } catch {
-    return false;
-  }
 }
 
 // Response types
@@ -173,8 +149,7 @@ export class UserService {
       }
 
       // Hash PIN
-      const salt = generateSalt();
-      const pinHash = await hashPin(userData.pin, salt);
+      const hashedPin = await hashPassword(userData.pin);
 
       // Create new user
       const newUser: NewUser = {
@@ -192,8 +167,8 @@ export class UserService {
       // Create user PIN
       const newUserPin: NewUserPin = {
         userId: createdUser.id,
-        pinHash,
-        salt,
+        pinHash: hashedPin.hash,
+        salt: hashedPin.salt,
       };
 
       await db.insert(userPins).values(newUserPin);
@@ -477,14 +452,13 @@ export class UserService {
           };
         }
 
-        const salt = generateSalt();
-        const pinHash = await hashPin(updateData.pin, salt);
+        const hashedPin = await hashPassword(updateData.pin);
 
         await db
           .update(userPins)
           .set({
-            pinHash,
-            salt,
+            pinHash: hashedPin.hash,
+            salt: hashedPin.salt,
             updatedAt: new Date(),
           })
           .where(eq(userPins.userId, userId));
@@ -586,7 +560,7 @@ export class UserService {
         };
       }
 
-      const isValid = await verifyPin(pin, userPin.salt, userPin.pinHash);
+      const isValid = await verifyPassword(pin, userPin.pinHash, userPin.salt);
 
       if (!isValid) {
         return {

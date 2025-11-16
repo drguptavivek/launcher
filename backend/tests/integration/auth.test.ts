@@ -9,6 +9,7 @@ import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { RateLimiter } from '../../src/services/rate-limiter';
 import { ensureFixedTestData, cleanupFixedTestData, TEST_CREDENTIALS, INVALID_CREDENTIALS } from '../helpers/fixed-test-data';
+import { UserService } from '../../src/services/user-service';
 
 describe('Authentication API Integration Tests', () => {
   let app: express.Application;
@@ -127,6 +128,37 @@ describe('Authentication API Integration Tests', () => {
       expect(response.body.ok).toBe(false);
       expect(response.body.error.code).toBe('APP_ACCESS_DENIED');
       expect(response.body.error.message).toMatch(/Role not authorized/);
+    });
+
+    it('should allow login for a user created via UserService', async () => {
+      const userCode = `apiuser_${Date.now()}`;
+      const pin = '246810';
+
+      const createResult = await UserService.createUser({
+        teamId: TEST_CREDENTIALS.TEAM.teamId,
+        code: userCode,
+        displayName: 'API Created User',
+        pin
+      });
+
+      expect(createResult.success).toBe(true);
+      expect(createResult.user).toBeDefined();
+
+      const response = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode,
+          pin
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.ok).toBe(true);
+
+      if (createResult.user) {
+        await db.delete(userPins).where(eq(userPins.userId, createResult.user.id));
+        await db.delete(users).where(eq(users.id, createResult.user.id));
+      }
     });
   });
 
