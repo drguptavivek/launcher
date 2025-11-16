@@ -1,24 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import { apiRouter } from '../../src/routes/api';
 import { db } from '../../src/lib/db';
-import { teams, devices, users, userPins, supervisorPins, sessions } from '../../src/lib/db/schema';
-import { hashPassword } from '../../src/lib/crypto';
+import { users, userPins } from '../../src/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { RateLimiter } from '../../src/services/rate-limiter';
-import { ensureFixedTestData, cleanupFixedTestData, TEST_CREDENTIALS, INVALID_CREDENTIALS } from '../helpers/fixed-test-data';
+import { ensureFixedTestData, TEST_CREDENTIALS } from '../helpers/fixed-test-data';
 import { UserService } from '../../src/services/user-service';
 
 describe('Authentication API Integration Tests', () => {
   let app: express.Application;
 
   // Use fixed test UUIDs for consistent testing
-  const teamId = '550e8400-e29b-41d4-a716-446655440002';
   const deviceId = '550e8400-e29b-41d4-a716-446655440001';
   const userId = '550e8400-e29b-41d4-a716-446655440003';
-  const supervisorPinId = '550e8400-e29b-41d4-a716-446655440006';
 
   beforeAll(async () => {
     // Setup Express app once

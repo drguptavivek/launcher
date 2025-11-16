@@ -1,5 +1,5 @@
-import { eq, and, like, desc, count } from 'drizzle-orm';
-import { db, users, teams, userPins, devices } from '../lib/db';
+import { eq, and, like, desc, count, sql } from 'drizzle-orm';
+import { db, users, teams, userPins } from '../lib/db';
 import { NewUser, User, NewUserPin } from '../lib/db/schema';
 import { logger } from '../lib/logger';
 import { randomUUID } from 'crypto';
@@ -214,7 +214,7 @@ export class UserService {
 
       logger.info('Listing users', { page, limit, options });
 
-      let query = db
+      const baseQuery = db
         .select({
           id: users.id,
           code: users.code,
@@ -247,9 +247,9 @@ export class UserService {
         conditions.push(eq(users.isActive, options.isActive));
       }
 
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
+      const filteredQuery = conditions.length > 0
+        ? baseQuery.where(and(...conditions))
+        : baseQuery;
 
       // Get total count for pagination
       const countQuery = db.select({ count: count() }).from(users);
@@ -261,7 +261,7 @@ export class UserService {
       const total = countResult[0]?.count || 0;
 
       // Get paginated results
-      const usersList = await query
+      const usersList = await filteredQuery
         .orderBy(desc(users.createdAt))
         .limit(limit)
         .offset(offset);
