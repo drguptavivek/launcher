@@ -15,8 +15,8 @@
 - **Testing scaffolding**: Integration suites cover login/route protection using deterministic fixtures from `scripts/seed-fixed-users.ts` (`backend/tests/integration/auth.test.ts`, `backend/tests/integration/route-protection.test.ts`), keeping regressions visible.
 
 ## Critical Gaps / Edge Cases
-1. **Web-admin cookies never honored**  
-   Login sets HTTP-only `access_token` and `refresh_token` cookies (`backend/src/routes/api/web-admin-auth.ts:52-75`), but `authenticateWebAdmin` only checks the Authorization header and returns `MISSING_TOKEN` when it is absent (`backend/src/middleware/auth.ts:888-905`). Cookie-based sessions therefore cannot be used despite the documented flow.
+1. **Web-admin dual-mode auth incomplete**  
+   The API issues both JSON tokens and HttpOnly cookies at web-admin login, but the middleware only honors Bearer headers and ignores cookies due to the lack of `cookie-parser` and cookie fallback logic (`backend/src/middleware/auth.ts:888-905`). For token-based SPAs (like the Svelte UI) this is acceptable, but browsers cannot rely solely on the provided cookies for CSRF-hardened sessions until the server parses them and enforces SameSite/CSRF defenses.
 2. **Telemetry ingestion / authorization mismatches**  
    Endpoint authorization checks for `Action.READ` instead of `Action.CREATE`, so write intent is mislabeled and the RBAC matrix cannot restrict uploads correctly (`backend/src/routes/api/telemetry.ts:9-34`).
 3. **Supervisor override permissions reference a non-existent resource**  
