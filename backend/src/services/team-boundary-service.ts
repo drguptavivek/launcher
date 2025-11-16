@@ -11,7 +11,7 @@ import {
   gt,
   sql
 } from 'drizzle-orm';
-import { AuthorizationService, PermissionContext } from './authorization-service';
+import { MobileUserAuthService, PermissionContext } from './mobile-user-auth-service';
 
 // ===== INTERFACES & TYPES =====
 
@@ -589,9 +589,9 @@ export class TeamBoundaryService {
     crossTeamRoles: string[]
   ): Promise<boolean> {
     try {
-      // Use AuthorizationService to check permissions
+      // Use MobileUserAuthService to check permissions
       for (const roleName of crossTeamRoles) {
-        const hasPermission = await AuthorizationService.checkPermission(
+        const hasPermission = await MobileUserAuthService.checkPermission(
           userId,
           resourceType,
           action,

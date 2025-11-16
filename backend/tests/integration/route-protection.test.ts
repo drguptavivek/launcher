@@ -8,6 +8,7 @@ import { hashPassword } from '../../src/lib/crypto';
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { JWTService } from '../../src/services/jwt-service';
+import { FIXED_USERS, FIXED_DEVICE, FIXED_TEAM, FIXED_WEB_ADMIN } from '../../scripts/seed-fixed-users';
 
 describe('Route Protection Security Tests', () => {
   let app: express.Application;
@@ -24,99 +25,59 @@ describe('Route Protection Security Tests', () => {
     app.use(express.json());
     app.use('/api/v1', apiRouter);
 
-    // Clean up test data
-    if (adminUser) {
-      await db.delete(webAdminUsers).where(eq(webAdminUsers.id, adminUser.id));
-    }
-    if (mobileUser) {
-      await db.delete(userPins).where(eq(userPins.userId, mobileUser.id));
-      await db.delete(users).where(eq(users.id, mobileUser.id));
+    // Use deterministic seeded data for consistent tests
+    // Get the TEAM_MEMBER user (test001) and SYSTEM_ADMIN (web admin)
+    const teamMemberUser = await db.select()
+      .from(users)
+      .where(eq(users.code, FIXED_USERS.TEAM_MEMBER.userCode))
+      .limit(1);
+
+    const systemAdmin = await db.select()
+      .from(webAdminUsers)
+      .where(eq(webAdminUsers.email, FIXED_WEB_ADMIN.email))
+      .limit(1);
+
+    if (teamMemberUser.length === 0 || systemAdmin.length === 0) {
+      throw new Error('Seeded test data not found. Please run npm run db:seed-fixed first.');
     }
 
-    // Create test admin user
-    adminUser = {
-      id: uuidv4(),
-      email: `test-admin-${Date.now()}@example.com`,
-      password: await hashPassword('testAdminPassword123'),
-      firstName: 'Test',
-      lastName: 'Admin',
-      role: 'SYSTEM_ADMIN',
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    mobileUser = teamMemberUser[0];
+    adminUser = systemAdmin[0];
 
-    await db.insert(webAdminUsers).values(adminUser);
+    // Get the team and organization for context
+    const teamData = await db.select()
+      .from(teams)
+      .where(eq(teams.id, mobileUser.teamId))
+      .limit(1);
+
+    if (teamData.length === 0) {
+      throw new Error('Test team not found.');
+    }
+
+    testTeam = teamData[0];
 
     // Create auth token for admin user
-    const adminTokenResult = await JWTService.createWebAdminToken({
+    const adminTokenResult = await JWTService.createToken({
       userId: adminUser.id,
-      deviceId: 'test-device',
-      sessionId: 'test-session'
+      deviceId: FIXED_DEVICE.deviceId,
+      sessionId: uuidv4(), // Generate valid session UUID
+      type: 'web-admin'
     });
     authToken = adminTokenResult.token;
 
-    // Create test organization first
-    testOrganization = await db.insert(organizations).values({
-      name: 'Test Organization',
-      displayName: 'Test Organization Display',
-      code: 'TEST-ORG',
-      isActive: true,
-      isDefault: false,
-      settings: {},
-    }).returning({ id: organizations.id }).then(rows => rows[0]);
-
-    // Create test team
-    testTeam = await db.insert(teams).values({
-      name: 'Test Team',
-      timezone: 'UTC',
-      stateId: 'TS',
-      organizationId: testOrganization.id,
-    }).returning({ id: teams.id }).then(rows => rows[0]);
-
-    // Create test mobile user
-    mobileUser = {
-      id: uuidv4(),
-      code: 'test001',
-      teamId: testTeam.id, // Use existing team
-      displayName: 'Test Mobile User',
-      isActive: true,
-    };
-
-    await db.insert(users).values(mobileUser);
-
-    // Create user PIN
-    const pinHash = await hashPassword('123456');
-    await db.insert(userPins).values({
+    // Create mobile auth token for user
+    const mobileTokenResult = await JWTService.createToken({
       userId: mobileUser.id,
-      pinHash: pinHash.hash,
-      salt: pinHash.salt,
+      deviceId: FIXED_DEVICE.deviceId,
+      sessionId: uuidv4(), // Generate valid session UUID
+      type: 'access'
     });
-
-    // Create mobile auth token
-    const mobileTokenResult = await JWTService.createTokens({
-      userId: mobileUser.id,
-      deviceId: 'test-device-id',
-      sessionId: 'test-session'
-    });
-    mobileToken = mobileTokenResult.accessToken;
+    mobileToken = mobileTokenResult.token;
   });
 
   afterEach(async () => {
-    // Clean up test data
-    if (adminUser) {
-      await db.delete(webAdminUsers).where(eq(webAdminUsers.id, adminUser.id));
-    }
-    if (mobileUser) {
-      await db.delete(userPins).where(eq(userPins.userId, mobileUser.id));
-      await db.delete(users).where(eq(users.id, mobileUser.id));
-    }
-    if (testTeam) {
-      await db.delete(teams).where(eq(teams.id, testTeam.id));
-    }
-    if (testOrganization) {
-      await db.delete(organizations).where(eq(organizations.id, testOrganization.id));
-    }
+    // Using seeded data, no cleanup needed
+    // Test data persists across test runs for consistency
   });
 
   describe('Authentication Protection', () => {
@@ -124,7 +85,7 @@ describe('Route Protection Security Tests', () => {
       const protectedRoutes = [
         '/api/v1/users',
         '/api/v1/teams',
-        '/piv1/devices',
+        '/api/v1/devices',
         '/api/v1/projects',
         '/api/v1/organizations',
         '/api/v1/telemetry',
@@ -175,8 +136,8 @@ describe('Route Protection Security Tests', () => {
       const response = await request(app)
         .post('/api/v1/web-admin/auth/login')
         .send({
-          email: adminUser.email,
-          password: 'testAdminPassword123'
+          email: FIXED_WEB_ADMIN.email,
+          password: FIXED_WEB_ADMIN.password
         })
         .expect(200);
 
@@ -256,9 +217,9 @@ describe('Route Protection Security Tests', () => {
       const response = await request(app)
         .post('/api/v1/auth/login')
         .send({
-          deviceId: 'test-device-id',
-          userCode: mobileUser.code,
-          pin: '123456'
+          deviceId: FIXED_DEVICE.deviceId,
+          userCode: FIXED_USERS.TEAM_MEMBER.userCode,
+          pin: FIXED_USERS.TEAM_MEMBER.pin
         })
         .expect(200);
 

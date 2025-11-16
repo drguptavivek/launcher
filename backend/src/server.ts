@@ -8,6 +8,14 @@ import { env } from './lib/config';
 import { logger } from './lib/logger';
 import { swaggerSpec, swaggerUiOptions } from './lib/swagger';
 import swaggerUi from 'swagger-ui-express';
+import {
+  securityHeaders,
+  apiRateLimit,
+  requestSizeLimit,
+  requestTimeout,
+  ipBlocker,
+  userAgentFilter
+} from './middleware/security';
 
 // Create Express app
 const app = express();
@@ -19,15 +27,58 @@ app.use((req, res, next) => {
   next();
 });
 
+// Enhanced Security middleware
+app.use(securityHeaders);
+
+// Request size limiting (before body parsing)
+app.use(requestSizeLimit);
+
+// Request timeout
+app.use(requestTimeout(env.REQUEST_TIMEOUT_MS || 30000));
+
+// Rate limiting for API endpoints
+app.use('/api', apiRateLimit);
+
+// Optional: IP blocking (add IPs to block in environment variables)
+const blockedIPs = env.BLOCKED_IPS ? env.BLOCKED_IPS.split(',') : [];
+if (blockedIPs.length > 0) {
+  app.use(ipBlocker(blockedIPs));
+}
+
+// Optional: User agent filtering (add patterns to block in environment variables)
+const blockedUserAgents = env.BLOCKED_USER_AGENTS ? env.BLOCKED_USER_AGENTS.split(',') : [];
+if (blockedUserAgents.length > 0) {
+  app.use(userAgentFilter(blockedUserAgents));
+}
+
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts for development
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      fontSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      manifestSrc: ["'self'"],
+      workerSrc: ["'self'"]
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // CORS middleware
 app.use(cors({
   origin: env.CORS_ALLOWED_ORIGINS,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After'],
+  exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset', 'Retry-After']
 }));
 
 // Body parsing middleware

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/user-service';
 import { JWTService } from '../services/jwt-service';
-import { AuthorizationService } from '../services/authorization-service';
+import { MobileUserAuthService } from '../services/mobile-user-auth-service';
 import { db, sessions } from '../lib/db';
 import { logger } from '../lib/logger';
 import { eq } from 'drizzle-orm';
@@ -309,8 +309,8 @@ async function enhanceUserWithRoles(
       };
     }
 
-    // Get user's effective permissions and roles from AuthorizationService
-    const effectivePermissions = await AuthorizationService.computeEffectivePermissions(
+    // Get user's effective permissions and roles from MobileUserAuthService
+    const effectivePermissions = await MobileUserAuthService.computeEffectivePermissions(
       user.id,
       {
         teamId: context.teamId,
@@ -560,8 +560,8 @@ export const requireRole = (allowedRoles: UserRole[]) => {
     }
 
     try {
-      // Check if user has any of the required roles using AuthorizationService
-      const hasRequiredRole = await AuthorizationService.hasAnyRole(
+      // Check if user has any of the required roles using MobileUserAuthService
+      const hasRequiredRole = await MobileUserAuthService.hasAnyRole(
         req.user.id,
         allowedRoles
       );
@@ -630,8 +630,8 @@ export const requirePermission = (resource: Resource, action: Action) => {
     }
 
     try {
-      // Use AuthorizationService for comprehensive permission checking
-      const permissionResult = await AuthorizationService.checkPermission(
+      // Use MobileUserAuthService for comprehensive permission checking
+      const permissionResult = await MobileUserAuthService.checkPermission(
         req.user.id,
         resource,
         action,
@@ -729,8 +729,8 @@ export const requireTeamAccess = (teamIdParam: string = 'teamId') => {
     }
 
     try {
-      // Use AuthorizationService for contextual access checking
-      const contextualResult = await AuthorizationService.checkContextualAccess(
+      // Use MobileUserAuthService for contextual access checking
+      const contextualResult = await MobileUserAuthService.checkContextualAccess(
         req.user.id,
         {
           teamId: resourceTeamId,
@@ -824,7 +824,7 @@ export const requireOwnerAccess = (userIdParam: string = 'userId') => {
 
     try {
       // Check if user has cross-team access or admin-level permissions
-      const hasCrossTeamAccess = await AuthorizationService.hasAnyRole(
+      const hasCrossTeamAccess = await MobileUserAuthService.hasAnyRole(
         req.user.id,
         [
           UserRole.SYSTEM_ADMIN,

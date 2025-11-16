@@ -8,7 +8,7 @@
  */
 
 import { db } from '../src/lib/db';
-import { teams, devices, users, userPins, supervisorPins, sessions, organizations, projects, projectAssignments, projectTeamAssignments } from '../src/lib/db/schema';
+import { teams, devices, users, userPins, supervisorPins, sessions, organizations, projects, projectAssignments, projectTeamAssignments, webAdminUsers } from '../src/lib/db/schema';
 import { verifyPassword, hashPassword } from '../src/lib/crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../src/lib/logger';
@@ -91,6 +91,14 @@ export const FIXED_SUPERVISOR_PINS = {
     pin: '333333',
     name: 'System Administrator Override PIN'
   }
+} as const;
+
+export const FIXED_WEB_ADMIN = {
+  email: 'admin@surveylauncher.test',
+  password: 'AdminPass123!',
+  firstName: 'System',
+  lastName: 'Administrator',
+  role: 'SYSTEM_ADMIN' as const
 } as const;
 
 export const FIXED_DEVICE = {
@@ -232,6 +240,31 @@ async function seedFixedUsers() {
         }
       });
     }
+
+    // Create deterministic web admin user
+    console.log('Creating web admin user...');
+    const adminPasswordHash = await hashPassword(FIXED_WEB_ADMIN.password);
+    await db.insert(webAdminUsers).values({
+      id: '550e8400-e29b-41d4-a716-446655440999', // Fixed admin ID
+      email: FIXED_WEB_ADMIN.email,
+      password: `${adminPasswordHash.hash}:${adminPasswordHash.salt}`, // Store as hash:salt combined format
+      firstName: FIXED_WEB_ADMIN.firstName,
+      lastName: FIXED_WEB_ADMIN.lastName,
+      role: FIXED_WEB_ADMIN.role,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).onConflictDoUpdate({
+      target: webAdminUsers.email,
+      set: {
+        password: `${adminPasswordHash.hash}:${adminPasswordHash.salt}`, // Store as hash:salt combined format
+        firstName: FIXED_WEB_ADMIN.firstName,
+        lastName: FIXED_WEB_ADMIN.lastName,
+        role: FIXED_WEB_ADMIN.role,
+        isActive: true,
+        updatedAt: new Date()
+      }
+    });
 
     // Create test device
     console.log('Creating test device...');

@@ -1,4 +1,4 @@
-import { db, roles, permissions, rolePermissions, userRoleAssignments, users, teams, permissionCache } from '../lib/db';
+import { db, roles, permissions, rolePermissions, userRoleAssignments, users, teams, permissionCache, webAdminUsers } from '../lib/db';
 import { projectPermissionService } from './project-permission-service';
 import { logger } from '../lib/logger';
 import {
@@ -131,18 +131,19 @@ export interface AccessEvaluationContext {
 // ===== AUTHORIZATION SERVICE =====
 
 /**
- * Enhanced Authorization Service for SurveyLauncher RBAC System
+ * Enhanced Mobile User Authorization Service for SurveyLauncher RBAC System
  *
  * Features:
- * - Dynamic permission resolution from database
+ * - Dynamic permission resolution from database for mobile users
  * - Permission caching with TTL (<100ms target)
  * - Role hierarchy and inheritance support
  * - Context-aware access control (team, region, organization boundaries)
  * - Special handling for NATIONAL_SUPPORT_ADMIN cross-team access
  * - System settings protection (SYSTEM_SETTINGS resource)
  * - Comprehensive audit logging
+ * - Web admin user support through synthetic role assignments
  */
-export class AuthorizationService {
+export class MobileUserAuthService {
   // Cache TTL: 5 minutes for permission cache
   private static readonly CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -817,11 +818,71 @@ export class AuthorizationService {
   }
 
   /**
-   * Get user's active role assignments
+   * Get user's active role assignments (includes web admin direct roles)
    */
   private static async getUserRoleAssignments(userId: string): Promise<Array<UserRoleAssignment & { role?: Role }>> {
     try {
-      const assignments = await db
+      // First, check if user is a web admin
+      const webAdminResult = await db
+        .select({
+          id: webAdminUsers.id,
+          email: webAdminUsers.email,
+          role: webAdminUsers.role,
+          isActive: webAdminUsers.isActive
+        })
+        .from(webAdminUsers)
+        .where(and(
+          eq(webAdminUsers.id, userId),
+          eq(webAdminUsers.isActive, true)
+        ))
+        .limit(1);
+
+      const assignments: Array<UserRoleAssignment & { role?: Role; user?: any; team?: any }> = [];
+
+      // If user is a web admin, create synthetic role assignment
+      if (webAdminResult.length > 0) {
+        const webAdmin = webAdminResult[0];
+
+        // Find the role definition for the web admin's role
+        const roleDefinition = await db
+          .select()
+          .from(roles)
+          .where(and(
+            eq(roles.name, webAdmin.role),
+            eq(roles.isActive, true)
+          ))
+          .limit(1);
+
+        if (roleDefinition.length > 0) {
+          const role = roleDefinition[0];
+          const syntheticAssignment: UserRoleAssignment & { role?: Role; user?: any; team?: any } = {
+            id: `web-admin-${webAdmin.id}`,
+            userId: webAdmin.id,
+            roleId: role.id,
+            teamId: null, // Web admins are not bound to teams
+            organizationId: null, // Web admins have cross-organization access
+            regionId: null, // Web admins have cross-region access
+            isActive: true,
+            assignedAt: new Date(),
+            expiresAt: null,
+            assignedBy: 'system-web-admin',
+            role: role,
+            user: {
+              id: webAdmin.id,
+              code: 'WEB_ADMIN',
+              teamId: '',
+              displayName: `${webAdmin.email}`,
+              email: webAdmin.email,
+              isActive: true
+            },
+            team: null
+          };
+          assignments.push(syntheticAssignment);
+        }
+      }
+
+      // Also get regular role assignments from userRoleAssignments table
+      const regularAssignments = await db
         .select({
           assignment: userRoleAssignments,
           role: roles,
@@ -843,12 +904,26 @@ export class AuthorizationService {
           )
         ));
 
-      return assignments.map(item => ({
-        ...item.assignment,
-        role: item.role,
-        user: item.user,
-        team: item.team
-      }));
+      // Add regular assignments to the result
+      regularAssignments.forEach(item => {
+        assignments.push({
+          ...item.assignment,
+          role: item.role,
+          user: item.user,
+          team: item.team
+        });
+      });
+
+      // If no assignments found (neither web admin nor regular), return empty array
+      if (assignments.length === 0) {
+        logger.info('No role assignments found for user', {
+          userId,
+          checkedWebAdmin: true,
+          checkedRegularAssignments: true
+        });
+      }
+
+      return assignments;
 
     } catch (error) {
       logger.error('Failed to get user role assignments', {
@@ -1400,4 +1475,7 @@ export class AuthorizationService {
 }
 
 // Export default for convenience
-export default AuthorizationService;
+export default MobileUserAuthService;
+
+// Backward compatibility export
+export const AuthorizationService = MobileUserAuthService;

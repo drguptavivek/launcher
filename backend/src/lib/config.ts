@@ -47,6 +47,11 @@ const envSchema = z.object({
   MAX_POLICY_AGE_SEC: z.string().transform(Number).pipe(z.number()).default(86400),
   SESSION_TIMEOUT_HOURS: z.string().transform(Number).pipe(z.number()).default(8),
 
+  // Security Hardening (Phase 4.4)
+  REQUEST_TIMEOUT_MS: z.string().transform(Number).pipe(z.number()).default(30000),
+  BLOCKED_IPS: z.string().optional(),
+  BLOCKED_USER_AGENTS: z.string().optional(),
+
   // Telemetry
   TELEMETRY_BATCH_MAX: z.string().transform(Number).pipe(z.number()).default(50),
   HEARTBEAT_MINUTES: z.string().transform(Number).pipe(z.number()).default(10),
