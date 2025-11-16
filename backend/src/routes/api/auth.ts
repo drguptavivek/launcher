@@ -136,6 +136,7 @@ router.post('/logout', authenticateToken, async (req: AuthenticatedRequest, res)
     return res.json({
       ok: true,
       message: 'Logged out successfully',
+      ended_at: result.endedAt?.toISOString(),
     });
 
   } catch (error: any) {
@@ -156,7 +157,7 @@ router.post('/logout', authenticateToken, async (req: AuthenticatedRequest, res)
 });
 
 // POST /api/v1/auth/refresh - Refresh access token
-router.post('/refresh', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/refresh', async (req: AuthenticatedRequest, res) => {
   try {
     const { refresh_token } = req.body;
 

@@ -143,7 +143,7 @@ export class JWTService {
   /**
    * Revoke all tokens for a session
    */
-  static async revokeSessionTokens(sessionId: string, revokedBy?: string): Promise<void> {
+  static async revokeSessionTokens(sessionId: string, revokedBy?: string): Promise<Date> {
     try {
       // Get the session to find the JTI
       const session = await db.select()
@@ -158,14 +158,16 @@ export class JWTService {
       // Session data available if needed: const sessionData = session[0];
 
       // Mark session as ended
+      const endedAt = nowUTC();
       await db.update(sessions)
         .set({
           status: 'ended',
-          endedAt: nowUTC()
+          endedAt
         })
         .where(eq(sessions.id, sessionId));
 
       logger.info('Session revoked', { sessionId, revokedBy });
+      return endedAt;
     } catch (error) {
       logger.error('Failed to revoke session', { sessionId, error });
 

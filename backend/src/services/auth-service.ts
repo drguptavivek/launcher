@@ -336,6 +336,7 @@ export class AuthService {
    */
   static async logout(sessionId: string, revokedBy?: string): Promise<{
     success: boolean;
+    endedAt?: Date;
     error?: {
       code: string;
       message: string;
@@ -359,11 +360,11 @@ export class AuthService {
       }
 
       // Revoke session tokens
-      await JWTService.revokeSessionTokens(sessionId, revokedBy);
+      const endedAt = await JWTService.revokeSessionTokens(sessionId, revokedBy);
 
       logger.info('User logged out', { sessionId, revokedBy });
 
-      return { success: true };
+      return { success: true, endedAt };
     } catch (error) {
       logger.error('Failed to revoke session', { sessionId, error });
 
