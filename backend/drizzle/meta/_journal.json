@@ -43,6 +43,13 @@
       "when": 1763238297025,
       "tag": "0005_concerned_scalphunter",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1763299932000,
+      "tag": "0006_dual_auth_columns",
+      "breakpoints": true
     }
   ]
 }

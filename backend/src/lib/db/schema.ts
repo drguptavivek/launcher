@@ -185,6 +185,8 @@ export const sessions = pgTable('sessions', {
   overrideUntil: timestamp('override_until', { withTimezone: true }),
   tokenJti: varchar('token_jti', { length: 64 }),
   lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: varchar('user_agent', { length: 255 }),
 }, (table) => ({
   userIdIdx: table.userId,
   deviceIdIdx: table.deviceId,
@@ -196,6 +198,7 @@ export const telemetryEvents = pgTable('telemetry_events', {
   id: uuid('id').defaultRandom().primaryKey(),
   deviceId: uuid('device_id').notNull().references(() => devices.id, { onDelete: 'cascade' }),
   sessionId: uuid('session_id').references(() => sessions.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   eventType: varchar('event_type', { length: 32 }).notNull(), // gps, heartbeat, gate.blocked, pin.verify
   eventData: jsonb('event_data').notNull(), // JSON payload for the event
   timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),

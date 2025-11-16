@@ -113,6 +113,21 @@ describe('Authentication API Integration Tests', () => {
       expect(response.body.error.code).toBe('MISSING_FIELDS');
       expect(response.body.error.message).toBe('deviceId, userCode, and pin are required');
     });
+
+    it('should reject login for roles not allowed on mobile app', async () => {
+      const response = await request(app)
+        .post('/api/v1/auth/login')
+        .send({
+          deviceId: TEST_CREDENTIALS.DEVICE.deviceId,
+          userCode: TEST_CREDENTIALS.SYSTEM_ADMIN.userCode,
+          pin: TEST_CREDENTIALS.SYSTEM_ADMIN.pin
+        });
+
+      expect(response.status).toBe(403);
+      expect(response.body.ok).toBe(false);
+      expect(response.body.error.code).toBe('APP_ACCESS_DENIED');
+      expect(response.body.error.message).toMatch(/Role not authorized/);
+    });
   });
 
   describe('GET /api/v1/auth/whoami', () => {

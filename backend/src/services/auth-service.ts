@@ -72,6 +72,12 @@ export interface SupervisorOverrideResult {
   };
 }
 
+const ALLOWED_APP_ROLES = new Set([
+  'TEAM_MEMBER',
+  'FIELD_SUPERVISOR',
+  'REGIONAL_MANAGER'
+]);
+
 /**
  * Authentication Service
  */
@@ -146,6 +152,19 @@ export class AuthService {
           error: {
             code: 'INVALID_CREDENTIALS',
             message: 'Invalid user code or PIN',
+          },
+        };
+      }
+
+      // Enforce role-level access for the mobile app
+      if (!ALLOWED_APP_ROLES.has(userData.role)) {
+        await this.recordLoginAttempt(deviceId, userData.id, false, ipAddress, 'ROLE_NOT_ALLOWED');
+        return {
+          success: false,
+          policyVersion: 0,
+          error: {
+            code: 'APP_ACCESS_DENIED',
+            message: 'Role not authorized for mobile app access',
           },
         };
       }

@@ -51,7 +51,13 @@ router.post('/login', async (req, res) => {
         ipAddress,
       });
 
-      const statusCode = result.error?.code === 'RATE_LIMITED' ? 429 : 401;
+      let statusCode = 401;
+      if (result.error?.code === 'RATE_LIMITED') {
+        statusCode = 429;
+      } else if (result.error?.code === 'APP_ACCESS_DENIED') {
+        statusCode = 403;
+      }
+
       return res.status(statusCode).json({
         ok: false,
         error: result.error,

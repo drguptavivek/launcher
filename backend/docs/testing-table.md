@@ -127,6 +127,14 @@ Last Updated: November 15, 2025 - Security Hardening Complete
 | 126 | auth.test.ts | should get user info with valid token | Live DB | ✅ PASS |
 | 127 | auth.test.ts | should reject user info without token | Live DB | ❌ FAIL |
 | 128 | auth.test.ts | should reject user info with invalid token | Live DB | ❌ FAIL |
+
+### New Integration Tests (November 16, 2025) – Pending DB Connectivity
+*Pending addition to master totals once Postgres is online for verification.*
+
+| Sr. | Test Name | Scenario | Live DB or Mock | Status |
+|-----|-----------|----------|-----------------|--------|
+| 267 | auth.test.ts | should reject login for roles not allowed on mobile app | Live DB | ⚠️ BLOCKED (Local Postgres 5434 unavailable; `npm run test:auth`) |
+
 | 129 | auth-debug.test.ts | should test debug authentication flow | Live DB | ✅ PASS |
 | 130 | security-rate-limiting.test.ts | should rate limit login attempts per device | Live DB | ❌ FAIL |
 | 131 | security-rate-limiting.test.ts | should rate limit login attempts per IP address | Live DB | ✅ PASS |
