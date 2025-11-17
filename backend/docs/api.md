@@ -1521,6 +1521,33 @@ Retrieve the policy configuration for a specific device.
 }
 ```
 
+#### Admin Dashboard: Policy History Feed
+
+The admin dashboard consumes `PolicyService.getRecentPolicyIssues(deviceId)` to populate the policy history drawer. Each record includes a numeric `policyVersion`, issuance/expiry timestamps, and the originating IP (when captured).
+
+**Sample Payload:**
+
+```json
+[
+  {
+    "id": "c071a0b3-8a55-4d8c-9e99-6f7e5fb0c1c7",
+    "policyVersion": 3,
+    "issuedAt": "2025-11-17T04:30:00.000Z",
+    "expiresAt": "2025-11-18T04:30:00.000Z",
+    "ipAddress": "203.0.113.24"
+  },
+  {
+    "id": "9bb8fb56-d1d5-4dd1-bd36-54dfd77681bc",
+    "policyVersion": 2,
+    "issuedAt": "2025-11-16T04:30:01.000Z",
+    "expiresAt": "2025-11-17T04:30:01.000Z",
+    "ipAddress": "203.0.113.12"
+  }
+]
+```
+
+Use these records to render "last issued" indicators and auditing timelines; clients should not assume the on-disk representation is numeric—the service has already coerced it for UI consumption.
+
 **Error Responses:**
 - `400 BAD_REQUEST` - Missing device ID
 - `404 NOT_FOUND` - Device not found

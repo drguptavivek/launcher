@@ -263,9 +263,9 @@ export class PolicyService {
     expiresAt: Date;
     ipAddress?: string;
   }>> {
-    return db.select({
+    const issues = await db.select({
       id: policyIssues.id,
-      policyVersion: policyIssues.policyVersion,
+      policyVersion: policyIssues.version,
       issuedAt: policyIssues.issuedAt,
       expiresAt: policyIssues.expiresAt,
       ipAddress: policyIssues.ipAddress,
@@ -274,6 +274,11 @@ export class PolicyService {
       .where(eq(policyIssues.deviceId, deviceId))
       .orderBy(desc(policyIssues.issuedAt))
       .limit(limit);
+
+    return issues.map(issue => ({
+      ...issue,
+      policyVersion: parseInt(issue.policyVersion ?? '0', 10) || 0,
+    }));
   }
 
   /**
@@ -448,6 +453,17 @@ export class PolicyService {
       return null;
     }
     return { payload: cached.payload, jws: cached.jws };
+  }
+
+  /**
+   * Invalidate cached policies. Used when policies are rotated or for tests.
+   */
+  static invalidatePolicyCache(deviceId?: string) {
+    if (deviceId) {
+      this.policyCache.delete(deviceId);
+      return;
+    }
+    this.policyCache.clear();
   }
 
   private static async updateDeviceLastSeen(deviceId: string) {

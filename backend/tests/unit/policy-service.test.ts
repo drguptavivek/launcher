@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { PolicyService } from '../../src/services/policy-service';
 import { db } from '../../src/lib/db';
 import { teams, devices, policyIssues, users, userPins, sessions } from '../../src/lib/db/schema';
-import { hashPassword } from '../../src/lib/crypto';
+import { hashPassword, policySigner } from '../../src/lib/crypto';
 import { eq, and, desc } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../../src/lib/logger';
@@ -52,6 +52,7 @@ describe('PolicyService - Real Database Tests', () => {
     await db.delete(devices).where(eq(devices.id, inactiveDeviceId));
     await db.delete(devices).where(eq(devices.id, orphanedDeviceId));
     await db.delete(sessions).where(eq(sessions.deviceId, deviceId));
+    PolicyService.invalidatePolicyCache();
 
     // Clear mocks
     vi.clearAllMocks();
@@ -65,6 +66,7 @@ describe('PolicyService - Real Database Tests', () => {
     await db.delete(devices).where(eq(devices.id, inactiveDeviceId));
     await db.delete(devices).where(eq(devices.id, orphanedDeviceId));
     await db.delete(sessions).where(eq(sessions.deviceId, deviceId));
+    PolicyService.invalidatePolicyCache();
 
     // Clear mocks
     vi.clearAllMocks();
@@ -211,6 +213,8 @@ describe('PolicyService - Real Database Tests', () => {
       const result1 = await PolicyService.issuePolicy(deviceId, '192.168.1.1');
       expect(result1.success).toBe(true);
 
+      PolicyService.invalidatePolicyCache(deviceId);
+
       // Issue second policy
       const result2 = await PolicyService.issuePolicy(deviceId, '192.168.1.2');
       expect(result2.success).toBe(true);
@@ -225,10 +229,9 @@ describe('PolicyService - Real Database Tests', () => {
 
   describe('POLICY-007: Error Handling', () => {
     it('should handle database errors gracefully', async () => {
-      // Mock the PolicyService itself to throw an error
-      const originalIssuePolicy = PolicyService.issuePolicy;
-
-      PolicyService.issuePolicy = vi.fn().mockRejectedValue(new Error('Database connection failed'));
+      const signerSpy = vi.spyOn(policySigner, 'createJWS').mockImplementation(() => {
+        throw new Error('Database connection failed');
+      });
 
       const result = await PolicyService.issuePolicy(deviceId);
 
@@ -236,8 +239,7 @@ describe('PolicyService - Real Database Tests', () => {
       expect(result.error?.code).toBe('INTERNAL_ERROR');
       expect(result.error?.message).toBe('An error occurred while issuing policy');
 
-      // Restore original function
-      PolicyService.issuePolicy = originalIssuePolicy;
+      signerSpy.mockRestore();
     });
   });
 
@@ -280,10 +282,17 @@ describe('PolicyService - Real Database Tests', () => {
         gps: {
           active_fix_interval_minutes: 3,
           min_displacement_m: 50,
+          accuracy_threshold_m: 10,
+          max_age_minutes: 15,
         },
         telemetry: {
           heartbeat_minutes: 10,
           batch_max: 50,
+          retry_attempts: 3,
+          upload_interval_minutes: 15,
+        },
+        ui: {
+          blocked_message: 'Out of working hours.',
         },
         meta: {
           issued_at: '2025-01-14T12:00:00Z',
@@ -335,10 +344,17 @@ describe('PolicyService - Real Database Tests', () => {
         gps: {
           active_fix_interval_minutes: 3,
           min_displacement_m: 50,
+          accuracy_threshold_m: 10,
+          max_age_minutes: 15,
         },
         telemetry: {
           heartbeat_minutes: 10,
           batch_max: 50,
+          retry_attempts: 3,
+          upload_interval_minutes: 15,
+        },
+        ui: {
+          blocked_message: 'Out of working hours.',
         },
         meta: {
           issued_at: '2025-01-14T12:00:00Z',
@@ -377,7 +393,9 @@ describe('PolicyService - Real Database Tests', () => {
     it('should limit number of returned issues', async () => {
       // Issue multiple policies
       await PolicyService.issuePolicy(deviceId, '192.168.1.1');
+      PolicyService.invalidatePolicyCache(deviceId);
       await PolicyService.issuePolicy(deviceId, '192.168.1.2');
+      PolicyService.invalidatePolicyCache(deviceId);
       await PolicyService.issuePolicy(deviceId, '192.168.1.3');
 
       const issues = await PolicyService.getRecentPolicyIssues(deviceId, 2);
@@ -386,11 +404,12 @@ describe('PolicyService - Real Database Tests', () => {
       expect(issues.length).toBeLessThanOrEqual(2);
     });
 
-    it('should return issues in descending order by issuance time', async () => {
-      // Issue policies with a small delay to ensure different timestamps
-      await PolicyService.issuePolicy(deviceId, '192.168.1.1');
-      await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
-      await PolicyService.issuePolicy(deviceId, '192.168.1.2');
+      it('should return issues in descending order by issuance time', async () => {
+        // Issue policies with a small delay to ensure different timestamps
+        await PolicyService.issuePolicy(deviceId, '192.168.1.1');
+        PolicyService.invalidatePolicyCache(deviceId);
+        await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
+        await PolicyService.issuePolicy(deviceId, '192.168.1.2');
 
       const issues = await PolicyService.getRecentPolicyIssues(deviceId, 5);
 
@@ -398,6 +417,29 @@ describe('PolicyService - Real Database Tests', () => {
       expect(issues.length).toBe(2);
       // Should be in descending order (most recent first)
       expect(new Date(issues[0].issuedAt).getTime()).toBeGreaterThan(new Date(issues[1].issuedAt).getTime());
+    });
+
+    it('should coerce stored string versions to numbers', async () => {
+      const manualIssueId = uuidv4();
+      const now = new Date();
+      const future = new Date(now.getTime() + 60_000);
+
+      await db.insert(policyIssues).values({
+        id: manualIssueId,
+        deviceId,
+        version: '42',
+        issuedAt: now,
+        expiresAt: future,
+        jwsKid: 'manual-test',
+        policyData: { test: true },
+        ipAddress: '10.0.0.42'
+      });
+
+      const issues = await PolicyService.getRecentPolicyIssues(deviceId, 5);
+      const manualIssue = issues.find(issue => issue.id === manualIssueId);
+
+      expect(manualIssue).toBeDefined();
+      expect(manualIssue?.policyVersion).toBe(42);
     });
   });
 
@@ -416,6 +458,7 @@ describe('PolicyService - Real Database Tests', () => {
       });
 
       const result1 = await PolicyService.issuePolicy(deviceId);
+      PolicyService.invalidatePolicyCache(deviceId);
       const result2 = await PolicyService.issuePolicy(device2Id);
 
       expect(result1.success).toBe(true);
@@ -427,6 +470,7 @@ describe('PolicyService - Real Database Tests', () => {
 
       // Cleanup
       await db.delete(devices).where(eq(devices.id, device2Id));
+      PolicyService.invalidatePolicyCache(device2Id);
     });
   });
 

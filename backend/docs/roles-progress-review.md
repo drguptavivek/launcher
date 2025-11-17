@@ -1,5 +1,5 @@
 # Roles Progress Review
-**Timestamp (UTC): 2025-11-16 12:05**
+**Timestamp (UTC): 2025-11-17 04:35**
 
 ## Resolved Since Last Update
 1. **Mobile login now enforces role rules** – `AuthService.login` rejects any user whose role is not one of the three hybrid/mobile roles, logs the attempt, and the login route returns HTTP 403 with `APP_ACCESS_DENIED` (`backend/src/services/auth-service.ts:120-220`, `backend/src/routes/api/auth.ts:1-120`). Added an integration test to guard the regression (`backend/tests/integration/auth.test.ts`).
@@ -10,6 +10,8 @@
 6. **Supervisor override route references valid RBAC constants** – The override login endpoint now calls `requirePermission(Resource.SUPERVISOR_PINS, Action.EXECUTE)` instead of the non-existent `SUPERVISOR/OVERRIDE` pair, restoring compilation/runtime protection and matching the RBAC plan. Added a unit test to lock the permission wiring (`backend/src/routes/api/supervisor.ts`, `backend/tests/unit/routes/supervisor-route.test.ts`).
 7. **`/projects/my` now authenticates + passes integration test** – The projects router applies `authenticateToken` before any RBAC checks, so `req.user` is populated and `GET /api/v1/projects/my` no longer returns `UNAUTHENTICATED` for valid sessions. Added a focused integration test that seeds a user/org/project on the fly and asserts the endpoint returns the assigned project (`backend/src/routes/api/projects.ts`, `backend/tests/integration/projects.test.ts`).
 8. **Query validation no longer mutates Express getters** – The projects router stores Zod-validated query params under an internal symbol instead of overwriting `req.query`, fixing the Express 5 “getter-only” TypeError that broke `/projects/my` and the list route. Both handlers now pull options via `getValidatedQuery`, and the integration suite passes end-to-end (`backend/src/routes/api/projects.ts`, `backend/tests/integration/projects.test.ts`).
+9. **User-project lookups dedupe and log cleanly** – `ProjectService.getUserProjects` now filters out null/duplicate assignment IDs, reuses `getProjectWithDetails`, and wraps the whole flow in structured logging so inconsistent seed data can’t crash `/projects/my`. The integration test continues to verify assigned projects show up despite the added safety checks (`backend/src/services/project-service.ts`, `backend/tests/integration/projects.test.ts`).
+10. **Policy history feed returns numeric versions** – `PolicyService.getRecentPolicyIssues` now reads `policyIssues.version`, coerces it to a number, and the admin dashboard docs spell out the payload so the UI no longer crashes when rendering policy history. Added a regression test that inserts a manual issue row to ensure the service returns `policyVersion` as a number (`backend/src/services/policy-service.ts`, `backend/tests/unit/policy-service.test.ts`, `backend/docs/api.md`).
 
 ## Alignment Highlights
 - **Dual data model exists**: The Drizzle schema separates field `users` from `web_admin_users` and preserves the nine-role enum described in `backend/docs/role-differentiation.md`/`docs/roles.md` (`backend/src/lib/db/schema.ts:120-210`). This matches the dual-interface plan in the docs.
@@ -21,16 +23,13 @@
 ## Critical Gaps / Edge Cases
 1. **Web-admin dual-mode auth incomplete**  
    The API issues both JSON tokens and HttpOnly cookies at web-admin login, but the middleware only honors Bearer headers and ignores cookies due to the lack of `cookie-parser` and cookie fallback logic (`backend/src/middleware/auth.ts:888-905`). For token-based SPAs (like the Svelte UI) this is acceptable, but browsers cannot rely solely on the provided cookies for CSRF-hardened sessions until the server parses them and enforces SameSite/CSRF defenses.
-2. **Telemetry ingestion / authorization mismatches**  
-   Endpoint authorization checks for `Action.READ` instead of `Action.CREATE`, so write intent is mislabeled and the RBAC matrix cannot restrict uploads correctly (`backend/src/routes/api/telemetry.ts:9-34`).
-3. **Supervisor override permissions reference a non-existent resource**  
-   The route wraps `requirePermission(Resource.SUPERVISOR, Action.OVERRIDE)` (`backend/src/routes/api/supervisor.ts:11-65`), but `Resource` only defines `SUPERVISOR_PINS`. This TypeScript/authorization mismatch breaks compilation or leaves the route unprotected when emitted JS is used.
-4. **Project "my" endpoint unusable**  
-   `/api/v1/projects/my` never calls `authenticateToken`, yet it expects `req.user` from that middleware (`backend/src/routes/api/projects.ts:191-224`). Every request fails with `UNAUTHENTICATED`, so users cannot list their assigned projects despite the feature being listed in the docs.
-5. **Policy history uses missing column name**  
-   `PolicyService.getRecentPolicyIssues` selects `policyIssues.policyVersion` (`backend/src/services/policy-service.ts:259-276`), but the table only contains `version` (`backend/src/lib/db/schema.ts:210-220`). Any call to this helper throws, and dashboards auditing policy issuance cannot be powered.
-6. **Refresh/signature edge cases undocumented**  
+2. **Seeded RBAC lacks active assignments**  
+   Integration logs still show “User has no active roles” for `/projects/my`, meaning we rely on the legacy fallback matrix instead of real assignments. Until the seed scripts populate `project_assignments`/`user_roles`, RBAC-only environments (admin dashboards, CLI tools) will reject legitimate users even though the routes now function locally (`backend/tests/integration/projects.test.ts`, `backend/src/middleware/auth.ts`).
+3. **Refresh/signature edge cases undocumented**  
     Although `docs/role-differentiation.md` and `docs/understanding-your-role.md` describe PIN/POLICY enforcement, there is no structured logging or test covering supervisor overrides, policy-cache expiry, or GPS heartbeats yet (`backend/src/routes/api/auth.ts:200-260`, `backend/src/services/policy-service.ts:118-220`). These are critical acceptance criteria in the Android launcher plan.
+
+## Next Step
+- Seed the RBAC tables (project assignments + role assignments) in `scripts/seed-fixed-users.ts` so permission checks stop falling back to the legacy matrix during `/projects/*` integration tests, then add assertions that `projectPermissionService` returns concrete grants.
 
 ## Additional Observations
 - Integration tests assert some auth flows but don't cover the regression points above (e.g., no coverage for `/auth/refresh` without access tokens or telemetry writes), so adding targeted cases in `backend/tests/integration` would prevent regressions.
