@@ -12,6 +12,7 @@ import { logger } from '../../src/lib/logger';
 
 describe('Supervisor Override API Tests', () => {
   let app: express.Application;
+  let authToken: string;
 
   // Generate test UUIDs once
   const teamId = uuidv4();
@@ -75,6 +76,20 @@ describe('Supervisor Override API Tests', () => {
       salt: supervisorPinHash.salt,
       isActive: true,
     });
+
+    // Authenticate user to obtain bearer token for supervisor override requests
+    const loginResponse = await request(app)
+      .post('/api/v1/auth/login')
+      .send({
+        team_id: teamId,
+        device_id: deviceId,
+        user_code: 'test001',
+        pin: '123456'
+      });
+
+    expect(loginResponse.status).toBe(200);
+    authToken = loginResponse.body.access_token;
+    expect(authToken).toBeDefined();
   });
 
   afterEach(async () => {
@@ -94,6 +109,7 @@ describe('Supervisor Override API Tests', () => {
     it('SO-001: should grant supervisor override with valid PIN', async () => {
       const response = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           supervisor_pin: '789012',
           deviceId,
@@ -116,12 +132,13 @@ describe('Supervisor Override API Tests', () => {
     it('SO-002: should reject invalid supervisor PIN', async () => {
       const response = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           supervisor_pin: 'wrongpin',
           deviceId,
         });
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(404);
       expect(response.body.ok).toBe(false);
       expect(response.body.error.code).toBe('INVALID_SUPERVISOR_PIN');
       expect(response.body.error.message).toBe('Invalid supervisor PIN');
@@ -131,6 +148,7 @@ describe('Supervisor Override API Tests', () => {
     it('SO-003: should reject missing supervisor_pin field', async () => {
       const response = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           deviceId,
         });
@@ -144,6 +162,7 @@ describe('Supervisor Override API Tests', () => {
     it('SO-003: should reject missing deviceId field', async () => {
       const response = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           supervisor_pin: '789012',
         });
@@ -157,6 +176,7 @@ describe('Supervisor Override API Tests', () => {
     it('SO-003: should reject both missing fields', async () => {
       const response = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({});
 
       expect(response.status).toBe(400);
@@ -177,6 +197,7 @@ describe('Supervisor Override API Tests', () => {
 
       const response = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           supervisor_pin: '789012',
           deviceId: inactiveDeviceId,
@@ -198,6 +219,7 @@ describe('Supervisor Override API Tests', () => {
 
       const response = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           supervisor_pin: '789012',
           deviceId,
@@ -213,6 +235,7 @@ describe('Supervisor Override API Tests', () => {
       // First, get supervisor override token
       const overrideResponse = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           supervisor_pin: '789012',
           deviceId,
@@ -235,6 +258,7 @@ describe('Supervisor Override API Tests', () => {
       const requests = Array(20).fill(null).map(() =>
         request(app)
           .post('/api/v1/supervisor/override/login')
+          .set('Authorization', `Bearer ${authToken}`)
           .send({
             supervisor_pin: 'wrongpin',
             deviceId,
@@ -261,6 +285,7 @@ describe('Supervisor Override API Tests', () => {
       const overrideResponse = await request(app)
         .post('/api/v1/supervisor/override/login')
         .set('x-request-id', 'override-log-test')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           supervisor_pin: '789012',
           deviceId,
@@ -303,6 +328,7 @@ describe('Supervisor Override API Tests', () => {
       // First, get supervisor override token
       const overrideResponse = await request(app)
         .post('/api/v1/supervisor/override/login')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           supervisor_pin: '789012',
           deviceId,

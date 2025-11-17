@@ -213,34 +213,6 @@ async function seedFixedUsers() {
       }
     });
 
-    // Step 3: Create projects
-    console.log('Creating projects...');
-    for (const [projectKey, projectConfig] of Object.entries(FIXED_PROJECTS)) {
-      console.log(`  Creating project: ${projectConfig.title}`);
-      await db.insert(projects).values({
-        id: projectConfig.projectId,
-        title: projectConfig.title,
-        abbreviation: projectConfig.abbreviation,
-        status: 'ACTIVE',
-        geographicScope: projectConfig.geographicScope,
-        organizationId: projectConfig.organizationId,
-        regionId: projectConfig.regionId || null,
-        createdBy: '550e8400-e29b-41d4-a716-446655440006', // SYSTEM_ADMIN user ID
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }).onConflictDoUpdate({
-        target: projects.id,
-        set: {
-          title: projectConfig.title,
-          abbreviation: projectConfig.abbreviation,
-          status: 'ACTIVE',
-          geographicScope: projectConfig.geographicScope,
-          regionId: projectConfig.regionId || null,
-          updatedAt: new Date()
-        }
-      });
-    }
-
     // Create deterministic web admin user
     console.log('Creating web admin user...');
     const adminPasswordHash = await hashPassword(FIXED_WEB_ADMIN.password);
@@ -420,48 +392,88 @@ async function seedFixedUsers() {
       supervisorPinIndex++;
     }
 
+    // Step 3: Create projects (after users exist to satisfy created_by FK)
+    console.log('Creating projects...');
+    for (const [projectKey, projectConfig] of Object.entries(FIXED_PROJECTS)) {
+      console.log(`  Creating project: ${projectConfig.title}`);
+      await db.insert(projects).values({
+        id: projectConfig.projectId,
+        title: projectConfig.title,
+        abbreviation: projectConfig.abbreviation,
+        status: 'ACTIVE',
+        geographicScope: projectConfig.geographicScope,
+        organizationId: projectConfig.organizationId,
+        regionId: projectConfig.regionId || null,
+        createdBy: userIds.SYSTEM_ADMIN,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).onConflictDoUpdate({
+        target: projects.id,
+        set: {
+          title: projectConfig.title,
+          abbreviation: projectConfig.abbreviation,
+          status: 'ACTIVE',
+          geographicScope: projectConfig.geographicScope,
+          regionId: projectConfig.regionId || null,
+          updatedAt: new Date()
+        }
+      });
+    }
+
     // Step 4: Create project assignments
     console.log('Creating project assignments...');
 
     // Assign all users to National Health Survey
     for (const [userType, userConfig] of Object.entries(FIXED_USERS)) {
       const userId = userIds[userType];
-      try {
+      const existingAssignment = await db.select({ id: projectAssignments.id }).from(projectAssignments)
+        .where(and(eq(projectAssignments.projectId, FIXED_PROJECTS.NATIONAL_HEALTH_SURVEY.projectId), eq(projectAssignments.userId, userId)))
+        .limit(1);
+
+      if (existingAssignment.length > 0) {
+        await db.update(projectAssignments)
+          .set({
+            roleInProject: userConfig.role,
+            isActive: true,
+            assignedBy: userIds.SYSTEM_ADMIN,
+            assignedAt: new Date()
+          })
+          .where(eq(projectAssignments.id, existingAssignment[0].id));
+      } else {
         await db.insert(projectAssignments).values({
           projectId: FIXED_PROJECTS.NATIONAL_HEALTH_SURVEY.projectId,
-          userId: userId,
-          assignedBy: '550e8400-e29b-41d4-a716-446655440006', // SYSTEM_ADMIN
+          userId,
+          assignedBy: userIds.SYSTEM_ADMIN,
           roleInProject: userConfig.role,
           assignedAt: new Date(),
           isActive: true
         });
-      } catch (error: any) {
-        // Handle duplicate key errors gracefully
-        if (error.code === '23505') {
-          console.log(`  Project assignment already exists for user ${userConfig.userCode}, skipping...`);
-        } else {
-          throw error;
-        }
       }
     }
 
     // Assign AIIMS Delhi team to Regional Diabetes Study
-    try {
+    const existingTeamAssignment = await db.select({ id: projectTeamAssignments.id }).from(projectTeamAssignments)
+      .where(and(eq(projectTeamAssignments.projectId, FIXED_PROJECTS.REGIONAL_DIABETES_STUDY.projectId), eq(projectTeamAssignments.teamId, FIXED_TEAM.teamId)))
+      .limit(1);
+
+    if (existingTeamAssignment.length > 0) {
+      await db.update(projectTeamAssignments)
+        .set({
+          assignedRole: 'DATA_COLLECTION_TEAM',
+          isActive: true,
+          assignedBy: userIds.SYSTEM_ADMIN,
+          assignedAt: new Date()
+        })
+        .where(eq(projectTeamAssignments.id, existingTeamAssignment[0].id));
+    } else {
       await db.insert(projectTeamAssignments).values({
         projectId: FIXED_PROJECTS.REGIONAL_DIABETES_STUDY.projectId,
         teamId: FIXED_TEAM.teamId,
-        assignedBy: '550e8400-e29b-41d4-a716-446655440006', // SYSTEM_ADMIN
+        assignedBy: userIds.SYSTEM_ADMIN,
         assignedRole: 'DATA_COLLECTION_TEAM',
         assignedAt: new Date(),
         isActive: true
       });
-    } catch (error: any) {
-      // Handle duplicate key errors gracefully
-      if (error.code === '23505') {
-        console.log('  Project team assignment already exists, skipping...');
-      } else {
-        throw error;
-      }
     }
 
     console.log('\n✅ Fixed users seeded successfully!');
@@ -531,6 +543,10 @@ async function clearFixedUsers() {
     await db.delete(projectAssignments).where(eq(projectAssignments.projectId, FIXED_PROJECTS.NATIONAL_HEALTH_SURVEY.projectId));
     await db.delete(projectTeamAssignments).where(eq(projectTeamAssignments.projectId, FIXED_PROJECTS.REGIONAL_DIABETES_STUDY.projectId));
 
+    // Delete projects before users (projects.created_by references SYSTEM_ADMIN)
+    await db.delete(projects).where(eq(projects.id, FIXED_PROJECTS.NATIONAL_HEALTH_SURVEY.projectId));
+    await db.delete(projects).where(eq(projects.id, FIXED_PROJECTS.REGIONAL_DIABETES_STUDY.projectId));
+
     // Delete user PINs and users
     const userIds = [
       '550e8400-e29b-41d4-a716-446655440003', // TEAM_MEMBER
@@ -544,18 +560,16 @@ async function clearFixedUsers() {
       '550e8400-e29b-41d4-a716-446655440011'  // NATIONAL_SUPPORT_ADMIN
     ];
 
+    await db.delete(userRoleAssignments).where(inArray(userRoleAssignments.userId, userIds));
+    await db.delete(userRoleAssignments).where(inArray(userRoleAssignments.grantedBy, userIds));
+
     for (const userId of userIds) {
-      await db.delete(userRoleAssignments).where(eq(userRoleAssignments.userId, userId));
       await db.delete(userPins).where(eq(userPins.userId, userId));
       await db.delete(users).where(eq(users.id, userId));
     }
 
     // Delete supervisor PINs
     await db.delete(supervisorPins).where(eq(supervisorPins.teamId, FIXED_TEAM.teamId));
-
-    // Delete projects
-    await db.delete(projects).where(eq(projects.id, FIXED_PROJECTS.NATIONAL_HEALTH_SURVEY.projectId));
-    await db.delete(projects).where(eq(projects.id, FIXED_PROJECTS.REGIONAL_DIABETES_STUDY.projectId));
 
     // Delete devices
     await db.delete(devices).where(eq(devices.id, FIXED_DEVICE.deviceId));
