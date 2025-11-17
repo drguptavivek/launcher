@@ -14,6 +14,15 @@ import {
 
 const router = Router();
 
+// Apply authentication globally to all project routes
+router.use(authenticateToken);
+
+const VALIDATED_QUERY_KEY = Symbol('projects.validatedQuery');
+
+type QueryValidatedRequest<T = Record<string, any>> = AuthenticatedRequest & {
+  [VALIDATED_QUERY_KEY]?: T;
+};
+
 
 // Validation schemas
 const createProjectSchema = z.object({
@@ -69,6 +78,7 @@ const validateRequest = (schema: z.ZodObject<any, any>) => {
       req.body = validated;
       next();
     } catch (error) {
+      console.error(error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           ok: false,
@@ -88,12 +98,13 @@ const validateRequest = (schema: z.ZodObject<any, any>) => {
 };
 
 const validateQuery = (schema: z.ZodObject<any, any>) => {
-  return (req: AuthenticatedRequest, res: Response, next: any) => {
+  return (req: QueryValidatedRequest, res: Response, next: any) => {
     try {
       const validated = schema.parse(req.query);
-      req.query = validated;
+      req[VALIDATED_QUERY_KEY] = validated;
       next();
     } catch (error) {
+      console.error(error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
           ok: false,
@@ -112,6 +123,10 @@ const validateQuery = (schema: z.ZodObject<any, any>) => {
   };
 };
 
+function getValidatedQuery<T extends Record<string, any>>(req: QueryValidatedRequest<T>): T | Record<string, any> {
+  return (req[VALIDATED_QUERY_KEY] as T | undefined) ?? (req.query as any);
+}
+
 /**
  * GET /api/v1/projects
  * List projects with filtering and pagination
@@ -120,10 +135,10 @@ router.get('/',
   authenticateToken,
   validateQuery(listProjectsSchema),
   requirePermission(Resource.PROJECTS, Action.READ),
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: QueryValidatedRequest, res: Response) => {
     try {
       const userId = req.user?.id;
-      const options = req.query as any;
+      const options = getValidatedQuery(req);
 
       // Check what projects this user can access
       const accessibleProjects = await projectPermissionService.getUserAccessibleProjects(
@@ -191,10 +206,10 @@ router.get('/',
 router.get('/my',
   requirePermission(Resource.PROJECTS, Action.READ),
   validateQuery(listProjectsSchema.partial()),
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: QueryValidatedRequest, res: Response) => {
     try {
       const userId = req.user?.id;
-      const options = req.query as any;
+      const options = getValidatedQuery(req);
 
       const userProjects = await projectService.getUserProjects(userId!, options);
 
@@ -205,6 +220,7 @@ router.get('/my',
       });
 
     } catch (error: any) {
+      console.error(error);
       logger.error('get_my_projects_error', {
         error: error.message,
         stack: error.stack,
@@ -271,6 +287,7 @@ router.get('/:id',
       });
 
     } catch (error: any) {
+      console.error(error);
       logger.error('get_project_endpoint_error', {
         error: error.message,
         stack: error.stack,

@@ -1,5 +1,6 @@
 import { eq, and, or, ilike, desc, asc, isNull, not } from 'drizzle-orm';
 import { db } from '../lib/db/index.js';
+import { logger } from '../lib/logger';
 import {
   projects,
   projectAssignments,
@@ -408,6 +409,7 @@ export class ProjectService {
     projects: ProjectWithDetails[];
     total: number;
   }> {
+    try {
     const {
       status = 'ALL',
       geographicScope = 'ALL',
@@ -473,26 +475,12 @@ export class ProjectService {
       return { projects: [], total: 0 };
     }
 
-    // Get unique project IDs
-    const uniqueProjectIds = Array.from(new Set(allProjectIds));
-
-    // Build order by clause
-    let orderBy;
-    const sortColumn = projects[sortBy as keyof typeof projects];
-    if (sortColumn) {
-      orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
-    } else {
-      orderBy = desc(projects.createdAt);
-    }
-
-    // Get projects
-    const projectList = await db.select()
-      .from(projects)
-      .where(and(
-        eq(projects.id, uniqueProjectIds[0]), // This will need adjustment for multiple IDs
-        ...projectConditions
-      ))
-      .orderBy(orderBy);
+    // Get unique project IDs, filtering out any null/undefined values defensively
+    const uniqueProjectIds = Array.from(
+      new Set(
+        allProjectIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+      )
+    );
 
     // For now, we'll get projects one by one (this can be optimized)
     const projectsWithDetails: ProjectWithDetails[] = [];
@@ -540,6 +528,14 @@ export class ProjectService {
       projects: projectsWithDetails,
       total: projectsWithDetails.length
     };
+    } catch (error) {
+      logger.error('get_user_projects_error', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        userId
+      });
+      throw error;
+    }
   }
 
   /**
