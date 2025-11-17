@@ -132,7 +132,7 @@ export const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.TEAMS]: [Action.READ, Action.LIST],
     [Resource.USERS]: [Action.READ, Action.LIST, Action.UPDATE], // Can manage team users
     [Resource.DEVICES]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage devices
-    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST], // Can view supervisor PINs
+    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST, Action.EXECUTE], // Can view/trigger overrides
     [Resource.TELEMETRY]: [Action.CREATE, Action.READ, Action.LIST, Action.MANAGE],
     [Resource.POLICY]: [Action.READ],
     [Resource.AUTH]: [Action.READ, Action.EXECUTE], // Can perform supervisor overrides
@@ -147,7 +147,7 @@ export const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.TEAMS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage teams in region
     [Resource.USERS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Full user management in region
     [Resource.DEVICES]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST],
-    [Resource.SUPERVISOR_PINS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage PINs in region
+    [Resource.SUPERVISOR_PINS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST, Action.EXECUTE], // Can manage PINs and trigger overrides in region
     [Resource.TELEMETRY]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST, Action.MANAGE],
     [Resource.POLICY]: [Action.READ, Action.UPDATE], // Can update regional policies
     [Resource.AUTH]: [Action.READ, Action.LIST, Action.EXECUTE],
@@ -178,7 +178,7 @@ export const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.TEAMS]: [Action.MANAGE], // Full team management
     [Resource.USERS]: [Action.MANAGE], // Full user management
     [Resource.DEVICES]: [Action.MANAGE], // Full device management
-    [Resource.SUPERVISOR_PINS]: [Action.MANAGE], // Full PIN management
+    [Resource.SUPERVISOR_PINS]: [Action.MANAGE, Action.EXECUTE], // Full PIN management + override
     [Resource.TELEMETRY]: [Action.MANAGE], // Full telemetry access
     [Resource.POLICY]: [Action.MANAGE], // Full policy management
     [Resource.AUTH]: [Action.MANAGE], // Full auth management
@@ -239,7 +239,7 @@ export const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.TEAMS]: [Action.READ, Action.LIST], // Can view all teams nationally
     [Resource.USERS]: [Action.READ, Action.LIST, Action.UPDATE], // Can support users nationally
     [Resource.DEVICES]: [Action.READ, Action.LIST, Action.UPDATE], // Can support devices nationally
-    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST], // View supervisor PINs nationally
+    [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST, Action.EXECUTE], // View and use overrides nationally
     [Resource.TELEMETRY]: [Action.MANAGE], // Full telemetry access for national monitoring
     [Resource.POLICY]: [Action.READ, Action.UPDATE], // Can update operational policies
     [Resource.AUTH]: [Action.READ, Action.EXECUTE], // Can perform overrides nationally

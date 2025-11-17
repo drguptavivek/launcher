@@ -54,6 +54,7 @@ const DEFAULT_ROLES = [
       { resource: 'DEVICES', action: 'MANAGE' },
       { resource: 'SUPERVISOR_PINS', action: 'READ' },
       { resource: 'SUPERVISOR_PINS', action: 'MANAGE' },
+      { resource: 'SUPERVISOR_PINS', action: 'EXECUTE' },
       { resource: 'TELEMETRY', action: 'MANAGE' },
       { resource: 'POLICY', action: 'MANAGE' },
       { resource: 'AUTH', action: 'MANAGE' }
@@ -71,6 +72,7 @@ const DEFAULT_ROLES = [
       { resource: 'USERS', action: 'CREATE' },
       { resource: 'DEVICES', action: 'DELETE' },
       { resource: 'SUPERVISOR_PINS', action: 'DELETE' },
+      { resource: 'SUPERVISOR_PINS', action: 'EXECUTE' },
       { resource: 'SUPPORT_TICKETS', action: 'READ' },
       { resource: 'SUPPORT_TICKETS', action: 'CREATE' },
       { resource: 'AUDIT_LOGS', action: 'READ' }
@@ -90,6 +92,7 @@ const DEFAULT_ROLES = [
       { resource: 'USERS', action: 'MANAGE' },
       { resource: 'DEVICES', action: 'MANAGE' },
       { resource: 'SUPERVISOR_PINS', action: 'MANAGE' },
+      { resource: 'SUPERVISOR_PINS', action: 'EXECUTE' },
       { resource: 'TELEMETRY', action: 'MANAGE' },
       { resource: 'POLICY', action: 'MANAGE' },
       { resource: 'AUTH', action: 'MANAGE' },
@@ -183,6 +186,7 @@ const DEFAULT_ROLES = [
       { resource: 'USERS', action: 'READ' },
       { resource: 'DEVICES', action: 'MANAGE' },
       { resource: 'SUPERVISOR_PINS', action: 'READ' },
+      { resource: 'SUPERVISOR_PINS', action: 'EXECUTE' },
       { resource: 'TELEMETRY', action: 'MANAGE' },
       { resource: 'POLICY', action: 'MANAGE' },
       { resource: 'AUTH', action: 'MANAGE' },

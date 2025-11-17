@@ -1,5 +1,5 @@
 # Roles Progress Review
-**Timestamp (UTC): 2025-11-17 04:35**
+**Timestamp (UTC): 2025-11-17 05:45**
 
 ## Resolved Since Last Update
 1. **Mobile login now enforces role rules** – `AuthService.login` rejects any user whose role is not one of the three hybrid/mobile roles, logs the attempt, and the login route returns HTTP 403 with `APP_ACCESS_DENIED` (`backend/src/services/auth-service.ts:120-220`, `backend/src/routes/api/auth.ts:1-120`). Added an integration test to guard the regression (`backend/tests/integration/auth.test.ts`).
@@ -13,6 +13,8 @@
 9. **User-project lookups dedupe and log cleanly** – `ProjectService.getUserProjects` now filters out null/duplicate assignment IDs, reuses `getProjectWithDetails`, and wraps the whole flow in structured logging so inconsistent seed data can’t crash `/projects/my`. The integration test continues to verify assigned projects show up despite the added safety checks (`backend/src/services/project-service.ts`, `backend/tests/integration/projects.test.ts`).
 10. **Policy history feed returns numeric versions** – `PolicyService.getRecentPolicyIssues` now reads `policyIssues.version`, coerces it to a number, and the admin dashboard docs spell out the payload so the UI no longer crashes when rendering policy history. Added a regression test that inserts a manual issue row to ensure the service returns `policyVersion` as a number (`backend/src/services/policy-service.ts`, `backend/tests/unit/policy-service.test.ts`, `backend/docs/api.md`).
 11. **Seeded RBAC now mirrors production grants** – `scripts/seed-fixed-users.ts` links each fixed test user to the canonical `roles` entries via `user_role_assignments`, ensuring `/projects/*` routes find active roles instead of falling back to the legacy permission matrix. The cleanup path also removes those assignments so repeated seeds stay deterministic (`backend/scripts/seed-fixed-users.ts`).
+12. **QA seeds exercise supervisor overrides** – The fixed-user seed now provisions deterministic QA accounts (`test010` Field Supervisor, `test011` System Admin) plus canonical devices/PINs pulled from `backend/docs/role-differentiation.md`, so API tests can log in with a role that holds `SUPERVISOR_PINS:EXECUTE`. The script marks supervisor PIN rows active and reuses their UUIDs, which also unblocks manual override testing (`backend/scripts/seed-fixed-users.ts`).
+13. **Supervisor override suite reuses production-like data** – `tests/integration/supervisor-override.test.ts` logs in as the seeded QA Field Supervisor, reuses the canonical device, spies on the in-memory rate limiter, and asserts structured logs (`supervisor_override_granted`, `policy_issued`). Cleanup only clears sessions/PIN state, so runs no longer fight FK churn or reseeding (`backend/tests/integration/supervisor-override.test.ts`, `backend/src/services/rate-limiter.ts`).
 
 ## Alignment Highlights
 - **Dual data model exists**: The Drizzle schema separates field `users` from `web_admin_users` and preserves the nine-role enum described in `backend/docs/role-differentiation.md`/`docs/roles.md` (`backend/src/lib/db/schema.ts:120-210`). This matches the dual-interface plan in the docs.
@@ -24,11 +26,11 @@
 ## Critical Gaps / Edge Cases
 1. **Web-admin dual-mode auth incomplete**  
    The API issues both JSON tokens and HttpOnly cookies at web-admin login, but the middleware only honors Bearer headers and ignores cookies due to the lack of `cookie-parser` and cookie fallback logic (`backend/src/middleware/auth.ts:888-905`). For token-based SPAs (like the Svelte UI) this is acceptable, but browsers cannot rely solely on the provided cookies for CSRF-hardened sessions until the server parses them and enforces SameSite/CSRF defenses.
-2. **Refresh/signature edge cases undocumented**  
-    Although `docs/role-differentiation.md` and `docs/understanding-your-role.md` describe PIN/POLICY enforcement, there is no structured logging or test covering supervisor overrides, policy-cache expiry, or GPS heartbeats yet (`backend/src/routes/api/auth.ts:200-260`, `backend/src/services/policy-service.ts:118-220`). These are critical acceptance criteria in the Android launcher plan.
+2. **Policy/GPS telemetry still lacks end-to-end coverage**  
+    Supervisor override logging is now validated, but policy cache expiry, GPS heartbeats, and override revocation remain untested at the API boundary (`backend/src/routes/api/auth.ts:200-260`, `backend/src/services/policy-service.ts:118-220`). Android acceptance criteria demand those flows plus rate-limit observability beyond the current in-memory spy hooks.
 
 ## Next Step
-- Add structured override/policy-cache telemetry: emit JSON logs for supervisor overrides, write an integration test to exercise `/api/v1/supervisor/override/login` → `/api/v1/policy/:deviceId`, and document the expected heartbeat/policy-sync telemetry so the Android acceptance criteria are verifiable.
+- Extend the deterministic seeds to include mocked policy windows and telemetry cadence, then add integration coverage for policy refresh + GPS heartbeat ingestion so Android launcher requirements (time gates, telemetry batching) are verifiable without ad-hoc fixtures.
 
 ## Additional Observations
 - Integration tests assert some auth flows but don't cover the regression points above (e.g., no coverage for `/auth/refresh` without access tokens or telemetry writes), so adding targeted cases in `backend/tests/integration` would prevent regressions.
@@ -44,6 +46,7 @@ npx tsx scripts/seed-default-roles.ts clear
 npx tsx scripts/seed-default-roles.ts seed
 npx tsx scripts/seed-default-roles.ts verify
 
+npx tsx scripts/seed-fixed-users.ts clear
 npx tsx scripts/seed-fixed-users.ts seed
 
 npm run test -- tests/integration/api.test.ts

@@ -75,6 +75,18 @@ export const FIXED_USERS = {
     pin: 'NatSupport123!',
     displayName: 'Test National Support Admin',
     role: 'NATIONAL_SUPPORT_ADMIN' as const
+  },
+  FIELD_SUPERVISOR_QA: {
+    userCode: 'test010',
+    pin: 'FieldQa987!',
+    displayName: 'QA Field Supervisor',
+    role: 'FIELD_SUPERVISOR' as const
+  },
+  SYSTEM_ADMIN_QA: {
+    userCode: 'test011',
+    pin: 'SysQa987!',
+    displayName: 'QA System Admin',
+    role: 'SYSTEM_ADMIN' as const
   }
 } as const;
 
@@ -267,10 +279,12 @@ async function seedFixedUsers() {
       SYSTEM_ADMIN: '550e8400-e29b-41d4-a716-446655440006',
       SUPPORT_AGENT: '550e8400-e29b-41d4-a716-446655440007',
       AUDITOR: '550e8400-e29b-41d4-a716-446655440008',
-      DEVICE_MANAGER: '550e8400-e29b-41d4-a716-446655440009',
-      POLICY_ADMIN: '550e8400-e29b-41d4-a716-446655440010',
-      NATIONAL_SUPPORT_ADMIN: '550e8400-e29b-41d4-a716-446655440011'
-    };
+    DEVICE_MANAGER: '550e8400-e29b-41d4-a716-446655440009',
+    POLICY_ADMIN: '550e8400-e29b-41d4-a716-446655440010',
+    NATIONAL_SUPPORT_ADMIN: '550e8400-e29b-41d4-a716-446655440011',
+    FIELD_SUPERVISOR_QA: '550e8400-e29b-41d4-a716-446655440012',
+    SYSTEM_ADMIN_QA: '550e8400-e29b-41d4-a716-446655440013'
+  };
 
     for (const [userType, userConfig] of Object.entries(FIXED_USERS)) {
       console.log(`Creating ${userType.toLowerCase()} user: ${userConfig.userCode}`);
@@ -557,7 +571,9 @@ async function clearFixedUsers() {
       '550e8400-e29b-41d4-a716-446655440008', // AUDITOR
       '550e8400-e29b-41d4-a716-446655440009', // DEVICE_MANAGER
       '550e8400-e29b-41d4-a716-446655440010', // POLICY_ADMIN
-      '550e8400-e29b-41d4-a716-446655440011'  // NATIONAL_SUPPORT_ADMIN
+      '550e8400-e29b-41d4-a716-446655440011',  // NATIONAL_SUPPORT_ADMIN
+      '550e8400-e29b-41d4-a716-446655440012',  // FIELD_SUPERVISOR_QA
+      '550e8400-e29b-41d4-a716-446655440013'   // SYSTEM_ADMIN_QA
     ];
 
     await db.delete(userRoleAssignments).where(inArray(userRoleAssignments.userId, userIds));
