@@ -11,7 +11,7 @@ const router = Router();
 // POST /api/v1/supervisor/override/login - Request supervisor override
 router.post('/override/login',
   authenticateToken,
-  requirePermission(Resource.SUPERVISOR, Action.OVERRIDE),
+  requirePermission(Resource.SUPERVISOR_PINS, Action.EXECUTE),
   async (req: AuthenticatedRequest, res) => {
   try {
     const { supervisor_pin, deviceId } = req.body;
