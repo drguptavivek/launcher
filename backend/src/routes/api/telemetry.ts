@@ -8,7 +8,7 @@ const router = Router();
 // POST /api/v1/telemetry - Submit telemetry data
 router.post('/',
   authenticateToken,
-  requirePermission(Resource.TELEMETRY, Action.READ), // Team members can submit telemetry
+  requirePermission(Resource.TELEMETRY, Action.CREATE), // Team members can submit telemetry
   async (req: AuthenticatedRequest, res) => {
   try {
     const { events, deviceId, sessionId } = req.body;

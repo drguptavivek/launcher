@@ -118,7 +118,7 @@ export const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.USERS]: [Action.READ, Action.LIST],
     [Resource.DEVICES]: [Action.READ, Action.LIST],
     [Resource.SUPERVISOR_PINS]: [], // No access to supervisor PINs
-    [Resource.TELEMETRY]: [Action.READ, Action.LIST],
+    [Resource.TELEMETRY]: [Action.CREATE, Action.READ, Action.LIST],
     [Resource.POLICY]: [Action.READ],
     [Resource.AUTH]: [Action.READ],
     [Resource.SYSTEM_SETTINGS]: [], // No system settings access
@@ -133,7 +133,7 @@ export const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.USERS]: [Action.READ, Action.LIST, Action.UPDATE], // Can manage team users
     [Resource.DEVICES]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage devices
     [Resource.SUPERVISOR_PINS]: [Action.READ, Action.LIST], // Can view supervisor PINs
-    [Resource.TELEMETRY]: [Action.READ, Action.LIST],
+    [Resource.TELEMETRY]: [Action.CREATE, Action.READ, Action.LIST, Action.MANAGE],
     [Resource.POLICY]: [Action.READ],
     [Resource.AUTH]: [Action.READ, Action.EXECUTE], // Can perform supervisor overrides
     [Resource.SYSTEM_SETTINGS]: [], // No system settings access
@@ -148,7 +148,7 @@ export const RBAC_MATRIX: Record<UserRole, Record<Resource, Action[]>> = {
     [Resource.USERS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Full user management in region
     [Resource.DEVICES]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST],
     [Resource.SUPERVISOR_PINS]: [Action.CREATE, Action.READ, Action.UPDATE, Action.LIST], // Can manage PINs in region
-    [Resource.TELEMETRY]: [Action.READ, Action.LIST],
+    [Resource.TELEMETRY]: [Action.CREATE, Action.READ, Action.UPDATE, Action.DELETE, Action.LIST, Action.MANAGE],
     [Resource.POLICY]: [Action.READ, Action.UPDATE], // Can update regional policies
     [Resource.AUTH]: [Action.READ, Action.LIST, Action.EXECUTE],
     [Resource.SYSTEM_SETTINGS]: [], // No system settings access
@@ -647,6 +647,10 @@ export const requirePermission = (resource: Resource, action: Action) => {
       );
 
       if (!permissionResult.allowed) {
+        // Fallback to static RBAC matrix for legacy users/seed data without dynamic role assignments
+        const fallbackRole = req.user.role as UserRole | undefined;
+        const fallbackAllowed = fallbackRole ? hasPermission(fallbackRole, resource, action) : false;
+
         logger.warn('Access denied - insufficient permissions', {
           userId: req.user.id,
           userRoles: req.user.roles?.map(r => r.name) || [req.user.role],
@@ -656,8 +660,21 @@ export const requirePermission = (resource: Resource, action: Action) => {
           grantedBy: permissionResult.grantedBy,
           cacheHit: permissionResult.cacheHit,
           evaluationTime: permissionResult.evaluationTime,
-          requestId: req.headers['x-request-id']
+          requestId: req.headers['x-request-id'],
+          fallbackRole,
+          fallbackAllowed
         });
+
+        if (fallbackAllowed) {
+          logger.info('Legacy RBAC fallback granted access', {
+            userId: req.user.id,
+            fallbackRole,
+            resource,
+            action,
+            requestId: req.headers['x-request-id']
+          });
+          return next();
+        }
 
         return res.status(403).json({
           success: false,
