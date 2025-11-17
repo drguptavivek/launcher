@@ -8,11 +8,11 @@
  */
 
 import { db } from '../src/lib/db';
-import { teams, devices, users, userPins, supervisorPins, sessions, organizations, projects, projectAssignments, projectTeamAssignments, webAdminUsers } from '../src/lib/db/schema';
+import { teams, devices, users, userPins, supervisorPins, sessions, organizations, projects, projectAssignments, projectTeamAssignments, webAdminUsers, userRoleAssignments, roles } from '../src/lib/db/schema';
 import { verifyPassword, hashPassword } from '../src/lib/crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../src/lib/logger';
-import { eq } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
 // Fixed test credentials - these should be used in all tests
 // Updated for new 9-role RBAC system with deterministic passwords from database-seeding.md
@@ -344,6 +344,47 @@ async function seedFixedUsers() {
       });
     }
 
+    console.log('Assigning RBAC roles to users...');
+    const desiredRoles = Array.from(new Set(Object.values(FIXED_USERS).map((user) => user.role)));
+    const existingRoles = await db.select({ id: roles.id, name: roles.name }).from(roles).where(inArray(roles.name, desiredRoles));
+    const roleMap = new Map(existingRoles.map((role) => [role.name, role.id]));
+
+    for (const [userType, userConfig] of Object.entries(FIXED_USERS)) {
+      const userId = userIds[userType];
+      const roleId = roleMap.get(userConfig.role);
+
+      if (!roleId) {
+        console.warn(`  ⚠️  Role ${userConfig.role} not found in roles table. Skipping assignment for ${userConfig.userCode}.`);
+        continue;
+      }
+
+      const existingAssignment = await db.select({ id: userRoleAssignments.id, isActive: userRoleAssignments.isActive })
+        .from(userRoleAssignments)
+        .where(and(eq(userRoleAssignments.userId, userId), eq(userRoleAssignments.roleId, roleId)))
+        .limit(1);
+
+      if (existingAssignment.length > 0) {
+        if (!existingAssignment[0].isActive) {
+          await db.update(userRoleAssignments)
+            .set({ isActive: true, grantedAt: new Date(), context: { seeded: true } })
+            .where(eq(userRoleAssignments.id, existingAssignment[0].id));
+        }
+        continue;
+      }
+
+      await db.insert(userRoleAssignments).values({
+        id: uuidv4(),
+        userId,
+        roleId,
+        organizationId: FIXED_TEAM.organizationId,
+        teamId: FIXED_TEAM.teamId,
+        grantedBy: userIds.SYSTEM_ADMIN,
+        grantedAt: new Date(),
+        isActive: true,
+        context: { seeded: true }
+      });
+    }
+
     // Create fixed supervisor PINs
     console.log('Creating supervisor PINs...');
     const supervisorPinIds = [
@@ -504,6 +545,7 @@ async function clearFixedUsers() {
     ];
 
     for (const userId of userIds) {
+      await db.delete(userRoleAssignments).where(eq(userRoleAssignments.userId, userId));
       await db.delete(userPins).where(eq(userPins.userId, userId));
       await db.delete(users).where(eq(users.id, userId));
     }
