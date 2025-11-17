@@ -10,12 +10,49 @@
 
 SurveyLauncher implements a comprehensive **enterprise project management system** that provides operational context for field work management through geographic team-based organization. The system enables precise supervision scoping for FIELD_SUPERVISOR and REGIONAL_MANAGER roles while maintaining clean RBAC boundaries.
 
-### **Key Achievements:**
-- ✅ **Backend Production Ready** - 54/54 tests passing (100% success rate)
-- ✅ **Complete RBAC Integration** - All 9 system roles with project permissions
+### **Key Features:**
+- ✅ **Complete RBAC Integration** -  9 system roles with project permissions
 - ✅ **Geographic Team Model** - Teams represent operational regions
 - ✅ **Operational Project Scoping** - Projects provide management boundaries
-- 🔄 **Frontend Integration Pending** - 14 API endpoints ready for UI development
+
+
+
+## 👥 Enterprise Role-Based Access Control (RBAC)
+
+### **9-Role System Matrix with Interface Access**
+
+| Role | Mobile Access | Web Admin Access | Geographic Scope | Project Management | Key Permissions |
+|------|---------------|------------------|------------------|-------------------|-----------------|
+| **TEAM_MEMBER** | ✅ Primary | ❌ Blocked | Assigned project regions | View assigned projects | TELEMETRY.CREATE, DEVICES.READ (own) |
+| **FIELD_SUPERVISOR** | ✅ Primary | ✅ Secondary | Assigned project regions | Manage team projects | USERS.READ_TEAM, DEVICES.MANAGE_TEAM, SUPERVISOR_PINS.EXECUTE |
+| **REGIONAL_MANAGER** | ✅ Limited | ✅ Primary | Regional project scope | Regional project oversight | USERS.MANAGE_REGIONAL, TEAMS.MANAGE_REGIONAL, PROJECTS.MANAGE_REGIONAL |
+| **SYSTEM_ADMIN** | ❌ | ✅ Primary | All regions (NATIONAL) | Full system control | ALL_PERMISSIONS, SYSTEM_SETTINGS.MANAGE, ROLES.ASSIGN |
+| **SUPPORT_AGENT** | ❌ | ✅ Primary | Assigned project regions | User assistance | USERS.READ_ASSIGNED, DEVICES.READ_ASSIGNED, SUPPORT_TICKETS.MANAGE |
+| **AUDITOR** | ❌ | ✅ Primary | All regions (read-only) | Compliance monitoring | ALL_RESOURCES.READ, AUDIT_LOGS.READ, REPORTS.GENERATE |
+| **DEVICE_MANAGER** | ❌ | ✅ Primary | Assigned project regions | Device lifecycle | DEVICES.MANAGE, POLICY.ISSUE, TELEMETRY.READ |
+| **POLICY_ADMIN** | ❌ | ✅ Primary | All regions (NATIONAL) | Policy configuration | POLICY.CONFIGURE, POLICY.ISSUE, POLICY.TEMPLATES |
+| **NATIONAL_SUPPORT_ADMIN** | ✅ Limited | ✅ Primary | All regions (NATIONAL) | Cross-regional oversight | ALL_REGIONS.ACCESS, CROSS_TEAM_SUPPORT, EMERGENCY.OVERRIDE |
+
+
+
+## 📋 System Roles & Project Permissions
+
+### **Field Operations Roles**
+| Role | Project Scope | Supervision Capability | Geographic Limits |
+|------|---------------|---------------------|------------------|
+| `TEAM_MEMBER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | None | System-assigned project access |
+| `FIELD_SUPERVISOR` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | TEAM_MEMBERS in shared projects | System-assigned project access |
+| `REGIONAL_MANAGER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | All field roles in assigned projects, project-level user/device/team management | System-assigned project access |
+
+### **Technical & Support Roles**
+| Role | Project Scope | Management Capability | System Access |
+|------|---------------|---------------------|--------------|
+| `SYSTEM_ADMIN` | All projects (full control) | Full system configuration, project assignment authority | Complete access |
+| `SUPPORT_AGENT` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, user assistance | System-assigned project access |
+| `AUDITOR` | All projects (read-only) | Compliance monitoring | System-assigned project access |
+| `DEVICE_MANAGER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, device management | System-assigned project access |
+| `POLICY_ADMIN` | All projects (via SYSTEM_ADMIN assignment) | Policy configuration | System-assigned project access |
+| `NATIONAL_SUPPORT_ADMIN` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, cross-regional oversight | System-assigned project access |
 
 ---
 
@@ -60,10 +97,8 @@ No complex "role-in-project" logic needed:
 ```sql
 organizations  -- Funding/Administrative entities
 ├── AIIMS India (National)
-├── National Health Mission (Federal)
-├── State Health Authorities (Regional)
-├── NDDTC (National Diabetes Training Center)
-└── CDER (Center for Dental Education and Research)
+├── NDDTC  
+└── CDER  
 
 roles -- 9-system role hierarchy
 ├── Field Operations: TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER
@@ -94,6 +129,7 @@ teams -- Geographic operational regions
 -- Each team MUST have at least 1 FIELD_SUPERVISOR (business rule)
 -- Each FIELD_SUPERVISOR can supervise multiple teams
 -- App enforces minimum supervisor requirement during team creation/updates
+
 ```
 
 ### **Level 3: Project Scoping for User & Device Management**
@@ -245,26 +281,6 @@ flowchart TD
 
 ---
 
-## 📋 System Roles & Project Permissions
-
-### **Field Operations Roles**
-| Role | Project Scope | Supervision Capability | Geographic Limits |
-|------|---------------|---------------------|------------------|
-| `TEAM_MEMBER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | None | System-assigned project access |
-| `FIELD_SUPERVISOR` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | TEAM_MEMBERS in shared projects | System-assigned project access |
-| `REGIONAL_MANAGER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | All field roles in assigned projects, project-level user/device/team management | System-assigned project access |
-
-### **Technical & Support Roles**
-| Role | Project Scope | Management Capability | System Access |
-|------|---------------|---------------------|--------------|
-| `SYSTEM_ADMIN` | All projects (full control) | Full system configuration, project assignment authority | Complete access |
-| `SUPPORT_AGENT` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, user assistance | System-assigned project access |
-| `AUDITOR` | All projects (read-only) | Compliance monitoring | System-assigned project access |
-| `DEVICE_MANAGER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, device management | System-assigned project access |
-| `POLICY_ADMIN` | All projects (via SYSTEM_ADMIN assignment) | Policy configuration | System-assigned project access |
-| `NATIONAL_SUPPORT_ADMIN` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, cross-regional oversight | System-assigned project access |
-
----
 
 ## 🚀 Implementation Status
 
