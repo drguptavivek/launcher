@@ -1586,6 +1586,41 @@ Submit a batch of telemetry events from a device.
 - `400 BAD_REQUEST` - Invalid batch format
 - `404 NOT_FOUND` - Device not found
 
+**Event Types:**
+
+- `heartbeat` – device session liveness pings. Payload keys: `battery` (0-1 float), `session_id`, `policy_version`, `network` (wifi|cellular), `ts` (ISO-8601).
+- `policy_sync` – device confirms it applied the latest policy. Payload keys: `policy_version`, `cached_until`, `result` (`applied`|`rejected`), `reason` (if rejected), `ts`.
+- `gps` – foreground GPS fix. Payload keys: `lat`, `lon`, `acc_m`, `speed_mps`, `ts`.
+
+**Example Heartbeat Event**
+
+```json
+{
+  "type": "heartbeat",
+  "timestamp": "2025-11-17T05:00:00Z",
+  "eventData": {
+    "battery": 0.82,
+    "session_id": "sess-123",
+    "policy_version": 3,
+    "network": "cellular"
+  }
+}
+```
+
+**Example Policy Sync Event**
+
+```json
+{
+  "type": "policy_sync",
+  "timestamp": "2025-11-17T05:01:12Z",
+  "eventData": {
+    "policy_version": 3,
+    "cached_until": "2025-11-18T05:01:12Z",
+    "result": "applied"
+  }
+}
+```
+
 #### POST /api/v1/telemetry/batch
 
 Submit a large batch of telemetry events from a device.

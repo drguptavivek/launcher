@@ -14,6 +14,12 @@ router.get('/:deviceId',
   async (req: AuthenticatedRequest, res) => {
   try {
     const { deviceId } = req.params;
+    const requestId = (req.headers['x-request-id'] as string) || 'unknown-request';
+    const sessionId = req.session?.sessionId;
+    const sessionDeviceId = req.session?.deviceId;
+    const sessionTeamId = req.session?.teamId;
+    const authUserId = req.user?.id;
+    const authTeamId = req.user?.teamId;
 
     if (!deviceId) {
       return res.status(400).json({
@@ -21,19 +27,23 @@ router.get('/:deviceId',
         error: {
           code: 'MISSING_FIELDS',
           message: 'Device ID is required',
-          request_id: req.headers['x-request-id'],
+          request_id: requestId,
         },
       });
     }
 
-    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown';
+    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.ip || 'Unknown';
     const userAgent = req.headers['user-agent'] || 'Unknown';
 
     logger.info('policy_request', {
       deviceId,
+      sessionDeviceId,
+      requestId,
+      sessionId,
+      userId: authUserId,
+      teamId: authTeamId || sessionTeamId,
       userAgent,
       ipAddress,
-      timestamp: new Date(),
     });
 
     const result = await PolicyService.issuePolicy(deviceId, ipAddress);
@@ -51,8 +61,13 @@ router.get('/:deviceId',
 
     logger.info('policy_issued', {
       deviceId,
-      version: result.payload?.version,
-      userId: (req as any).user?.id,
+      policyVersion: result.payload?.version,
+      sessionId,
+      sessionDeviceId,
+      userId: authUserId,
+      teamId: authTeamId || sessionTeamId,
+      requestId,
+      ipAddress,
     });
 
     return res.send(result.jws);
@@ -62,6 +77,9 @@ router.get('/:deviceId',
       error: error.message,
       stack: error.stack,
       deviceId: req.params.deviceId,
+      requestId: req.headers['x-request-id'],
+      sessionId: req.session?.sessionId,
+      userId: req.user?.id,
     });
 
     return res.status(500).json({

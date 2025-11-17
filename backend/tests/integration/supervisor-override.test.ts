@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 import { apiRouter } from '../../src/routes/api';
@@ -8,6 +8,7 @@ import { hashPassword } from '../../src/lib/crypto';
 import { eq } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
 import { RateLimiter } from '../../src/services/rate-limiter';
+import { logger } from '../../src/lib/logger';
 
 describe('Supervisor Override API Tests', () => {
   let app: express.Application;
@@ -252,6 +253,47 @@ describe('Supervisor Override API Tests', () => {
         expect(rateLimitedResponse.body.error.message).toContain('Too many supervisor override attempts');
         expect(rateLimitedResponse.headers['retry-after']).toBeDefined();
       }
+    });
+
+    it('SO-009: should log override and policy issuance metadata', async () => {
+      const infoSpy = vi.spyOn(logger, 'info');
+
+      const overrideResponse = await request(app)
+        .post('/api/v1/supervisor/override/login')
+        .set('x-request-id', 'override-log-test')
+        .send({
+          supervisor_pin: '789012',
+          deviceId,
+        });
+
+      expect(overrideResponse.status).toBe(200);
+      const overrideToken = overrideResponse.body.token;
+
+      const policyResponse = await request(app)
+        .get(`/api/v1/policy/${deviceId}`)
+        .set('Authorization', `Bearer ${overrideToken}`)
+        .set('x-request-id', 'policy-log-test');
+
+      expect(policyResponse.status).toBe(200);
+
+      const overrideLog = infoSpy.mock.calls.find(([message]) => message === 'supervisor_override_granted');
+      expect(overrideLog).toBeDefined();
+      expect(overrideLog?.[1]).toMatchObject({
+        deviceId,
+        teamId,
+        requestId: 'override-log-test',
+      });
+      expect(overrideLog?.[1]?.overrideUntil).toBeDefined();
+
+      const policyLog = infoSpy.mock.calls.find(([message]) => message === 'policy_issued');
+      expect(policyLog).toBeDefined();
+      expect(policyLog?.[1]).toMatchObject({
+        deviceId,
+        requestId: 'policy-log-test',
+        policyVersion: 3,
+      });
+
+      infoSpy.mockRestore();
     });
   });
 

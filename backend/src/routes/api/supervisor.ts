@@ -15,7 +15,10 @@ router.post('/override/login',
   async (req: AuthenticatedRequest, res) => {
   try {
     const { supervisor_pin, deviceId } = req.body;
-    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown';
+    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || req.ip || 'Unknown';
+    const requestId = (req.headers['x-request-id'] as string) || 'unknown-request';
+    const sessionId = req.session?.sessionId;
+    const authUserId = req.user?.id;
 
     if (!supervisor_pin || !deviceId) {
       return res.status(400).json({
@@ -23,7 +26,7 @@ router.post('/override/login',
         error: {
           code: 'MISSING_FIELDS',
           message: 'supervisor_pin and deviceId are required',
-          request_id: req.headers['x-request-id'],
+          request_id: requestId,
         },
       });
     }
@@ -40,10 +43,12 @@ router.post('/override/login',
         error: {
           code: 'DEVICE_NOT_FOUND',
           message: 'Device not found',
-          request_id: req.headers['x-request-id'],
+          request_id: requestId,
         },
       });
     }
+
+    const teamId = device[0].teamId;
 
     // Team ID available for logging/auditing: const teamId = device[0].teamId;
     const result = await AuthService.supervisorOverride(
@@ -54,8 +59,12 @@ router.post('/override/login',
     if (!result.success) {
       logger.warn('supervisor_override_failed', {
         deviceId,
+        teamId,
+        requestId,
+        sessionId,
+        userId: authUserId,
         reason: result.error?.code,
-        ipAddress: req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown',
+        ipAddress,
       });
 
       return res.status(401).json({
@@ -66,8 +75,12 @@ router.post('/override/login',
 
     logger.info('supervisor_override_granted', {
       deviceId,
+      teamId,
+      userId: authUserId,
+      sessionId,
+      requestId,
       overrideUntil: result.overrideUntil,
-      ipAddress: req.headers['x-forwarded-for'] || req.headers['x-real-ip'] || 'Unknown',
+      ipAddress,
     });
 
     return res.json({
@@ -81,6 +94,9 @@ router.post('/override/login',
       error: error.message,
       stack: error.stack,
       deviceId: req.body?.deviceId,
+      requestId: req.headers['x-request-id'],
+      sessionId: req.session?.sessionId,
+      userId: req.user?.id,
     });
 
     return res.status(500).json({

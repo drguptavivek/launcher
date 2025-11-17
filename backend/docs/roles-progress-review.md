@@ -40,6 +40,9 @@
 
 
 ### TESTS
+npx tsx scripts/seed-default-roles.ts clear
+npx tsx scripts/seed-default-roles.ts seed
+npx tsx scripts/seed-default-roles.ts verify
 
 npx tsx scripts/seed-fixed-users.ts seed
 
@@ -50,3 +53,4 @@ npm run test -- tests/integration/authorization-security.test.ts
 npm run test -- tests/unit/routes/supervisor-route.test.ts
 npm run test -- tests/integration/projects.test.ts 
 npm run test -- tests/unit/policy-service.test.ts
+npm run test -- tests/integration/supervisor-override.test.ts

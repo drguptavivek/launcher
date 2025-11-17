@@ -12,6 +12,7 @@ import { db } from '../src/lib/db';
 import { roles, permissions, rolePermissions } from '../src/lib/db/schema';
 import { logger } from '../src/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { eq } from 'drizzle-orm';
 
 // Default role definitions for production
 const DEFAULT_ROLES = [
@@ -205,21 +206,33 @@ async function seedDefaultRoles() {
       for (const perm of roleDef.permissions) {
         const permissionKey = `${perm.resource}_${perm.action}`;
 
-        if (!permissionMap.has(permissionKey)) {
-          const permissionId = uuidv4();
-          await db.insert(permissions).values({
-            id: permissionId,
-            name: permissionKey, // Add missing name field
-            resource: perm.resource,
-            action: perm.action,
-            description: `${perm.action} access to ${perm.resource}`,
-            isActive: true,
-            createdAt: new Date()
-          }).onConflictDoNothing();
-
-          permissionMap.set(permissionKey, permissionId);
-          console.log(`  ✓ Created permission: ${permissionKey}`);
+        if (permissionMap.has(permissionKey)) {
+          continue;
         }
+
+        const existingPermission = await db.select({ id: permissions.id })
+          .from(permissions)
+          .where(eq(permissions.name, permissionKey))
+          .limit(1);
+
+        if (existingPermission.length > 0) {
+          permissionMap.set(permissionKey, existingPermission[0].id);
+          continue;
+        }
+
+        const permissionId = uuidv4();
+        const [insertedPermission] = await db.insert(permissions).values({
+          id: permissionId,
+          name: permissionKey,
+          resource: perm.resource,
+          action: perm.action,
+          description: `${perm.action} access to ${perm.resource}`,
+          isActive: true,
+          createdAt: new Date()
+        }).returning({ id: permissions.id });
+
+        permissionMap.set(permissionKey, insertedPermission.id);
+        console.log(`  ✓ Created permission: ${permissionKey}`);
       }
     }
 
@@ -230,28 +243,42 @@ async function seedDefaultRoles() {
     let rolesCreated = 0;
 
     for (const roleDef of DEFAULT_ROLES) {
-      const roleId = uuidv4();
+      let roleId: string | undefined;
 
-      // Create the role
-      await db.insert(roles).values({
-        id: roleId,
-        name: roleDef.name,
-        displayName: roleDef.displayName,
-        description: roleDef.description,
-        isSystemRole: roleDef.isSystemRole,
-        hierarchyLevel: roleDef.hierarchyLevel,
-        isActive: true,
-        createdAt: new Date()
-      }).onConflictDoUpdate({
-        target: roles.name,
-        set: {
+      const existingRole = await db.select({ id: roles.id })
+        .from(roles)
+        .where(eq(roles.name, roleDef.name))
+        .limit(1);
+
+      if (existingRole.length > 0) {
+        roleId = existingRole[0].id;
+        await db.update(roles)
+          .set({
+            displayName: roleDef.displayName,
+            description: roleDef.description,
+            hierarchyLevel: roleDef.hierarchyLevel,
+            isActive: true,
+            updatedAt: new Date()
+          })
+          .where(eq(roles.id, roleId));
+      } else {
+        const [insertedRole] = await db.insert(roles).values({
+          id: uuidv4(),
+          name: roleDef.name,
           displayName: roleDef.displayName,
           description: roleDef.description,
+          isSystemRole: roleDef.isSystemRole,
           hierarchyLevel: roleDef.hierarchyLevel,
           isActive: true,
-          updatedAt: new Date()
-        }
-      });
+          createdAt: new Date()
+        }).returning({ id: roles.id });
+        roleId = insertedRole.id;
+      }
+
+      if (!roleId) {
+        console.warn(`  ⚠️  Unable to determine ID for role ${roleDef.name}`);
+        continue;
+      }
 
       // Assign permissions to the role
       for (const perm of roleDef.permissions) {
@@ -308,7 +335,7 @@ async function clearDefaultRoles() {
     await db.delete(permissions);
 
     // Delete system roles
-    await db.delete(roles).where(roles.isSystemRole.eq(true));
+    await db.delete(roles).where(eq(roles.isSystemRole, true));
 
     console.log('✅ Default roles cleared successfully!');
 
