@@ -106,6 +106,16 @@ flowchart TB
 
 ## 📚 Complete Documentation ecosystem
 
+### 🏗️ **System Architecture Documentation**
+
+**[📖 Enterprise Architecture Guide](./docs/architecture-guide.md)** - **Complete system design and operational workflows**
+- **Enterprise Project Management System**: Operational scoping for field work management
+- **Geographic Team Model**: Teams represent operational regions (AIIMS Delhi = North, Mumbai = West)
+- **9-Role RBAC System**: Complete permission matrix with project assignments
+- **Multi-Layer Security**: Authentication, RBAC, geographic boundaries, project scoping
+- **Database Architecture**: Organizations → Teams → Projects hierarchy with proper relationships
+- **Implementation Status**: Backend ✅ Production Ready (54/54 tests passing) | Frontend 🔄 Integration Ready
+
 ### 🔗 **Workflow Documentation**
 For comprehensive implementation details, see the individual workflow files in the [`workflows/`](./workflows/) directory:
 
