@@ -87,6 +87,82 @@ export const FIXED_USERS = {
     pin: 'SysQa987!',
     displayName: 'QA System Admin',
     role: 'SYSTEM_ADMIN' as const
+  },
+
+  // Additional TEAM_MEMBER users
+  TEAM_MEMBER_2: {
+    userCode: 'test012',
+    pin: 'Team2Pass123!',
+    displayName: 'Test Team Member 2',
+    role: 'TEAM_MEMBER' as const
+  },
+  TEAM_MEMBER_3: {
+    userCode: 'test013',
+    pin: 'Team3Pass123!',
+    displayName: 'Test Team Member 3',
+    role: 'TEAM_MEMBER' as const
+  },
+  TEAM_MEMBER_4: {
+    userCode: 'test014',
+    pin: 'Team4Pass123!',
+    displayName: 'Test Team Member 4',
+    role: 'TEAM_MEMBER' as const
+  },
+
+  // Additional FIELD_SUPERVISOR users
+  FIELD_SUPERVISOR_2: {
+    userCode: 'test015',
+    pin: 'FieldSup215!',
+    displayName: 'Test Field Supervisor 2',
+    role: 'FIELD_SUPERVISOR' as const
+  },
+  FIELD_SUPERVISOR_3: {
+    userCode: 'test016',
+    pin: 'FieldSup316!',
+    displayName: 'Test Field Supervisor 3',
+    role: 'FIELD_SUPERVISOR' as const
+  },
+
+  // Additional REGIONAL_MANAGER users
+  REGIONAL_MANAGER_2: {
+    userCode: 'test017',
+    pin: 'RegMgr217!',
+    displayName: 'Test Regional Manager 2',
+    role: 'REGIONAL_MANAGER' as const
+  },
+  REGIONAL_MANAGER_3: {
+    userCode: 'test018',
+    pin: 'RegMgr318!',
+    displayName: 'Test Regional Manager 3',
+    role: 'REGIONAL_MANAGER' as const
+  },
+
+  // Additional SUPPORT_AGENT users
+  SUPPORT_AGENT_2: {
+    userCode: 'test019',
+    pin: 'Support219!',
+    displayName: 'Test Support Agent 2',
+    role: 'SUPPORT_AGENT' as const
+  },
+  SUPPORT_AGENT_3: {
+    userCode: 'test020',
+    pin: 'Support320!',
+    displayName: 'Test Support Agent 3',
+    role: 'SUPPORT_AGENT' as const
+  },
+
+  // Additional DEVICE_MANAGER users
+  DEVICE_MANAGER_2: {
+    userCode: 'test021',
+    pin: 'DevMgr221!',
+    displayName: 'Test Device Manager 2',
+    role: 'DEVICE_MANAGER' as const
+  },
+  DEVICE_MANAGER_3: {
+    userCode: 'test022',
+    pin: 'DevMgr322!',
+    displayName: 'Test Device Manager 3',
+    role: 'DEVICE_MANAGER' as const
   }
 } as const;
 
@@ -145,12 +221,55 @@ export const FIXED_ORGANIZATIONS = {
   }
 } as const;
 
-export const FIXED_TEAM = {
-  teamId: '550e8400-e29b-41d4-a716-446655440002',
-  name: 'AIIMS Delhi Survey Team',
-  stateId: 'DL07',
-  timezone: 'Asia/Kolkata',
-  organizationId: '550e8400-e29b-41d4-a716-446655440100' // AIIMS_INDIA
+export const FIXED_TEAMS = {
+  AIIMS_DELHI: {
+    teamId: '550e8400-e29b-41d4-a716-446655440002',
+    name: 'AIIMS Delhi Survey Team',
+    stateId: 'DL07',
+    timezone: 'Asia/Kolkata',
+    organizationId: '550e8400-e29b-41d4-a716-446655440100' // AIIMS_INDIA
+  },
+  MUMBAI_FIELD: {
+    teamId: '708c44b7-334c-48ff-afcc-e87d312f28a1',
+    name: 'Mumbai Field Operations Team',
+    stateId: 'MH01',
+    timezone: 'Asia/Kolkata',
+    organizationId: '550e8400-e29b-41d4-a716-446655440100' // AIIMS_INDIA
+  }
+} as const;
+
+// Helper to get team by ID for backward compatibility
+export const FIXED_TEAM = FIXED_TEAMS.AIIMS_DELHI;
+
+// Team assignment mapping for users
+export const USER_TEAM_ASSIGNMENTS = {
+  // AIIMS Delhi Team - Primary research team
+  TEAM_MEMBER: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  TEAM_MEMBER_2: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  TEAM_MEMBER_3: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  FIELD_SUPERVISOR: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  FIELD_SUPERVISOR_QA: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  REGIONAL_MANAGER: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  SYSTEM_ADMIN: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  SYSTEM_ADMIN_QA: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  AUDITOR: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  POLICY_ADMIN: FIXED_TEAMS.AIIMS_DELHI.teamId,
+
+  // Mumbai Field Team - Operations focused
+  TEAM_MEMBER_4: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  FIELD_SUPERVISOR_2: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  FIELD_SUPERVISOR_3: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  SUPPORT_AGENT: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  SUPPORT_AGENT_2: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  SUPPORT_AGENT_3: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  DEVICE_MANAGER: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  DEVICE_MANAGER_2: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  DEVICE_MANAGER_3: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+
+  // Regional and National roles - can be assigned to either team
+  REGIONAL_MANAGER_2: FIXED_TEAMS.AIIMS_DELHI.teamId,
+  REGIONAL_MANAGER_3: FIXED_TEAMS.MUMBAI_FIELD.teamId,
+  NATIONAL_SUPPORT_ADMIN: FIXED_TEAMS.AIIMS_DELHI.teamId
 } as const;
 
 export const FIXED_PROJECTS = {
@@ -159,7 +278,8 @@ export const FIXED_PROJECTS = {
     title: 'National Health Survey 2025',
     abbreviation: 'NHS-2025',
     geographicScope: 'NATIONAL',
-    organizationId: '550e8400-e29b-41d4-a716-446655440101' // NATIONAL_HEALTH_MISSION
+    organizationId: '550e8400-e29b-41d4-a716-446655440101', // NATIONAL_HEALTH_MISSION
+    regionId: undefined as string | undefined
   },
   REGIONAL_DIABETES_STUDY: {
     projectId: '550e8400-e29b-41d4-a716-446655440201',
@@ -202,28 +322,31 @@ async function seedFixedUsers() {
       });
     }
 
-    // Step 2: Create test team with organization reference
-    console.log('Creating test team...');
-    await db.insert(teams).values({
-      id: FIXED_TEAM.teamId,
-      name: FIXED_TEAM.name,
-      stateId: FIXED_TEAM.stateId,
-      timezone: FIXED_TEAM.timezone,
-      organizationId: FIXED_TEAM.organizationId,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }).onConflictDoUpdate({
-      target: teams.id,
-      set: {
-        name: FIXED_TEAM.name,
-        stateId: FIXED_TEAM.stateId,
-        timezone: FIXED_TEAM.timezone,
-        organizationId: FIXED_TEAM.organizationId,
+    // Step 2: Create test teams with organization reference
+    console.log('Creating teams...');
+    for (const [teamKey, teamConfig] of Object.entries(FIXED_TEAMS)) {
+      console.log(`  Creating team: ${teamConfig.name}`);
+      await db.insert(teams).values({
+        id: teamConfig.teamId,
+        name: teamConfig.name,
+        stateId: teamConfig.stateId,
+        timezone: teamConfig.timezone,
+        organizationId: teamConfig.organizationId,
         isActive: true,
+        createdAt: new Date(),
         updatedAt: new Date()
-      }
-    });
+      }).onConflictDoUpdate({
+        target: teams.id,
+        set: {
+          name: teamConfig.name,
+          stateId: teamConfig.stateId,
+          timezone: teamConfig.timezone,
+          organizationId: teamConfig.organizationId,
+          isActive: true,
+          updatedAt: new Date()
+        }
+      });
+    }
 
     // Create deterministic web admin user
     console.log('Creating web admin user...');
@@ -283,18 +406,35 @@ async function seedFixedUsers() {
     POLICY_ADMIN: '550e8400-e29b-41d4-a716-446655440010',
     NATIONAL_SUPPORT_ADMIN: '550e8400-e29b-41d4-a716-446655440011',
     FIELD_SUPERVISOR_QA: '550e8400-e29b-41d4-a716-446655440012',
-    SYSTEM_ADMIN_QA: '550e8400-e29b-41d4-a716-446655440013'
+    SYSTEM_ADMIN_QA: '550e8400-e29b-41d4-a716-446655440013',
+      // Additional TEAM_MEMBER users
+      TEAM_MEMBER_2: '550e8400-e29b-41d4-a716-446655440014',
+      TEAM_MEMBER_3: '550e8400-e29b-41d4-a716-446655440015',
+      TEAM_MEMBER_4: '550e8400-e29b-41d4-a716-446655440016',
+      // Additional FIELD_SUPERVISOR users
+      FIELD_SUPERVISOR_2: '550e8400-e29b-41d4-a716-446655440017',
+      FIELD_SUPERVISOR_3: '550e8400-e29b-41d4-a716-446655440018',
+      // Additional REGIONAL_MANAGER users
+      REGIONAL_MANAGER_2: '550e8400-e29b-41d4-a716-446655440019',
+      REGIONAL_MANAGER_3: '550e8400-e29b-41d4-a716-446655440020',
+      // Additional SUPPORT_AGENT users
+      SUPPORT_AGENT_2: '550e8400-e29b-41d4-a716-446655440021',
+      SUPPORT_AGENT_3: '550e8400-e29b-41d4-a716-446655440022',
+      // Additional DEVICE_MANAGER users
+      DEVICE_MANAGER_2: '550e8400-e29b-41d4-a716-446655440023',
+      DEVICE_MANAGER_3: '550e8400-e29b-41d4-a716-446655440024'
   };
 
     for (const [userType, userConfig] of Object.entries(FIXED_USERS)) {
       console.log(`Creating ${userType.toLowerCase()} user: ${userConfig.userCode}`);
 
       const userId = userIds[userType];
+      const teamId = USER_TEAM_ASSIGNMENTS[userType as keyof typeof USER_TEAM_ASSIGNMENTS] || FIXED_TEAMS.AIIMS_DELHI.teamId;
 
-      // Insert user with organization reference
+      // Insert user with organization and team reference
       await db.insert(users).values({
         id: userId,
-        teamId: FIXED_TEAM.teamId,
+        teamId: teamId,
         code: userConfig.userCode,
         displayName: userConfig.displayName,
         role: userConfig.role,
@@ -304,6 +444,7 @@ async function seedFixedUsers() {
       }).onConflictDoUpdate({
         target: users.id,
         set: {
+          teamId: teamId,
           displayName: userConfig.displayName,
           role: userConfig.role,
           isActive: true,
@@ -358,12 +499,15 @@ async function seedFixedUsers() {
         continue;
       }
 
+      const userTeamId = USER_TEAM_ASSIGNMENTS[userType as keyof typeof USER_TEAM_ASSIGNMENTS] || FIXED_TEAMS.AIIMS_DELHI.teamId;
+      const userOrgId = Object.values(FIXED_TEAMS).find(team => team.teamId === userTeamId)?.organizationId || FIXED_TEAMS.AIIMS_DELHI.organizationId;
+
       await db.insert(userRoleAssignments).values({
         id: uuidv4(),
         userId,
         roleId,
-        organizationId: FIXED_TEAM.organizationId,
-        teamId: FIXED_TEAM.teamId,
+        organizationId: userOrgId,
+        teamId: userTeamId,
         grantedBy: userIds.SYSTEM_ADMIN,
         grantedAt: new Date(),
         isActive: true,
@@ -371,23 +515,42 @@ async function seedFixedUsers() {
       });
     }
 
-    // Create fixed supervisor PINs
+    // Create fixed supervisor PINs for both teams
     console.log('Creating supervisor PINs...');
     const supervisorPinIds = [
-      '550e8400-e29b-41d4-a716-446655440006',
-      '550e8400-e29b-41d4-a716-446655440007',
-      '550e8400-e29b-41d4-a716-446655440008'
+      '550e8400-e29b-41d4-a716-446655440006', // AIIMS Delhi PIN 1
+      '550e8400-e29b-41d4-a716-446655440007', // AIIMS Delhi PIN 2
+      '550e8400-e29b-41d4-a716-446655440008', // AIIMS Delhi PIN 3
+      '550e8400-e29b-41d4-a716-446655440025', // Mumbai PIN 1
+      '550e8400-e29b-41d4-a716-446655440026', // Mumbai PIN 2
+      '550e8400-e29b-41d4-a716-446655440027'  // Mumbai PIN 3
     ];
 
-    let supervisorPinIndex = 0;
-    for (const [pinType, pinConfig] of Object.entries(FIXED_SUPERVISOR_PINS)) {
-      const supervisorPinId = supervisorPinIds[supervisorPinIndex];
+    // Create PINs for AIIMS Delhi team
+    const aiimsPins = [
+      { ...FIXED_SUPERVISOR_PINS.FIELD_SUPERVISOR_PIN, teamId: FIXED_TEAMS.AIIMS_DELHI.teamId, suffix: 'AIIMS' },
+      { ...FIXED_SUPERVISOR_PINS.REGIONAL_MANAGER_PIN, teamId: FIXED_TEAMS.AIIMS_DELHI.teamId, suffix: 'AIIMS' },
+      { ...FIXED_SUPERVISOR_PINS.SYSTEM_ADMIN_PIN, teamId: FIXED_TEAMS.AIIMS_DELHI.teamId, suffix: 'AIIMS' }
+    ];
+
+    // Create PINs for Mumbai team
+    const mumbaiPins = [
+      { ...FIXED_SUPERVISOR_PINS.FIELD_SUPERVISOR_PIN, teamId: FIXED_TEAMS.MUMBAI_FIELD.teamId, suffix: 'Mumbai' },
+      { ...FIXED_SUPERVISOR_PINS.REGIONAL_MANAGER_PIN, teamId: FIXED_TEAMS.MUMBAI_FIELD.teamId, suffix: 'Mumbai' },
+      { ...FIXED_SUPERVISOR_PINS.SYSTEM_ADMIN_PIN, teamId: FIXED_TEAMS.MUMBAI_FIELD.teamId, suffix: 'Mumbai' }
+    ];
+
+    const allPins = [...aiimsPins, ...mumbaiPins];
+
+    for (let i = 0; i < allPins.length; i++) {
+      const pinConfig = allPins[i];
+      const supervisorPinId = supervisorPinIds[i];
 
       const pinHash = await hashPassword(pinConfig.pin);
       await db.insert(supervisorPins).values({
         id: supervisorPinId,
-        teamId: FIXED_TEAM.teamId,
-        name: pinConfig.name,
+        teamId: pinConfig.teamId,
+        name: `${pinConfig.name} (${pinConfig.suffix})`,
         pinHash: pinHash.hash,
         salt: pinHash.salt,
         isActive: true,
@@ -395,15 +558,13 @@ async function seedFixedUsers() {
       }).onConflictDoUpdate({
         target: supervisorPins.id,
         set: {
-          name: pinConfig.name,
+          name: `${pinConfig.name} (${pinConfig.suffix})`,
           pinHash: pinHash.hash,
           salt: pinHash.salt,
           isActive: true,
           rotatedAt: new Date()
         }
       });
-
-      supervisorPinIndex++;
     }
 
     // Step 3: Create projects (after users exist to satisfy created_by FK)
@@ -447,7 +608,6 @@ async function seedFixedUsers() {
       if (existingAssignment.length > 0) {
         await db.update(projectAssignments)
           .set({
-            roleInProject: userConfig.role,
             isActive: true,
             assignedBy: userIds.SYSTEM_ADMIN,
             assignedAt: new Date()
@@ -458,7 +618,6 @@ async function seedFixedUsers() {
           projectId: FIXED_PROJECTS.NATIONAL_HEALTH_SURVEY.projectId,
           userId,
           assignedBy: userIds.SYSTEM_ADMIN,
-          roleInProject: userConfig.role,
           assignedAt: new Date(),
           isActive: true
         });
@@ -473,7 +632,6 @@ async function seedFixedUsers() {
     if (existingTeamAssignment.length > 0) {
       await db.update(projectTeamAssignments)
         .set({
-          assignedRole: 'DATA_COLLECTION_TEAM',
           isActive: true,
           assignedBy: userIds.SYSTEM_ADMIN,
           assignedAt: new Date()
@@ -484,7 +642,6 @@ async function seedFixedUsers() {
         projectId: FIXED_PROJECTS.REGIONAL_DIABETES_STUDY.projectId,
         teamId: FIXED_TEAM.teamId,
         assignedBy: userIds.SYSTEM_ADMIN,
-        assignedRole: 'DATA_COLLECTION_TEAM',
         assignedAt: new Date(),
         isActive: true
       });
@@ -512,8 +669,9 @@ async function seedFixedUsers() {
       console.log(`  ${orgConfig.organizationId} - ${orgConfig.displayName} (${orgConfig.code})`);
     }
 
-    console.log('\n👥 Team:');
-    console.log(`  ${FIXED_TEAM.teamId} - ${FIXED_TEAM.name} (${FIXED_TEAM.stateId})`);
+    console.log('\n👥 Teams:');
+    console.log(`  ${FIXED_TEAMS.AIIMS_DELHI.teamId} - ${FIXED_TEAMS.AIIMS_DELHI.name} (${FIXED_TEAMS.AIIMS_DELHI.stateId})`);
+    console.log(`  ${FIXED_TEAMS.MUMBAI_FIELD.teamId} - ${FIXED_TEAMS.MUMBAI_FIELD.name} (${FIXED_TEAMS.MUMBAI_FIELD.stateId})`);
 
     console.log('\n📋 Projects:');
     for (const [projectKey, projectConfig] of Object.entries(FIXED_PROJECTS)) {
@@ -573,7 +731,23 @@ async function clearFixedUsers() {
       '550e8400-e29b-41d4-a716-446655440010', // POLICY_ADMIN
       '550e8400-e29b-41d4-a716-446655440011',  // NATIONAL_SUPPORT_ADMIN
       '550e8400-e29b-41d4-a716-446655440012',  // FIELD_SUPERVISOR_QA
-      '550e8400-e29b-41d4-a716-446655440013'   // SYSTEM_ADMIN_QA
+      '550e8400-e29b-41d4-a716-446655440013',  // SYSTEM_ADMIN_QA
+      // Additional TEAM_MEMBER users
+      '550e8400-e29b-41d4-a716-446655440014',  // TEAM_MEMBER_2
+      '550e8400-e29b-41d4-a716-446655440015',  // TEAM_MEMBER_3
+      '550e8400-e29b-41d4-a716-446655440016',  // TEAM_MEMBER_4
+      // Additional FIELD_SUPERVISOR users
+      '550e8400-e29b-41d4-a716-446655440017',  // FIELD_SUPERVISOR_2
+      '550e8400-e29b-41d4-a716-446655440018',  // FIELD_SUPERVISOR_3
+      // Additional REGIONAL_MANAGER users
+      '550e8400-e29b-41d4-a716-446655440019',  // REGIONAL_MANAGER_2
+      '550e8400-e29b-41d4-a716-446655440020',  // REGIONAL_MANAGER_3
+      // Additional SUPPORT_AGENT users
+      '550e8400-e29b-41d4-a716-446655440021',  // SUPPORT_AGENT_2
+      '550e8400-e29b-41d4-a716-446655440022',  // SUPPORT_AGENT_3
+      // Additional DEVICE_MANAGER users
+      '550e8400-e29b-41d4-a716-446655440023',  // DEVICE_MANAGER_2
+      '550e8400-e29b-41d4-a716-446655440024'   // DEVICE_MANAGER_3
     ];
 
     await db.delete(userRoleAssignments).where(inArray(userRoleAssignments.userId, userIds));
@@ -591,7 +765,8 @@ async function clearFixedUsers() {
     await db.delete(devices).where(eq(devices.id, FIXED_DEVICE.deviceId));
 
     // Delete teams
-    await db.delete(teams).where(eq(teams.id, FIXED_TEAM.teamId));
+    await db.delete(teams).where(eq(teams.id, FIXED_TEAMS.AIIMS_DELHI.teamId));
+    await db.delete(teams).where(eq(teams.id, FIXED_TEAMS.MUMBAI_FIELD.teamId));
 
     // Finally delete organizations (they should be last as they're master entities)
     // Note: Don't delete organizations by default as they might be shared, but include if needed
