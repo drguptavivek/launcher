@@ -1,13 +1,19 @@
 # SurveyLauncher Authentication System
 
-This document provides comprehensive details about the SurveyLauncher authentication architecture, covering both mobile device authentication and web-based administrative access.
+This document provides comprehensive details about the SurveyLauncher authentication architecture, covering both mobile device authentication and web-based administrative access within the enterprise project management system.
 
 ## 🏗️ Authentication Architecture Overview
 
-SurveyLauncher implements a **dual authentication system** designed to serve two distinct user populations:
+SurveyLauncher implements a **dual authentication system** with **9-role RBAC integration** designed to serve enterprise field operations:
 
 1. **Mobile Device Authentication** - For field workers using Android tablets
-2. **Web Admin Authentication** - For system administrators and managers
+2. **Web Admin Authentication** - For system administrators, managers, and specialized roles
+
+### **Enterprise Architecture Integration**
+- **Geographic Team Model**: Teams represent operational regions (North, West, South, East)
+- **Project Scoping**: Authentication includes project assignment context
+- **Role-Based Interface Access**: Specific roles can access mobile, web, or both interfaces
+- **Geographic Boundaries**: Access control enforces regional operational boundaries
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -26,6 +32,48 @@ SurveyLauncher implements a **dual authentication system** designed to serve two
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+## 👥 Enterprise Role-Based Access Control (RBAC)
+
+### **9-Role System with Interface Access Matrix**
+
+| Role | Mobile Access | Web Admin Access | Primary Function | Geographic Scope |
+|------|---------------|------------------|------------------|------------------|
+| **TEAM_MEMBER** | ✅ Primary | ❌ Blocked | Field data collection | Assigned project regions |
+| **FIELD_SUPERVISOR** | ✅ Primary | ✅ Secondary | Team supervision | Assigned project regions |
+| **REGIONAL_MANAGER** | ✅ Limited | ✅ Primary | Multi-team oversight | Regional project scope |
+| **SYSTEM_ADMIN** | ❌ | ✅ Primary | Full system administration | All regions (NATIONAL) |
+| **SUPPORT_AGENT** | ❌ | ✅ Primary | User assistance & troubleshooting | Assigned project regions |
+| **AUDITOR** | ❌ | ✅ Primary | Compliance monitoring | All regions (read-only) |
+| **DEVICE_MANAGER** | ❌ | ✅ Primary | Android device management | Assigned project regions |
+| **POLICY_ADMIN** | ❌ | ✅ Primary | Policy configuration | All regions (NATIONAL) |
+| **NATIONAL_SUPPORT_ADMIN** | ✅ Limited | ✅ Primary | Cross-regional oversight | All regions (NATIONAL) |
+
+### **Interface Access Rules**
+
+#### **Mobile Interface Authentication**
+- **Primary Access**: TEAM_MEMBER, FIELD_SUPERVISOR
+- **Limited Access**: REGIONAL_MANAGER (supervision functions), NATIONAL_SUPPORT_ADMIN (cross-regional support)
+- **Blocked Access**: SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR, DEVICE_MANAGER, POLICY_ADMIN
+
+#### **Web Admin Interface Authentication**
+- **Primary Access**: All roles except TEAM_MEMBER
+- **Hybrid Roles**: FIELD_SUPERVISOR, REGIONAL_MANAGER, NATIONAL_SUPPORT_ADMIN (access both interfaces)
+- **Full Administrative**: SYSTEM_ADMIN (complete system control)
+
+### **Geographic Boundary Enforcement**
+- **Team-Based Access**: Users restricted to assigned team geographic regions
+- **Regional Manager Scope**: Oversight limited to teams within regional boundaries
+- **National Access**: SYSTEM_ADMIN, POLICY_ADMIN, AUDITOR have national scope
+- **Cross-Regional Authorization**: NATIONAL_SUPPORT_ADMIN can access all regions
+
+### **Project Context Integration**
+- **Project Assignments**: Authentication includes current project context
+- **Multi-Project Access**: Users can be assigned to multiple projects via SYSTEM_ADMIN
+- **Project Scoping**: Permissions scoped to assigned project boundaries
+- **Cross-Team Collaboration**: Enabled through project assignments when authorized
+
+---
 
 ## 📱 Mobile Device Authentication
 
@@ -182,25 +230,33 @@ CREATE TABLE devices (
   is_active BOOLEAN DEFAULT true
 );
 
--- Session management
+-- Session management with project context
 CREATE TABLE sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES users(id),
   device_id UUID REFERENCES devices(id),
+  team_id UUID REFERENCES teams(id),
+  current_project_id UUID REFERENCES projects(id), -- Active project context
   started_at TIMESTAMP DEFAULT NOW(),
   expires_at TIMESTAMP NOT NULL,
   status VARCHAR(16) DEFAULT 'open',
   override_until TIMESTAMP,
-  token_jti VARCHAR(64) UNIQUE
+  token_jti VARCHAR(64) UNIQUE,
+  interface_type VARCHAR(16) NOT NULL, -- MOBILE, WEB_ADMIN, HYBRID
+  geographic_scope VARCHAR(16), -- NATIONAL, REGIONAL, LOCAL
+  created_ip_address INET,
+  last_activity_at TIMESTAMP DEFAULT NOW()
 );
 
 -- PIN storage (Argon2id)
 CREATE TABLE user_pins (
   user_id UUID PRIMARY KEY REFERENCES users(id),
-  verifier_hash VARCHAR(255) NOT NULL, -- Argon2id hash
-  salt VARCHAR(32) NOT NULL,
-  rotated_at TIMESTAMP DEFAULT NOW(),
-  is_active BOOLEAN DEFAULT true
+  pin_hash VARCHAR(255) NOT NULL, -- Argon2id hash
+  salt VARCHAR(255) NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  rotated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 ```
 
@@ -328,24 +384,20 @@ Create new admin user (authorized roles only).
 CREATE TABLE web_admin_users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL, -- bcrypt hash
-  first_name VARCHAR(100) NOT NULL,
-  last_name VARCHAR(100) NOT NULL,
-  role VARCHAR(50) NOT NULL,
+  password VARCHAR(255) NOT NULL, -- Argon2id hash
+  first_name VARCHAR(255) NOT NULL,
+  last_name VARCHAR(255) NOT NULL,
+  role VARCHAR(50) NOT NULL DEFAULT 'SYSTEM_ADMIN',
   is_active BOOLEAN DEFAULT true,
-  last_login_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW()
+  last_login_at TIMESTAMP WITH TIME ZONE,
+  login_attempts INTEGER DEFAULT 0,
+  locked_at TIMESTAMP WITH TIME ZONE,
+  password_changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Role assignments (for future extensibility)
-CREATE TABLE admin_role_assignments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES web_admin_users(id),
-  role_id UUID REFERENCES roles(id),
-  granted_by UUID REFERENCES web_admin_users(id),
-  granted_at TIMESTAMP DEFAULT NOW(),
-  is_active BOOLEAN DEFAULT true
-);
+-- Note: Role assignments handled by user_role_assignments table
 ```
 
 ## 🔐 JWT Token Structure
@@ -359,6 +411,13 @@ CREATE TABLE admin_role_assignments (
   "sessionId": "session-uuid-789",
   "role": "TEAM_MEMBER",
   "teamId": "team-uuid-abc",
+  "teamName": "AIIMS Delhi Survey Team",
+  "organizationId": "org-uuid-aiims",
+  "currentProjectId": "project-uuid-national",
+  "currentProjectName": "National Health Survey 2025",
+  "geographicScope": "REGIONAL",
+  "assignedRegions": ["NORTH_REGION"],
+  "interfaceAccess": ["MOBILE"],
   "jti": "token-uuid-xyz",
   "iat": 1642248600,
   "exp": 1642250400,
@@ -373,7 +432,40 @@ CREATE TABLE admin_role_assignments (
   "type": "web-admin",
   "email": "admin@surveylauncher.aiims",
   "role": "SYSTEM_ADMIN",
-  "permissions": ["USERS.MANAGE", "DEVICES.MANAGE", "..."],
+  "organizationId": "org-uuid-aiims",
+  "teamId": "team-uuid-admin",
+  "currentProjectId": null,
+  "geographicScope": "NATIONAL",
+  "assignedRegions": ["NORTH_REGION", "WEST_REGION", "SOUTH_REGION", "EAST_REGION"],
+  "interfaceAccess": ["WEB_ADMIN"],
+  "permissions": [
+    "USERS.MANAGE", "DEVICES.MANAGE", "PROJECTS.MANAGE",
+    "TEAMS.MANAGE", "ROLES.MANAGE", "POLICY.CONFIGURE"
+  ],
+  "jti": "token-uuid-xyz",
+  "iat": 1642248600,
+  "exp": 1642250400,
+  "iss": "surveylauncher-api"
+}
+```
+
+### Hybrid Role Authentication Tokens (FIELD_SUPERVISOR, REGIONAL_MANAGER)
+```json
+{
+  "sub": "supervisor-uuid-456",
+  "type": "hybrid",
+  "deviceId": null,
+  "sessionId": "session-uuid-web-789",
+  "role": "FIELD_SUPERVISOR",
+  "teamId": "team-uuid-delhi",
+  "teamName": "AIIMS Delhi Survey Team",
+  "organizationId": "org-uuid-aiims",
+  "currentProjectId": "project-uuid-diabetes",
+  "geographicScope": "REGIONAL",
+  "assignedRegions": ["NORTH_REGION"],
+  "interfaceAccess": ["MOBILE", "WEB_ADMIN"],
+  "supervisedTeams": ["team-uuid-delhi", "team-uuid-north"],
+  "supervisionScope": "FIELD_OPERATIONS",
   "jti": "token-uuid-xyz",
   "iat": 1642248600,
   "exp": 1642250400,
@@ -410,36 +502,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,http://localhos
 
 ### Middleware Usage
 
-#### Mobile Authentication Middleware
-```typescript
-import { authenticateToken } from '../middleware/auth';
-
-// Protect mobile routes
-router.use('/api/v1/telemetry', authenticateToken('mobile'));
-router.use('/api/v1/devices/:id', authenticateToken('mobile'));
-```
-
-#### Web Admin Authentication Middleware
-```typescript
-import { authenticateWebAdmin } from '../middleware/auth';
-
-// Protect admin routes
-router.use('/api/v1/users', authenticateWebAdmin());
-router.use('/api/v1/teams', authenticateWebAdmin());
-router.use('/api/v1/projects', authenticateWebAdmin());
-```
-
-### Permission Checking
-```typescript
-import { hasPermission } from '../middleware/auth';
-
-// Route-level permission check
-router.post('/api/v1/projects',
-  authenticateWebAdmin(),
-  hasPermission('PROJECTS', 'CREATE'),
-  createProjectHandler
-);
-```
+**Note:** Comprehensive RBAC authorization details are covered in [**@backend/docs/authorize.md**](./authorize.md)
 
 ## 📊 Authentication Analytics
 
@@ -455,54 +518,6 @@ router.post('/api/v1/projects',
 - **Unusual Activity**: Flag logins from unexpected locations/devices
 - **Token Abuse**: Monitor for stolen/compromised tokens
 - **Role Escalation**: Detect unauthorized permission attempts
+ 
 
-## 🧪 Testing Authentication
-
-### Mobile Auth Testing
-```bash
-# Test mobile login
-curl -X POST http://localhost:3000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "deviceId": "android_12345abcdef",
-    "userCode": "emp001",
-    "pin": "123456"
-  }'
-
-# Test whoami
-curl -X GET http://localhost:3000/api/v1/auth/whoami \
-  -H "Authorization: Bearer <mobile-token>"
-```
-
-### Web Admin Auth Testing
-```bash
-# Test admin login
-curl -X POST http://localhost:3000/api/v1/web-admin/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "admin@surveylauncher.aiims",
-    "password": "admin123456"
-  }'
-
-# Test whoami
-curl -X GET http://localhost:3000/api/v1/web-admin/auth/whoami \
-  -H "Authorization: Bearer <admin-token>"
-```
-
-## 🔮 Future Enhancements
-
-### Planned Features
-- **Multi-Factor Authentication (MFA)** for admin accounts
-- **Single Sign-On (SSO)** integration with enterprise directories
-- **Biometric Authentication** support for mobile devices
-- **Conditional Access Policies** based on location/time
-- **OAuth2/OIDC** provider capabilities
-- **Audit Log Integration** with SIEM systems
-
-### Security Roadmap
-- **Zero Trust Architecture** implementation
-- **Hardware Security Module (HSM)** for key management
-- **Advanced Threat Detection** with machine learning
-- **Compliance Reporting** for audit requirements
-
-This dual authentication system provides appropriate security controls for both field operations and administrative access while maintaining operational efficiency and user experience requirements.
+**Architecture Alignment**: ✅ Complete integration with [Enterprise Architecture Guide](../architecture-guide.md) and [Authorization System](./authorize.md)

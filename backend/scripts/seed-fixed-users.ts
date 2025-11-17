@@ -8,7 +8,7 @@
  */
 
 import { db } from '../src/lib/db';
-import { teams, devices, users, userPins, supervisorPins, sessions, organizations, projects, projectAssignments, projectTeamAssignments, webAdminUsers, userRoleAssignments, roles } from '../src/lib/db/schema';
+import { teams, devices, users, userPins, supervisorPins, sessions, organizations, projects, projectAssignments, projectTeamAssignments, webAdminUsers, userRoleAssignments, roles, permissionCache } from '../src/lib/db/schema';
 import { verifyPassword, hashPassword } from '../src/lib/crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../src/lib/logger';
@@ -707,6 +707,10 @@ async function clearFixedUsers() {
   try {
     console.log('🧹 Clearing fixed test data...');
 
+    // Delete permission cache first
+    await db.delete(permissionCache);
+    console.log('  ✓ Cleared permission cache');
+
     // Delete in proper order to respect foreign key constraints
     // Start with most dependent entities
     await db.delete(sessions).where(eq(sessions.deviceId, FIXED_DEVICE.deviceId));
@@ -768,9 +772,13 @@ async function clearFixedUsers() {
     await db.delete(teams).where(eq(teams.id, FIXED_TEAMS.AIIMS_DELHI.teamId));
     await db.delete(teams).where(eq(teams.id, FIXED_TEAMS.MUMBAI_FIELD.teamId));
 
-    // Finally delete organizations (they should be last as they're master entities)
-    // Note: Don't delete organizations by default as they might be shared, but include if needed
-    console.log('ℹ️  Organizations preserved for potential reuse. Delete manually if needed.');
+    // Clear web admin users
+    await db.delete(webAdminUsers);
+    console.log('  ✓ Cleared web admin users');
+
+    // Clear organizations
+    await db.delete(organizations);
+    console.log('  ✓ Cleared organizations');
 
     console.log('✅ Fixed test data cleared successfully!');
   } catch (error) {
@@ -815,7 +823,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     default:
       console.log('Usage:');
       console.log('  tsx scripts/seed-fixed-users.ts seed   - Seed fixed test users');
-      console.log('  tsx scripts/seed-fixed-users.ts clear  - Clear fixed test users');
-      process.exit(1);
+      console.log('  tsx scripts/seed-fixed-users.ts clear  - Clear fixed test users and organizations');
   }
 }

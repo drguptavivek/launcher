@@ -9,7 +9,7 @@
  */
 
 import { db } from '../src/lib/db';
-import { roles, permissions, rolePermissions } from '../src/lib/db/schema';
+import { roles, permissions, rolePermissions, webAdminUsers, permissionCache, organizations } from '../src/lib/db/schema';
 import { logger } from '../src/lib/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { eq } from 'drizzle-orm';
@@ -330,7 +330,11 @@ async function seedDefaultRoles() {
 
 async function clearDefaultRoles() {
   try {
-    console.log('🧹 Clearing existing default roles...');
+    console.log('🧹 Clearing existing default roles, admin users, and organizations...');
+
+    // Delete permission cache
+    await db.delete(permissionCache);
+    console.log('  ✓ Cleared permission cache');
 
     // Delete role permissions first (due to foreign key constraints)
     await db.delete(rolePermissions);
@@ -341,7 +345,15 @@ async function clearDefaultRoles() {
     // Delete system roles
     await db.delete(roles).where(eq(roles.isSystemRole, true));
 
-    console.log('✅ Default roles cleared successfully!');
+    // Clear web admin users (test admin accounts)
+    await db.delete(webAdminUsers);
+    console.log('  ✓ Cleared web admin users');
+
+    // Clear organizations
+    await db.delete(organizations);
+    console.log('  ✓ Cleared organizations');
+
+    console.log('✅ Default roles, admin users, and organizations cleared successfully!');
 
   } catch (error) {
     console.error('❌ Failed to clear default roles:', error);
@@ -429,7 +441,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     default:
       console.log('Usage:');
       console.log('  tsx scripts/seed-default-roles.ts seed   - Seed default production roles');
-      console.log('  tsx scripts/seed-default-roles.ts clear  - Clear existing default roles');
+      console.log('  tsx scripts/seed-default-roles.ts clear  - Clear existing default roles, admin users, and organizations');
       console.log('  tsx scripts/seed-default-roles.ts verify - Verify role configuration');
       console.log('');
       console.log('Production deployment workflow:');

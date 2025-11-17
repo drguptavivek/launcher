@@ -47,6 +47,15 @@ No complex "role-in-project" logic needed:
 
 ## 📊 Data Model Architecture
 
+## 📊 Database Schema Reference
+
+**All field names reference the actual schema implementation in `backend/src/lib/db/schema.ts`**
+
+### **Table Naming Convention**
+- **Plural table names**: `teams`, `users`, `devices`, `organizations`
+- **CamelCase in TypeScript code**: `teamId`, `userId`, `deviceId`
+- **snake_case in database**: `team_id`, `user_id`, `device_id`
+
 ### **Level 1: Foundation (Master Data)**
 ```sql
 organizations  -- Funding/Administrative entities
@@ -374,6 +383,43 @@ flowchart TD
 - Complex project hierarchies
 - Advanced resource scheduling
 - Project financial management integration
+
+---
+
+## 📚 Field Reference Guide
+
+### **Database Field Naming Conventions**
+
+**Schema Reference:** All field names match `backend/src/lib/db/schema.ts`
+
+| TypeScript Code | Database Column | Example Usage |
+|----------------|----------------|--------------|
+| `userId` | `user_id` | `users.id` references |
+| `teamId` | `team_id` | `teams.id` references |
+| `deviceId` | `device_id` | `devices.id` references |
+| `organizationId` | `organization_id` | `organizations.id` references |
+| `projectId` | `project_id` | `projects.id` references |
+| `pinHash` | `pin_hash` | Argon2id PIN hash storage |
+| `createdAt` | `created_at` | Record creation timestamp |
+| `updatedAt` | `updated_at` | Record modification timestamp |
+
+### **Key Authentication Fields**
+- **PIN Storage:** `user_pins.pin_hash` (not `verifier_hash`)
+- **Password Storage:** `web_admin_users.password` (not `password_hash`)
+- **Session Tokens:** `sessions.tokenJti` for JWT revocation
+- **Device Binding:** `sessions.deviceId` for mobile device association
+
+### **Project Assignment Fields**
+- **Individual Assignments:** `projectAssignments` table with `userId` and `projectId`
+- **Team Assignments:** `projectTeamAssignments` table with `teamId` and `projectId`
+- **Geographic Scope:** `projects.geographicScope` (NATIONAL/REGIONAL)
+- **Regional Projects:** `projects.regionId` references `teams.id`
+
+### **RBAC System Fields**
+- **Role Definitions:** `roles` table with `name`, `hierarchyLevel`
+- **Permissions:** `permissions` table with `resource`, `action`, `scope`
+- **User Roles:** `userRoleAssignments` linking `users` to `roles`
+- **Permission Cache:** `permissionCache` for performance optimization
 
 ---
 
