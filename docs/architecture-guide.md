@@ -1,464 +1,465 @@
-# Enterprise Project Management System Architecture
+# SurveyLauncher Architecture Guide
 
 **Last Updated:** November 17, 2025
-**System Status:** Backend Production Ready (100% Complete) | Frontend Integration Ready
-**Version:** 1.0 - Enterprise Grade
+**System Status:** Backend ✅ Production Ready | Frontend 🔄 Integration Ready
 
 ---
 
-## 🎯 Executive Summary
+## 🎯 System Overview
 
-SurveyLauncher implements a comprehensive **enterprise project management system** that provides operational context for field work management through geographic team-based organization. The system enables precise supervision scoping for FIELD_SUPERVISOR and REGIONAL_MANAGER roles while maintaining clean RBAC boundaries.
+SurveyLauncher is a **field operations platform** that integrates with third-party MDM solutions for comprehensive mobile device management. The system has three main components:
 
-### **Key Features:**
-- ✅ **Complete RBAC Integration** -  9 system roles with project permissions
-- ✅ **Geographic Team Model** - Teams represent operational regions
-- ✅ **Operational Project Scoping** - Projects provide management boundaries
+1. **Android Launcher App** - Kiosk mode app with login, GPS tracking, and policy enforcement
+2. **Web Admin Dashboard** - User management and real-time monitoring
+3. **Backend API Service** - Authentication, policy distribution, and telemetry processing
 
+### **Third-Party MDM Integration**
+- **HeadwindMDM** handles device enrollment and MDM configuration
+- **SurveyLauncher** provides app-level authentication, policy enforcement, and telemetry
+- **Seamless integration** between MDM device management and SurveyLauncher app functionality
 
+### High-Level Architecture
 
-## 👥 Enterprise Role-Based Access Control (RBAC)
+```mermaid
+flowchart TB
+    subgraph "Third-Party MDM"
+        E1["HeadwindMDM<br/>Device Enrollment<br/>MDM Configuration<br/>Device Management"]
+    end
 
-### **9-Role System Matrix with Interface Access**
+    subgraph "Mobile Layer"
+        A1["Android Launcher App<br/>App Login + PIN Auth<br/>GPS Telemetry<br/>Policy Enforcement"]
+    end
 
-| Role | Mobile Access | Web Admin Access | Geographic Scope | Project Management | Key Permissions |
-|------|---------------|------------------|------------------|-------------------|-----------------|
-| **TEAM_MEMBER** | ✅ Primary | ❌ Blocked | Assigned project regions | View assigned projects | TELEMETRY.CREATE, DEVICES.READ (own) |
-| **FIELD_SUPERVISOR** | ✅ Primary | ✅ Secondary | Assigned project regions | Manage team projects | USERS.READ_TEAM, DEVICES.MANAGE_TEAM, SUPERVISOR_PINS.EXECUTE |
-| **REGIONAL_MANAGER** | ✅ Limited | ✅ Primary | Regional project scope | Regional project oversight | USERS.MANAGE_REGIONAL, TEAMS.MANAGE_REGIONAL, PROJECTS.MANAGE_REGIONAL |
-| **SYSTEM_ADMIN** | ❌ | ✅ Primary | All regions (NATIONAL) | Full system control | ALL_PERMISSIONS, SYSTEM_SETTINGS.MANAGE, ROLES.ASSIGN |
-| **SUPPORT_AGENT** | ❌ | ✅ Primary | Assigned project regions | User assistance | USERS.READ_ASSIGNED, DEVICES.READ_ASSIGNED, SUPPORT_TICKETS.MANAGE |
-| **AUDITOR** | ❌ | ✅ Primary | All regions (read-only) | Compliance monitoring | ALL_RESOURCES.READ, AUDIT_LOGS.READ, REPORTS.GENERATE |
-| **DEVICE_MANAGER** | ❌ | ✅ Primary | Assigned project regions | Device lifecycle | DEVICES.MANAGE, POLICY.ISSUE, TELEMETRY.READ |
-| **POLICY_ADMIN** | ❌ | ✅ Primary | All regions (NATIONAL) | Policy configuration | POLICY.CONFIGURE, POLICY.ISSUE, POLICY.TEMPLATES |
-| **NATIONAL_SUPPORT_ADMIN** | ✅ Limited | ✅ Primary | All regions (NATIONAL) | Cross-regional oversight | ALL_REGIONS.ACCESS, CROSS_TEAM_SUPPORT, EMERGENCY.OVERRIDE |
+    subgraph "Web Admin Layer"
+        C1["Admin Dashboard<br/>User Management<br/>Real-time Monitoring<br/>Device Assignment"]
+    end
 
+    subgraph "API Layer"
+        B1["Backend Service<br/>SvelteKit API<br/>7-Role RBAC<br/>JWT Authentication"]
+    end
 
+    subgraph "Data Layer"
+        D1["PostgreSQL Database<br/>Users, Teams, Projects<br/>Sessions, Telemetry<br/>Device Assignments"]
+    end
 
-## 📋 System Roles & Project Permissions
+    E1 <-->|"MDM Enrollment"| A1
+    A1 <-->|"HTTPS + JWT"| B1
+    C1 <-->|"HTTPS + Cookies"| B1
+    B1 <-->|"ORM Queries"| D1
 
-### **Field Operations Roles**
-| Role | Project Scope | Supervision Capability | Geographic Limits |
-|------|---------------|---------------------|------------------|
-| `TEAM_MEMBER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | None | System-assigned project access |
-| `FIELD_SUPERVISOR` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | TEAM_MEMBERS in shared projects | System-assigned project access |
-| `REGIONAL_MANAGER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | All field roles in assigned projects, project-level user/device/team management | System-assigned project access |
+    style E1 fill:#ffebee
+    style A1 fill:#e3f2fd
+    style C1 fill:#e8f5e8
+    style B1 fill:#f3e5f5
+    style D1 fill:#fff8e1
+```
 
-### **Technical & Support Roles**
-| Role | Project Scope | Management Capability | System Access |
-|------|---------------|---------------------|--------------|
-| `SYSTEM_ADMIN` | All projects (full control) | Full system configuration, project assignment authority | Complete access |
-| `SUPPORT_AGENT` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, user assistance | System-assigned project access |
-| `AUDITOR` | All projects (read-only) | Compliance monitoring | System-assigned project access |
-| `DEVICE_MANAGER` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, device management | System-assigned project access |
-| `POLICY_ADMIN` | All projects (via SYSTEM_ADMIN assignment) | Policy configuration | System-assigned project access |
-| `NATIONAL_SUPPORT_ADMIN` | Multi-project, multi-region (via SYSTEM_ADMIN assignment) | Project scoping for users/devices/teams, cross-regional oversight | System-assigned project access |
+---
+
+## 👥 User Roles & Permissions
+
+### Simplified Role System
+
+| Role | Mobile Access | Web Admin Access | Primary Function |
+|------|---------------|------------------|------------------|
+| **TEAM_MEMBER** | ✅ Primary | ❌ Blocked | Field data collection |
+| **TEAM_SUPERVISOR** | ✅ Primary | ✅ Secondary | Team supervision |
+| **PROJECT_ADMIN** | ❌ | ✅ Primary | Project management |
+| **PROJECT_PARTNER_ADMIN** | ❌ | ✅ Primary | Partner project coordination |
+| **ORGANIZATION_MANAGER** | ❌ | ✅ Primary | Cross-project oversight |
+| **ORGANIZATION_IT_SUPPORT** | ❌ | ✅ Primary | Device provisioning & technical support |
+| **SYSTEM_ADMIN** | ❌ | ✅ Primary | Full system control |
+
+### Role Tasks & Responsibilities
+
+#### 🏃‍♂️ **Field Operations**
+
+**TEAM_MEMBER**
+- **CAN:**
+  - Collect and submit field data
+  - Use assigned Android device
+  - Submit GPS telemetry
+  - View assigned project information
+  - Request supervisor override when needed
+- **CANNOT:**
+  - Manage other users
+  - Access projects they're not assigned to
+  - Provision devices
+  - View other teams' data
+- **SCOPE:** Assigned team and project only
+
+**TEAM_SUPERVISOR**
+- **CAN:**
+  - Supervise assigned team members
+  - Approve supervisor override requests
+  - Monitor team GPS tracking
+  - Manage team devices (restart, configure)
+  - View team performance reports
+  - Add/remove members from their team
+- **CANNOT:**
+  - Access other teams without permission
+  - Move users between projects
+  - Provision new devices
+  - Access partner organization data
+- **SCOPE:** Assigned team and project only
+
+#### 🔧 **Project & Organization Management**
+
+**PROJECT_ADMIN**
+- **CAN:**
+  - Create and manage projects within department
+  - Provision devices for central_project_team
+  - Assign TEAM_MEMBERs and TEAM_SUPERVISORs
+  - Designate project_partner_admin
+  - Manage project timelines and milestones
+  - View all project data and reports
+  - Monitor team performance
+- **CANNOT:**
+  - Access other department projects
+  - Modify partner organization internal structure
+  - Move users to other organization's projects
+- **SCOPE:** All projects within their department
+
+**PROJECT_PARTNER_ADMIN**
+- **CAN:**
+  - Provision devices for partner_project_team
+  - Assign TEAM_MEMBERs and TEAM_SUPERVISORs from their organization
+  - View project data relevant to their team
+  - Manage partner team performance
+  - Coordinate with project_admin
+- **CANNOT:**
+  - Access central_project_team internal data
+  - Modify project structure
+  - Move users from other organizations
+  - Reassign project_admin
+- **SCOPE:** Partner team within assigned project
+
+**ORGANIZATION_MANAGER**
+- **CAN:**
+  - Work across ALL projects within organization (as lead or partner)
+  - Move users between projects within same organization
+  - Create and manage departments
+  - Assign PROJECT_ADMINs to departments
+  - View organization-wide analytics
+  - Manage cross-project resource allocation
+  - Coordinate partner relationships
+- **CANNOT:**
+  - Access other organizations' internal data
+  - Modify system-level configurations
+  - Move users between different organizations
+- **SCOPE:** All departments and projects within their organization
+
+**ORGANIZATION_IT_SUPPORT**
+- **CAN:**
+  - Assign SurveyLauncher users to HeadwindMDM-enrolled devices
+  - Configure SurveyLauncher launcher settings and policies
+  - Manage SurveyLauncher app lifecycle (install, update, retire)
+  - Technical troubleshooting for SurveyLauncher app issues
+  - Monitor SurveyLauncher app performance and telemetry
+  - Manage SurveyLauncher device assignments within organization
+  - Support SurveyLauncher app security and compliance
+  - Coordinate with project admins for app deployment
+  - Integrate with HeadwindMDM for device management coordination
+- **CANNOT:**
+  - Access device MDM settings or enrollment (handled by HeadwindMDM)
+  - Access project data or user information beyond technical needs
+  - Move users between projects
+  - Modify project structure or assignments
+  - Assign roles or manage organizational hierarchy
+- **SCOPE:** SurveyLauncher app management and device assignments within their organization
+
+**SYSTEM_ADMIN**
+- **CAN:**
+  - Full system administration
+  - Manage all organizations
+  - Configure system settings
+  - Create and manage parent organizations
+  - Assign ORGANIZATION_MANAGERs and ORGANIZATION_IT_SUPPORT
+  - System-wide analytics and reporting
+- **CANNOT:**
+  - Limited only by business rules and compliance
+- **SCOPE:** Entire system
 
 ---
 
 ## 🏗️ Core Architecture Principles
 
-### **1. Projects as Operational Context**
-Projects are **NOT** organizational complexity - they are **operational containers** for field work management that enable:
-- Team grouping across organizational boundaries
-- Geographic scope enforcement
-- Supervision boundary definition
-- Cross-team collaboration when needed
+### 1. **Organizations → Departments → Multiple Projects Structure**
 
-### **2. Teams as Geographic Regions**
-Teams represent **geographic operational zones**, not just work groups:
 ```
-TEAMS = Geographic Operations Units
-├── AIIMS Delhi Survey Team = NORTH REGION
-├── Mumbai Field Operations Team = WEST_REGION
-└── [Future Teams] = SOUTH/EAST REGIONS
+AIIMS New Delhi (Parent Organization)
+├── NDDTC Department (Can create multiple projects)
+│   ├── Project: National Drug Use Survey
+│   │   ├── project_admin: Dr. Atul Ambekar
+│   │   ├── central_project_team: NDDTC coordinators
+│   │   └── partner_organization: NIMHANS
+│   │       ├── project_partner_admin: NIMHANS Director
+│   │       └── partner_project_team: NIMHANS coordinators
+│   └── Project: [Future Drug-Related Projects...]
+│       ├── project_admin: [To be assigned by ORGANIZATION_MANAGER]
+│       ├── central_project_team: NDDTC staff
+│       └── [Future partner organizations...]
+└── CDER Department (Can create multiple projects)
+    ├── Project: National Oral Health Survey
+    │   ├── project_admin: Dr. Rita Duggal
+    │   ├── central_project_team: CDER coordinators
+    │   └── partner_organization: AIIMS Jodhpur
+    │       ├── project_partner_admin: AIIMS Jodhpur Coordinator
+    │       └── partner_project_team: AIIMS Jodhpur coordinators
+    └── Project: [Future Dental Health Projects...]
+        ├── project_admin: [To be assigned by ORGANIZATION_MANAGER]
+        ├── central_project_team: CDER staff
+        └── [Future partner organizations...]
 ```
 
-### **3. System Roles Drive All Permissions**
-No complex "role-in-project" logic needed:
-- **System roles** provide complete permission matrix
-- **Project assignments** provide operational scoping
-- **Geographic relationships** provide regional boundaries
+### **Department Flexibility**
+- Each department can create **multiple projects**
+- PROJECT_ADMINs are assigned by **ORGANIZATION_MANAGER**
+- Departments can partner with different organizations for different projects
+- Users can be moved between projects within same department by ORGANIZATION_MANAGER
+
+### 2. **Project Administration Model**
+
+**Each Project Has:**
+- **Lead Department** - Department within parent organization (e.g., NDDTC, CDER)
+- **project_admin** - Assigned by ORGANIZATION_MANAGER, has device provisioning for central team
+- **central_project_team** - Default team from lead department
+- **partner_organization** (optional) - External collaborating institution
+- **project_partner_admin** - **Designated by project_admin** from partner organization staff
+- **partner_project_team** - Partner institution's team for collaboration
+
+**Key Administrative Rules:**
+- **PROJECT_ADMIN allocation:** Assigned by ORGANIZATION_MANAGER
+- **PROJECT_PARTNER_ADMIN allocation:** **Designated by project_admin** from partner organization
+- **Departments:** Can create multiple projects
+- **Project boundaries:** Strict - users must be explicitly moved between projects
+- **User mobility:** Only ORGANIZATION_MANAGER can move users between projects within same organization
+
+### 3. **Team Structure & Device Management**
+
+**Teams Contain:**
+- **Team Members** - Field workers collecting data
+- **Supervisors** - Team oversight and management
+- **Device Assignments** - HeadwindMDM-enrolled devices assigned to users
+
+**Device Assignment & App Management:**
+- **HeadwindMDM** handles device enrollment and MDM configuration (third-party)
+- **PROJECT_ADMIN** can assign users to HeadwindMDM-enrolled devices for central_project_team
+- **PROJECT_PARTNER_ADMIN** can assign users to HeadwindMDM-enrolled devices for partner_project_team
+- **ORGANIZATION_IT_SUPPORT** can assign users to ANY HeadwindMDM-enrolled devices within organization
+- All three roles can configure SurveyLauncher launcher settings and policies
+- SurveyLauncher handles app-level authentication and policy enforcement
+
+**App & Device Coordination:**
+- Project admins coordinate with IT support for large-scale app deployments
+- IT support manages SurveyLauncher app lifecycle and integrates with HeadwindMDM
+- Partner admins coordinate with both project admin and IT support for partner team app deployment
+- HeadwindMDM provides device management, SurveyLauncher provides app functionality
+
+### 4. **Geographic Scoping at Team Level**
+
+**Team-Based Geographic Management:**
+- **Each team is responsible for specific geographic areas** (1+ areas per team)
+- **Geographic boundaries are automatically handled through team assignments**
+- **Users inherit geographic scope from their team** - no separate geographic configuration needed
+- **Projects can span multiple geographic areas** through multiple team assignments
+- **Partner organizations enable cross-organizational collaboration** within defined team areas
+
+**Example Geographic Distribution:**
+- **NDDTC North Team** - Delhi, NCR, Punjab, Haryana
+- **NDDTC South Team** - Karnataka, Tamil Nadu, Kerala, Andhra Pradesh
+- **NDDTC East Team** - West Bengal, Odisha, Jharkhand
+- **CDER West Team** - Maharashtra, Gujarat, Rajasthan
+- **CDER Central Team** - MP, Chhattisgarh, Uttarakhand
+
+**As long as we identify teams, geographic boundaries are automatically enforced**
 
 ---
 
-## 📊 Data Model Architecture
+## 📊 Database Schema (Simplified)
 
-## 📊 Database Schema Reference
+### Core Tables
+- **parentOrganizations** - Main institutions (e.g., AIIMS New Delhi)
+- **departments** - Departments within parent org (e.g., NDDTC, CDER)
+- **partnerOrganizations** - External collaborating institutions (e.g., NIMHANS, AIIMS Jodhpur)
+- **projects** - National surveys led by departments
+- **teams** - Geographic teams with area assignments
+- **users** - TEAM_MEMBERs, TEAM_SUPERVISORs, PROJECT_ADMINs, etc.
+- **deviceAssignments** - User-to-HeadwindMDM device mappings
+- **headwindDevices** - HeadwindMDM-enrolled device registry (read-only)
+- **sessions** - User login sessions
+- **telemetryEvents** - GPS, heartbeat, system events
 
-**All field names reference the actual schema implementation in `backend/src/lib/db/schema.ts`**
+### Simplified Role System
+- **TEAM_MEMBER** - Field data collection
+- **TEAM_SUPERVISOR** - Team supervision
+- **PROJECT_ADMIN** - Project management (department level)
+- **PROJECT_PARTNER_ADMIN** - Partner project coordination
+- **ORGANIZATION_MANAGER** - Cross-project oversight (organization level)
+- **ORGANIZATION_IT_SUPPORT** - Device provisioning & technical support
+- **SYSTEM_ADMIN** - Full system control
 
-### **Table Naming Convention**
-- **Plural table names**: `teams`, `users`, `devices`, `organizations`
-- **CamelCase in TypeScript code**: `teamId`, `userId`, `deviceId`
-- **snake_case in database**: `team_id`, `user_id`, `device_id`
+### Key Relationships
+- **ParentOrg → Departments** (Administrative hierarchy)
+- **Departments → Projects** (Departments can create multiple projects)
+- **Projects → Teams** (central_project_team + partner_project_team)
+- **Teams → Geographic Areas** (1+ areas per team for automatic geographic scoping)
+- **PartnerOrgs → Projects** (External collaboration relationships)
+- **Teams → Users** (team members and supervisors)
+- **Projects → Users** (project_admin assigned by ORGANIZATION_MANAGER)
+- **Projects → Users** (project_partner_admin designated by project_admin)
+- **deviceAssignments → Users** (Device-to-user assignments by PROJECT_ADMIN, PROJECT_PARTNER_ADMIN, ORGANIZATION_IT_SUPPORT)
+- **headwindDevices → deviceAssignments** (MDM device registry integration)
+- **Users → Projects** (Strict boundaries, moved only by ORGANIZATION_MANAGER)
+- **ORGANIZATION_IT_SUPPORT → deviceAssignments** (Can assign devices for ANY team within organization)
+- **HeadwindMDM → headwindDevices** (Third-party MDM system manages device enrollment)
 
-### **Level 1: Foundation (Master Data)**
-```sql
-organizations  -- Funding/Administrative entities
-├── AIIMS India (National)
-├── NDDTC  
-└── CDER  
-
-roles -- 9-system role hierarchy
-├── Field Operations: TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER
-├── Technical: SYSTEM_ADMIN, SUPPORT_AGENT, AUDITOR
-└── Specialized: DEVICE_MANAGER, POLICY_ADMIN, NATIONAL_SUPPORT_ADMIN
+### Project Administration Flow
 ```
-
-### **Level 2: Geographic Operations**
-```sql
-teams -- Geographic operational regions
-├── AIIMS Delhi Survey Team (NORTH_REGION)
-│   ├── stateId: DL07 (Delhi)
-│   ├── organizationId: AIIMS India
-│   ├── operationalCoverage: [Delhi, NCR, Haryana, Punjab, Rajasthan]
-│   ├── fieldSupervisors: [test002, test015] (app-level: minimum 1, can be multiple)
-│   ├── supervisorRoles: test002=lead, test015=support (app-level assignment)
-│   └── projectAssignments: [National Health Survey, Delhi Diabetes Study, NOHS] (multi-project)
-├── Mumbai Field Operations Team (WEST_REGION)
-│   ├── stateId: MH01 (Maharashtra)
-│   ├── organizationId: AIIMS India
-│   ├── operationalCoverage: [Maharashtra, Goa, Gujarat]
-│   ├── fieldSupervisors: [test016, test002] (app-level: minimum 1, can be multiple)
-│   ├── supervisorRoles: test016=lead, test002=support (app-level assignment)
-│   └── projectAssignments: [National Health Survey, NDUS, NOHS] (multi-project)
-└── [Future regional teams...]
-
--- FIELD_SUPERVISOR Team Assignment Model (App-Level):
--- Each team MUST have at least 1 FIELD_SUPERVISOR (business rule)
--- Each FIELD_SUPERVISOR can supervise multiple teams
--- App enforces minimum supervisor requirement during team creation/updates
-
-```
-
-### **Level 3: Project Scoping for User & Device Management**
-```sql
-projects -- Operational scoping containers
-├── National Health Survey 2025
-│   ├── organizationId: National Health Mission
-│   ├── regionId: NULL (All regions participate)
-│   ├── geographicScope: NATIONAL
-│   └── Scoping: All teams nationwide
-├── Delhi Diabetes Prevalence Study
-│   ├── organizationId: State Health Authority Delhi
-│   ├── regionId: AIIMS Delhi Team (North region leads)
-│   ├── geographicScope: REGIONAL
-│   └── Scoping: North region teams
-├── NDUS (National Drug Use Survey)
-│   ├── organizationId: NDDTC (National Drug Dependence Treatment Center)
-│   ├── regionId: NULL (National scope)
-│   ├── geographicScope: NATIONAL
-│   └── Scoping: Cross-regional specialized teams
-└── NOHS (National Oral Health Survey)
-    ├── organizationId: CDER (Center for Dental Education and Research)
-    ├── regionId: NULL (National scope)
-    ├── geographicScope: NATIONAL
-    └── Scoping: Cross-regional dental research teams
-```
-
-### **Level 4: Assignments & Access**
-```sql
--- Individual user assignments (cross-team collaboration)
-projectAssignments:
-├── projectId → projects.id
-├── userId → users.id
-├── assignedBy → who made assignment
-└── assignedAt → when assigned
-
--- Team assignments (bulk team participation)
-projectTeamAssignments:
-├── projectId → projects.id
-├── teamId → teams.id (all team members get access)
-├── assignedBy → who made assignment
-└── assignedAt → when assigned
-
--- No roleInProject needed - system roles provide permissions
-```
-
----
-
-## 🎯 Operational Management Workflows
-
-### **FIELD_SUPERVISOR Supervision Scope**
-```sql
--- "Which TEAM_MEMBERS can I supervise?"
-SELECT DISTINCT u.*
-FROM users u
-JOIN projectAssignments pa_user ON u.id = pa_user.userId
-JOIN projectAssignments pa_me ON pa_user.projectId = pa_me.projectId
-WHERE pa_me.userId = :myUserId        -- My project assignments
-  AND u.role = 'TEAM_MEMBER'           -- Only supervise team members
-  AND pa_user.isActive = true
-  AND pa_me.isActive = true;
-```
-
-**Example Result:**
-- FIELD_SUPERVISOR `test002` can supervise TEAM_MEMBERs `test001`, `test012`, `test013`
-- Because they share project assignments on "National Health Survey 2025"
-- Cannot supervise users in different geographic regions unless assigned to same project
-
-### **REGIONAL_MANAGER Regional Oversight**
-```sql
--- "Who do I oversee in my geographic region?"
-SELECT u.*
-FROM users u
-JOIN teams t ON u.teamId = t.id
-WHERE t.regionId = :myRegionId        -- Same geographic region
-  AND u.role IN ('TEAM_MEMBER', 'FIELD_SUPERVISOR')
-  AND u.isActive = true;
-```
-
-**Example Result:**
-- REGIONAL_MANAGER `test003` (North region) oversees all users in AIIMS Delhi Team
-- Cannot supervise Mumbai Field Operations Team users (different geographic region)
-- Unless cross-regional project assignments exist
-
-### **Cross-Regional Project Collaboration**
-```sql
--- NATIONAL_SUPPORT_ADMIN cross-regional access
-SELECT p.*, u.*, t.*
-FROM projects p
-LEFT JOIN projectAssignments pa ON p.id = pa.projectId
-LEFT JOIN users u ON pa.userId = u.id
-LEFT JOIN teams t ON u.teamId = t.id
-WHERE p.geographicScope = 'NATIONAL'
-   OR p.regionId IN (SELECT teamId FROM userRoleAssignments
-                    WHERE userId = :nationalAdminUserId)
-   OR :nationalAdminUserId IN (SELECT grantedBy FROM projects WHERE createdBy = :nationalAdminUserId);
+1. Parent Organization exists (AIIMS New Delhi)
+2. Department creates Project (NDDTC leads Drug Survey, CDER leads Oral Health Survey)
+3. ORGANIZATION_MANAGER assigns project_admin (department director)
+4. central_project_team auto-created from department
+5. Optional: Partner Organization added (NIMHANS for Drug Survey, AIIMS Jodhpur for Oral Health Survey)
+6. project_admin designates project_partner_admin from partner institution
+7. partner_project_team auto-created from partner institution
+8. Device Management:
+   - HeadwindMDM enrolls and configures Android devices (third-party)
+   - project_admin assigns users to HeadwindMDM devices for central_project_team
+   - project_partner_admin assigns users to HeadwindMDM devices for partner_project_team
+   - ORGANIZATION_IT_SUPPORT can assign users to ANY HeadwindMDM device within organization
+9. App Deployment:
+   - SurveyLauncher launcher app installed on HeadwindMDM-enrolled devices
+   - All three roles configure SurveyLauncher app settings and policies
+   - App handles login, GPS tracking, and policy enforcement
+10. Ongoing coordination:
+    - Project admins coordinate with IT support for app deployments
+    - IT support manages SurveyLauncher app lifecycle and HeadwindMDM integration
+    - All roles manage app-level policies and user-device assignments
 ```
 
 ---
 
-## 🔐 Security & Access Control Model
+## 🔒 Security Model
 
-### **Multi-Layer Permission Validation**
+### Multi-Layer Access Control
 
-1. **Authentication Layer**
-   - JWT token validation
-   - User status verification
-   - Session management
+1. **Authentication** - Login with proper credentials
+2. **Role Permissions** - 9-role RBAC system
+3. **Project Assignments** - Access to specific projects
+4. **Geographic Boundaries** - Regional scope enforcement
 
-2. **RBAC Permission Matrix**
-   - 9 specialized roles with project permissions
-   - Role hierarchy enforcement
-   - System-level vs operational permissions
+### Dual-Interface Authentication
 
-3. **Project Assignment Validation**
-   - Direct user project assignments
-   - Team-based project access
-   - Active/inactive status enforcement
+**Mobile App** (Device + User + PIN)
+- Used by field workers
+- Device-specific authentication
+- Role: TEAM_MEMBER, FIELD_SUPERVISOR, REGIONAL_MANAGER
 
-4. **Geographic Boundary Enforcement**
-   - Regional scope validation through team relationships
-   - Cross-regional access for privileged roles only
-   - Project geographic scope compliance
-
-### **Permission Resolution Flow**
-```mermaid
-flowchart TD
-    A[User Request] --> B{Authentication Valid?}
-    B -->|No| C[Deny Access]
-    B -->|Yes| D{Role has PROJECTS Permission?}
-    D -->|No| E[Deny Access]
-    D -->|Yes| F{Direct Assignment Found?}
-    F -->|Yes| G{Assignment Active?}
-    F -->|No| H{Team Assignment Found?}
-    H -->|Yes| I{Team Assignment Active?}
-    H -->|No| J{Geographic Boundary Valid?}
-    G -->|Yes| K{Cross-Team Access Allowed?}
-    G -->|No| L[Deny Access]
-    I -->|Yes| K
-    I -->|No| L
-    J -->|Yes| K
-    J -->|No| L
-    K -->|Yes| M[Grant Access]
-    K -->|No| N[Check Privileged Access]
-    N -->|NATIONAL_SUPPORT_ADMIN| M
-    N -->|SYSTEM_ADMIN| M
-    N -->|Other| L
-```
+**Web Admin** (Email + Password)
+- Used by managers and staff
+- Traditional web authentication
+- Role: All except TEAM_MEMBER
 
 ---
 
+## 📱 Key Workflows
+
+### 1. Project Creation & Setup
+```
+Lead Org creates Project → project_admin assigned → central_project_team created →
+Optional: Add Partner Org → project_partner_admin assigned → partner_project_team created
+```
+
+### 2. Team & Device Provisioning
+```
+project_admin provisions devices → Assigns to central_team members →
+project_partner_admin provisions devices → Assigns to partner_team members →
+Supervisors assigned to oversee teams
+```
+
+### 3. Daily Field Operations
+```
+Team member logs into Android app → Gets project-specific policy → Works within allowed hours → GPS tracking → Supervisor oversight
+```
+
+### 4. Cross-Organizational Collaboration
+```
+Central team and partner team work on same project → Different device provisioning → Shared project goals → Coordinated supervision
+```
+
+### 5. Real-time Monitoring
+```
+All devices send GPS/telemetry → project_admin monitors all teams → project_partner_admin monitors partner team → Central dashboard shows complete project status
+```
+
+---
 
 ## 🚀 Implementation Status
 
-### **✅ BACKEND: Production Ready (100% Complete)**
-**Delivered Components:**
-- **Database Schema:** 3 project tables with proper relationships
-- **ProjectService:** 20+ methods with complete CRUD operations
-- **ProjectPermissionService:** Comprehensive permission matrix for all 9 roles
-- **AuthorizationService Integration:** PROJECTS resource handling with geographic boundaries
-- **Test Coverage:** 54/54 tests passing (100% success rate)
-  - 20 ProjectService unit tests
-  - 15 ProjectPermissionService unit tests
-  - 19 AuthorizationService integration tests
+### ✅ **Backend: Production Ready (100%)**
+- **Authentication:** Multi-factor auth with JWT tokens
+- **Policy Management:** JWS-signed policies with time windows
+- **Telemetry:** GPS tracking and event processing
+- **Database:** Complete schema with proper relationships
+- **Security:** Rate limiting, audit logging, encryption
+- **Testing:** 54/54 tests passing
 
-**Seeding System:**
-- **Organizations:** 3 master organizations (AIIMS India, NHM, State Health Authority)
-- **Teams:** 2 geographic teams (AIIMS Delhi = North, Mumbai = West)
-- **Users:** 24 users across all 9 roles with realistic team assignments
-- **Projects:** 2 sample projects (National + Regional) demonstrating all patterns
-- **RBAC:** Complete role-permission matrix with 54 unique permissions
-
-### **🔄 FRONTEND: Ready for Integration (0% Complete)**
-**Backend APIs Ready:**
-- **14 Project Management Endpoints** fully tested
-- **Complete CRUD operations** for projects and assignments
-- **Role-based access control** with geographic enforcement
-- **Comprehensive error handling** and validation
-
-**Frontend Integration Tasks:**
-- **Phase 1:** Create 14 API remote functions (2-3 hours)
-- **Phase 2:** Build UI components with shadcn-svelte (4-5 hours)
-- **Phase 3:** Implement project routes and pages (3-4 hours)
-- **Phase 4:** Dashboard integration (1-2 hours)
-- **Phase 5:** Real data integration and testing (2-3 hours)
+### 🔄 **Frontend: Ready for Integration (0%)**
+- **API Endpoints:** 14 project management endpoints ready
+- **Documentation:** Complete API specifications
+- **Integration:** SvelteKit admin interface needed
 
 ---
 
-## 💡 Key Design Decisions & Rationale
+## 📈 Success Metrics
 
-### **1. regionId → teams.id Relationship**
-**Design Choice:** `projects.regionId` references `teams.id`
-**Rationale:** Teams represent geographic operational regions in the field
-**Benefits:**
-- Real-world mapping to operational structure
-- Simple geographic boundary enforcement
-- Easy regional manager scoping
-- Clear project ownership patterns
+### Performance Targets
+- **Authentication:** <200ms
+- **Policy Distribution:** <500ms
+- **Telemetry Processing:** <100ms per batch
+- **GPS Updates:** 3-minute intervals
 
-### **2. No roleInProject Field**
-**Design Choice:** System roles drive all permissions
-**Rationale:** Avoids complex role-in-project logic while maintaining flexibility
-**Benefits:**
-- Simple permission model
-- Consistent with existing RBAC system
-- Easy to maintain and extend
-- Clear audit trails
-
-### **3. Individual + Team Assignment Model**
-**Design Choice:** Both individual user and team project assignments
-**Rationale:** Supports both specialized expert assignment and bulk team participation
-**Benefits:**
-- Flexible project staffing
-- Cross-team collaboration when needed
-- Efficient team-based assignments
-- Individual expert specialization
-
-### **4. Geographic Scope Hierarchy**
-**Design Choice:** NATIONAL → REGIONAL → LOCAL project scopes
-**Rationale:** Matches Indian administrative and operational realities
-**Benefits:**
-- Realistic project boundaries
-- Regional autonomy with national oversight
-- Scalable to complex federal structures
-- Clear permission escalation paths
+### Security Goals
+- **Access Control:** 100% role-based enforcement
+- **Geographic Compliance:** Regional boundary validation
+- **Audit Trail:** Complete activity logging
 
 ---
 
-## 📈 Success Metrics & Validation
+## 🔮 Next Steps
 
-### **Performance Targets**
-- **Project Permission Checks:** <50ms
-- **Supervision Scope Queries:** <75ms
-- **Project CRUD Operations:** <200ms
-- **Geographic Boundary Validation:** <25ms
+### Phase 1: Frontend Integration (2-3 weeks)
+- Build admin dashboard components
+- Implement user management pages
+- Add real-time monitoring views
+- Integrate with existing SvelteKit app
 
-### **Security Validation**
-- **Access Control:** 100% role-based boundary enforcement
-- **Geographic Compliance:** 100% regional boundary validation
-- **Audit Trail:** Complete access decision logging
-- **Cross-Team Access:** Limited to privileged roles only
-
-### **Operational Effectiveness**
-- **Supervision Clarity:** Clear manager→team member relationships
-- **Project Flexibility:** Support for both local and national initiatives
-- **Regional Autonomy:** Regional managers oversee defined geographic areas
-- **Cross-Regional Collaboration:** When project assignments require it
-
----
-
-## 🔮 Future Enhancement Roadmap
-
-### **Phase 1: Frontend Integration (Next 2-3 weeks)**
-- Complete API remote functions implementation
-- Build comprehensive UI components
-- Implement project management pages
-- Integrate with existing SvelteKit admin interface
-
-### **Phase 2: Advanced Features (Following quarter)**
+### Phase 2: Advanced Features (Following quarter)
 - Project templates and rapid deployment
-- Advanced geographic boundary definitions
-- Project performance analytics and reporting
-- Mobile field app project awareness
-
-### **Phase 3: Enterprise Scale (Following year)**
-- Multi-country support
-- Complex project hierarchies
-- Advanced resource scheduling
-- Project financial management integration
+- Advanced geographic boundaries
+- Mobile app project awareness
+- Analytics and reporting dashboard
 
 ---
 
-## 📚 Field Reference Guide
+## 📚 Related Documentation
 
-### **Database Field Naming Conventions**
-
-**Schema Reference:** All field names match `backend/src/lib/db/schema.ts`
-
-| TypeScript Code | Database Column | Example Usage |
-|----------------|----------------|--------------|
-| `userId` | `user_id` | `users.id` references |
-| `teamId` | `team_id` | `teams.id` references |
-| `deviceId` | `device_id` | `devices.id` references |
-| `organizationId` | `organization_id` | `organizations.id` references |
-| `projectId` | `project_id` | `projects.id` references |
-| `pinHash` | `pin_hash` | Argon2id PIN hash storage |
-| `createdAt` | `created_at` | Record creation timestamp |
-| `updatedAt` | `updated_at` | Record modification timestamp |
-
-### **Key Authentication Fields**
-- **PIN Storage:** `user_pins.pin_hash` (not `verifier_hash`)
-- **Password Storage:** `web_admin_users.password` (not `password_hash`)
-- **Session Tokens:** `sessions.tokenJti` for JWT revocation
-- **Device Binding:** `sessions.deviceId` for mobile device association
-
-### **Project Assignment Fields**
-- **Individual Assignments:** `projectAssignments` table with `userId` and `projectId`
-- **Team Assignments:** `projectTeamAssignments` table with `teamId` and `projectId`
-- **Geographic Scope:** `projects.geographicScope` (NATIONAL/REGIONAL)
-- **Regional Projects:** `projects.regionId` references `teams.id`
-
-### **RBAC System Fields**
-- **Role Definitions:** `roles` table with `name`, `hierarchyLevel`
-- **Permissions:** `permissions` table with `resource`, `action`, `scope`
-- **User Roles:** `userRoleAssignments` linking `users` to `roles`
-- **Permission Cache:** `permissionCache` for performance optimization
+- **[API Documentation](../backend/docs/api.md)** - Complete REST API reference
+- **[User Guide](./user-guide/README.md)** - End-user documentation
+- **[Workflows](../workflows/)** - Detailed implementation guides
+- **[Testing Status](../backend/docs/testing-status.md)** - Test coverage and quality
 
 ---
 
 ## 🏆 Conclusion
 
-The SurveyLauncher Enterprise Project Management System represents a **complete, production-ready solution** for operational field work management. The system successfully:
+SurveyLauncher provides a **complete, production-ready MDM solution** for field operations:
 
-1. **Provides operational context** for field teams through geographic team organization
-2. **Enables precise supervision scoping** for FIELD_SUPERVISOR and REGIONAL_MANAGER roles
-3. **Maintains clean RBAC boundaries** with a 9-role permission matrix
-4. **Supports both national and regional initiatives** through flexible project scoping
-5. **Delivers enterprise-grade security** with comprehensive access control
-
----
-## TESTS-STATUS
-- see testing-table.md
-
-
-
-
-
-
+1. **Enterprise Security** - 9-role RBAC with geographic boundaries
+2. **Mobile-First Design** - Android kiosk app with GPS tracking
+3. **Real-Time Operations** - Live monitoring and telemetry processing
+4. **Scalable Architecture** - Supports national and regional deployments
 
 **System Status:** ✅ **PRODUCTION READY**
-**Next Milestone:** 🚀 **Frontend Integration Phase**
-**Contact:** Backend development team for API access and integration support
+**Next Milestone:** 🚀 **Frontend Integration**
